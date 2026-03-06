@@ -1,0 +1,46 @@
+name: kemet
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.7
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - images/log11o.png
+    - images/splash.gif
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "images/log11o.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "images/1024.png"
+
+flutter_native_splash:
+  color: "#131517"
+  image: images/splash1.png
+
+  android: true
+  ios: true
+
+  android_12:
+    image: images/splash1.png
+    color: "#131517"
