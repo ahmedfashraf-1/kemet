@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:kemet/core/helpers/extensions.dart';
+import 'package:kemet/core/routing/routes.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -25,30 +27,36 @@ class _SplashViewState extends State<SplashView> {
       if (!mounted) {
         return;
       }
-      _navigateToHomeWithFade();
+      _navigateToOnboarding();
     });
   }
 
-  void _navigateToHomeWithFade() {
-    final MaterialApp? app = context
-        .findAncestorWidgetOfExactType<MaterialApp>();
-    final WidgetBuilder? homeBuilder = app?.routes?['/home'];
+  // void _navigateToOnboarding() {
+  //   final MaterialApp? app = context
+  //       .findAncestorWidgetOfExactType<MaterialApp>();
+  //   final WidgetBuilder? homeBuilder = app?.routes?[Routes.onBoardingScreen1];
 
-    if (homeBuilder == null) {
-      return;
-    }
+  //   if (homeBuilder == null) {
+  //     return;
+  //   }
 
-    Navigator.pushReplacement<void, void>(
-      context,
-      PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 400),
-        reverseTransitionDuration: const Duration(milliseconds: 400),
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return homeBuilder(context);
-        },
-      ),
-    );
+  //   Navigator.pushReplacement<void, void>(
+  //     context,
+  //     PageRouteBuilder<void>(
+  //       transitionDuration: const Duration(milliseconds: 400),
+  //       reverseTransitionDuration: const Duration(milliseconds: 400),
+  //       pageBuilder: (context, animation, secondaryAnimation) {
+  //         return homeBuilder(context);
+  //       },
+  //     ),
+  //   );
+  // }
+
+void _navigateToOnboarding() {
+  if (mounted) {
+    context.pushReplacementNamed(Routes.onBoardingScreen1);
   }
+}
 
   @override
   Widget build(BuildContext context) {
