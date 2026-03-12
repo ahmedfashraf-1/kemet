@@ -40,7 +40,7 @@ class _AnimatedExploreButtonState extends State<AnimatedGoldButton>
         builder: (context, child) {
           return Container(
             width: double.infinity,
-            height: 60.h,
+            height: 55.h,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(30),
               gradient: LinearGradient(
