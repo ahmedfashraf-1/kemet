@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/constants/colors.dart';
+import '../../core/helpers/extensions.dart';
+import '../../core/routing/routes.dart';
 
 class OnboardingScreen2 extends StatelessWidget {
   const OnboardingScreen2({super.key});
@@ -98,7 +100,7 @@ class OnboardingScreen2 extends StatelessWidget {
                 
                   GestureDetector(
                     onTap: () {
-                      // onboarding 3 y marieeeeeeeeeeeeeem
+                      context.pushNamed(Routes.onBoardingScreen3);
                     },
                     child: Container(
                       width: double.infinity,
