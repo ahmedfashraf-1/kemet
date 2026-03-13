@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/constants/colors.dart';
-import 'package:kemet/core/animated_gold_button.dart';
+import 'package:kemet/core/widgets/animated_gold_button.dart';
 import '../../../core/helpers/extensions.dart';
 import '../../../core/routing/routes.dart';
 import 'package:kemet/core/services/auth_service.dart';
