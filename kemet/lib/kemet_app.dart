@@ -15,7 +15,7 @@ class KemetApp extends StatelessWidget {
       minTextAdapt: true,
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        initialRoute: Routes.onRegisterScreen,
+        initialRoute: Routes.login,
         onGenerateRoute: appRouter.generateRoute,
       ),
     );
