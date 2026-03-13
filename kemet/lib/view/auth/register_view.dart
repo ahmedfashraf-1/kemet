@@ -3,6 +3,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/constants/colors.dart';
 import 'package:kemet/core/animated_gold_button.dart';
+import 'package:kemet/core/widgets/auth_header.dart';
+import 'package:kemet/core/widgets/auth_label.dart';
+import 'package:kemet/core/widgets/auth_text_field.dart';
 import 'package:kemet/services/validation_service.dart';
 import '../../../core/helpers/extensions.dart';
 import '../../../core/routing/routes.dart';
@@ -16,6 +19,8 @@ class onRegisterScreen extends StatefulWidget {
 
 class _OnRegisterScreenState extends State<onRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -25,6 +30,8 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
 
   @override
   void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -35,54 +42,6 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
     if (_formKey.currentState!.validate()) {
       context.pushReplacementNamed(Routes.login);
     }
-  }
-
-  OutlineInputBorder _goldBorder({double width = 1.0}) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide(
-          color: AppColors.mainGold.withValues(alpha: 0.30),
-          width: width,
-        ),
-      );
-
-  InputDecoration _inputDecoration({required String hint, Widget? suffixIcon}) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: GoogleFonts.inter(
-        color: AppColors.mainGold.withValues(alpha: 0.35),
-        fontSize: 14.sp,
-      ),
-      filled: true,
-      fillColor: AppColors.mainGold.withValues(alpha: 0.06),
-      suffixIcon: suffixIcon,
-      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
-      border: _goldBorder(),
-      enabledBorder: _goldBorder(),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: const BorderSide(color: AppColors.lightGold, width: 1.2),
-      ),
-      errorBorder: _goldBorder(),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: const BorderSide(color: AppColors.lightGold, width: 1.2),
-      ),
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          color: AppColors.lightGold.withValues(alpha: 0.65),
-          fontSize: 10.sp,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 2,
-        ),
-      ),
-    );
   }
 
   Widget _buildVisibilityIcon({
@@ -99,78 +58,6 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
     );
   }
 
-  Widget _buildFormField({
-    required TextEditingController controller,
-    required String hint,
-    required String? Function(String) validator,
-    TextInputType keyboardType = TextInputType.text,
-    TextInputAction textInputAction = TextInputAction.next,
-    bool obscureText = false,
-    ValueChanged<String>? onChanged,
-    Widget? suffixIcon,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      obscureText: obscureText,
-      validator: (value) => validator(value ?? ''),
-      onChanged: onChanged,
-      style: TextStyle(color: AppColors.textPrimary, fontSize: 14.sp),
-      decoration: _inputDecoration(hint: hint, suffixIcon: suffixIcon),
-      onFieldSubmitted: (_) {
-        if (textInputAction == TextInputAction.done) {
-          _onCreateAccountPressed();
-        }
-      },
-    );
-  }
-
-  Widget _buildTopHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Opacity(
-          opacity: 0.7,
-          child: Image.asset(
-            'images/KEMET Logo.png',
-            width: 150.w,
-            fit: BoxFit.contain,
-          ),
-        ),
-        SizedBox(height: 0.5.h),
-        Text(
-          'KEMET',
-          style: GoogleFonts.cormorant(
-            textStyle: TextStyle(
-              color: AppColors.mainGold,
-              fontSize: 42.sp,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 4,
-              shadows: [
-                Shadow(
-                  color: Colors.black.withValues(alpha: 0.8),
-                  offset: const Offset(0, 5),
-                  blurRadius: 15,
-                ),
-              ],
-            ),
-          ),
-        ),
-        SizedBox(height: 2.h),
-        Text(
-          'JOIN THE LEGACY',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.lightGold,
-            fontSize: 12.sp,
-            height: 1.5,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildLabeledField({
     required String label,
     required Widget field,
@@ -178,7 +65,7 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabel(label),
+        AuthLabel(text: label),
         SizedBox(height: 6.h),
         field,
       ],
@@ -191,7 +78,7 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: AppColors.screenBackground,
+      backgroundColor: const Color(0xFF0F0D0B),
       body: Stack(
         children: [
           // Background image
@@ -208,9 +95,9 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  AppColors.screenBackground.withValues(alpha: 0.25),
-                  AppColors.screenBackground.withValues(alpha: 0.78),
-                  AppColors.screenBackground.withValues(alpha: 1.0),
+                  const Color(0xFF0F0D0B).withOpacity(0.2),
+                  const Color(0xFF0A0E14).withOpacity(0.8),
+                  const Color(0xFF1A120B).withOpacity(1.0),
                 ],
                 stops: const [0.0, 0.6, 1.0],
               ),
@@ -221,15 +108,17 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
             padding: EdgeInsets.only(
               left: 24.w,
               right: 24.w,
-              top: topPadding + 4.h,
-              bottom: 16.h,
+              top: topPadding,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 16.h,
             ),
             child: Form(
               key: _formKey,
               autovalidateMode: AutovalidateMode.onUserInteraction,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   // Back button
                   IconButton(
                     onPressed: context.pop,
@@ -244,36 +133,42 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
                   ),
 
                   // Header
-                  Center(child: _buildTopHeader()),
-                  SizedBox(height: 10.h),
+                  const Center(child: AuthHeader()),
+                  SizedBox(height: 12.h),
 
-                  // Title
-                  Text(
-                    'Register',
-                    style: GoogleFonts.inter(
-                      color: AppColors.textPrimary,
-                      fontSize: 28.sp,
-                      fontWeight: FontWeight.w700,
+
+                  // First Name
+                  _buildLabeledField(
+                    label: 'First Name',
+                    field: AuthTextField(
+                      controller: _firstNameController,
+                      hintText: 'Ahmed',
+                      textInputAction: TextInputAction.next,
+                      validator: (value) =>
+                          value.trim().isEmpty ? 'Required' : null,
                     ),
                   ),
-                  SizedBox(height: 4.h),
+                  SizedBox(height: 12.h),
 
-                  // Subtitle
-                  Text(
-                    'Begin your journey through history',
-                    style: TextStyle(
-                      color: AppColors.lightGold.withValues(alpha: 0.80),
-                      fontSize: 14.sp,
+                  // Last Name
+                  _buildLabeledField(
+                    label: 'Last Name',
+                    field: AuthTextField(
+                      controller: _lastNameController,
+                      hintText: 'Ashraf',
+                      textInputAction: TextInputAction.next,
+                      validator: (value) =>
+                          value.trim().isEmpty ? 'Required' : null,
                     ),
                   ),
-                  SizedBox(height: 14.h),
+                  SizedBox(height: 12.h),
 
                   // Email
                   _buildLabeledField(
                     label: 'Email Address',
-                    field: _buildFormField(
+                    field: AuthTextField(
                       controller: _emailController,
-                      hint: 'Kemet@example.com',
+                      hintText: 'Kemet@example.com',
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       validator: ValidationService.validateEmail,
@@ -284,9 +179,9 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
                   // Password
                   _buildLabeledField(
                     label: 'Password',
-                    field: _buildFormField(
+                    field: AuthTextField(
                       controller: _passwordController,
-                      hint: '••••••••',
+                      hintText: '••••••••',
                       textInputAction: TextInputAction.next,
                       obscureText: !_isPasswordVisible,
                       validator: ValidationService.validatePassword,
@@ -307,9 +202,9 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
                   // Confirm Password
                   _buildLabeledField(
                     label: 'Confirm Password',
-                    field: _buildFormField(
+                    field: AuthTextField(
                       controller: _confirmPasswordController,
-                      hint: '••••••••',
+                      hintText: '••••••••',
                       textInputAction: TextInputAction.done,
                       obscureText: !_isConfirmPasswordVisible,
                       validator: (value) =>
@@ -322,9 +217,10 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
                         onPressed: () => setState(() =>
                             _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
                       ),
+                      onFieldSubmitted: (_) => _onCreateAccountPressed(),
                     ),
                   ),
-                  const Spacer(),
+                  SizedBox(height: 24.h),
 
                   // Create Account button
                   AnimatedGoldButton(
@@ -360,10 +256,12 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
                       ),
                     ),
                   ),
+                  SizedBox(height: 8.h),
                 ],
               ),
             ),
           ),
+        ),
         ],
       ),
     );
