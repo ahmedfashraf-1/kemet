@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1022998299226",
+    "project_id": "kemet-6ea6d",
+    "storage_bucket": "kemet-6ea6d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1022998299226:android:f09bbfbb479c87596c0e63",
+        "android_client_info": {
+          "package_name": "com.example.kemet"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCg-2D8ennGFeGBz00VZ8Z5IRg5QswgZ14"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
