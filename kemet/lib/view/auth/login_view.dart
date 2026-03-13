@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,6 +6,8 @@ import 'package:kemet/constants/colors.dart';
 import 'package:kemet/core/animated_gold_button.dart';
 import '../../../core/helpers/extensions.dart';
 import '../../../core/routing/routes.dart';
+import 'package:kemet/core/services/auth_service.dart';
+
 
 class onLoginScreen extends StatefulWidget {
   const onLoginScreen({super.key});
@@ -14,6 +17,8 @@ class onLoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<onLoginScreen> {
+  final _authService = AuthService();
+  bool _isLoading = false;
   bool _obscurePassword = true;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -138,7 +143,25 @@ class _LoginScreenState extends State<onLoginScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: GestureDetector(
-                          onTap: () {},
+                          onTap: () async {
+                            final email = _emailController.text.trim();
+                            if (email.isEmpty) {
+                              _showError('Enter your email first.');
+                              return;
+                            }
+                            try {
+                              final methods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
+                              if (methods.isEmpty) {
+                                _showError('No account found with this email.');
+                                return;
+                              }
+
+                              await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                              _showError('Reset email sent! Check your inbox.');
+                            } catch (e) {
+                              _showError(e.toString());
+                            }
+                          },
                           child: Text(
                             'Forgot Password?',
                             style: TextStyle(
@@ -152,11 +175,26 @@ class _LoginScreenState extends State<onLoginScreen> {
                       SizedBox(height: 28.h),
 
                       //  Sign In button 
-                      AnimatedGoldButton(
-                        text: 'SIGN IN',
-                        onTap: () { 
-                          // validation 
-                          // context.pushNamed(Routes.homeScreen);   <--------
+                     AnimatedGoldButton(
+                        text: _isLoading ? 'SIGNING IN...' : 'SIGN IN',
+                        onTap: () async {
+                          if (_isLoading) return; // guard at the top
+                          if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+                            _showError('Please fill in all fields.');
+                            return;
+                          }
+                          setState(() => _isLoading = true);
+                          try {
+                            await _authService.signInWithEmail(
+                              _emailController.text,
+                              _passwordController.text,
+                            );
+                            if (mounted) context.pushNamed(Routes.OnHomeScreen);
+                          } catch (e) {
+                            _showError("No account found with this email. Please register first.");
+                          } finally {
+                            if (mounted) setState(() => _isLoading = false);
+                          }
                         },
                       ),
 
@@ -350,11 +388,16 @@ class _LoginScreenState extends State<onLoginScreen> {
       ),
     );
   }
-}
-
-Widget _buildGoogleButton() {
+  Widget _buildGoogleButton() {
   return GestureDetector(
-    onTap: () {},
+    onTap: () async {
+      try {
+        final result = await _authService.signInWithGoogle();
+        if (result != null) context.pushNamed(Routes.OnHomeScreen);
+      } catch (e) {
+        _showError(e.toString());
+      }
+    },
     child: Container(
       width: double.infinity,
       height: 52.h,
@@ -386,3 +429,64 @@ Widget _buildGoogleButton() {
     ),
   );
 }
+
+void _showError(String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      backgroundColor: AppColors.mainGold.withOpacity(0.9),
+    ),
+  );
+}
+}
+
+// Widget _buildGoogleButton() {
+//   return GestureDetector(
+//     onTap: () async {
+//       try {
+//         final result = await _authService.signInWithGoogle();
+//         if (result != null) context.pushNamed(Routes.OnHomeScreen);
+//       } catch (e) {
+//         _showError(e.toString());
+//       }
+//     },
+//     child: Container(
+//       width: double.infinity,
+//       height: 52.h,
+//       decoration: BoxDecoration(
+//         color: Colors.white.withOpacity(0.05),
+//         border: Border.all(color: AppColors.mainGold.withOpacity(0.25)),
+//         borderRadius: BorderRadius.circular(12.r),
+//       ),
+//       child: Row(
+//         mainAxisAlignment: MainAxisAlignment.center,
+//         children: [
+//           Image.asset(
+//             'images/google.png', 
+//             width: 22.w,
+//             height: 22.w,
+//             fit: BoxFit.contain,
+//           ),
+//           SizedBox(width: 12.w),
+//           Text(
+//             'Continue with Google',
+//             style: TextStyle(
+//               color: Colors.white.withOpacity(0.80),
+//               fontSize: 14.sp,
+//               fontWeight: FontWeight.w500,
+//             ),
+//           ),
+//         ],
+//       ),
+//     ),
+//   );
+// }
+
+// void _showError(String message) {
+//   ScaffoldMessenger.of(context).showSnackBar(
+//     SnackBar(
+//       content: Text(message),
+//       backgroundColor: AppColors.mainGold.withOpacity(0.9),
+//     ),
+//   );
+// }
