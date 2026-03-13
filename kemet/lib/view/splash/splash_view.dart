@@ -40,7 +40,7 @@ class _SplashViewState extends State<SplashView> {
     bool seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
     if (!mounted) return;
     if (seenOnboarding) {
-      context.pushReplacementNamed(Routes.OnHomeScreen); // لما نضيف ال هوم
+      context.pushReplacementNamed(Routes.onLoginScreen); // لما نضيف ال هوم
     } else {
       context.pushReplacementNamed(Routes.onBoardingScreen1);
     }
