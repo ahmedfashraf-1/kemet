@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/constants/colors.dart';
-import 'package:kemet/core/animated_gold_button.dart';
+import 'package:kemet/core/widgets/animated_gold_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/helpers/extensions.dart';

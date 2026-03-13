@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kemet/core/helpers/extensions.dart';
@@ -33,18 +34,24 @@ class _SplashViewState extends State<SplashView> {
     // });
   }
 
-  Future<void> _checkOnboarding() async {
+Future<void> _checkOnboarding() async {
+  await Future.delayed(const Duration(seconds: 3));
+  final prefs = await SharedPreferences.getInstance();
+  final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
+  if (!mounted) return;
 
-    await Future.delayed(const Duration(seconds: 3));
-    final prefs = await SharedPreferences.getInstance();
-    bool seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
-    if (!mounted) return;
-    if (seenOnboarding) {
-      context.pushReplacementNamed(Routes.onLoginScreen); // لما نضيف ال هوم
-    } else {
-      context.pushReplacementNamed(Routes.onBoardingScreen1);
-    }
+  if (!seenOnboarding) {
+    context.pushReplacementNamed(Routes.onBoardingScreen1);
+    return;
   }
+
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    context.pushReplacementNamed(Routes.OnHomeScreen);
+  } else {
+    context.pushReplacementNamed(Routes.onLoginScreen);
+  }
+}
 
   // void _navigateToOnboarding() {
   //   final MaterialApp? app = context
@@ -67,11 +74,11 @@ class _SplashViewState extends State<SplashView> {
   //   );
   // }
 
-// void _navigateToOnboarding() {
-//   if (mounted) {
-//     context.pushReplacementNamed(Routes.onBoardingScreen1);
-//   }
-// }
+  // void _navigateToOnboarding() {
+  //   if (mounted) {
+  //     context.pushReplacementNamed(Routes.onBoardingScreen1);
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {

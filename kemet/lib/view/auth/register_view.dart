@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/constants/colors.dart';
-import 'package:kemet/core/animated_gold_button.dart';
+import 'package:kemet/core/widgets/animated_gold_button.dart';
+import 'package:kemet/core/services/auth_service.dart';
 import 'package:kemet/core/widgets/auth_header.dart';
 import 'package:kemet/core/widgets/auth_label.dart';
 import 'package:kemet/core/widgets/auth_text_field.dart';
-import 'package:kemet/services/validation_service.dart';
+import 'package:kemet/core/services/validation_service.dart';
 import '../../../core/helpers/extensions.dart';
 import '../../../core/routing/routes.dart';
 
@@ -18,6 +19,8 @@ class onRegisterScreen extends StatefulWidget {
 }
 
 class _OnRegisterScreenState extends State<onRegisterScreen> {
+  final _authService = AuthService();
+  bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -38,11 +41,26 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
     super.dispose();
   }
 
-  void _onCreateAccountPressed() {
-    if (_formKey.currentState!.validate()) {
-      context.pushReplacementNamed(Routes.login);
+  void _onCreateAccountPressed() async {
+  if (_formKey.currentState?.validate() ?? false) {
+    setState(() => _isLoading = true);
+    try {
+      await _authService.registerWithEmail(
+        _emailController.text,
+        _passwordController.text,
+      );
+      if (mounted) context.pushReplacementNamed(Routes.OnHomeScreen);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+}
 
   Widget _buildVisibilityIcon({
     required bool isVisible,
@@ -224,15 +242,15 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
 
                   // Create Account button
                   AnimatedGoldButton(
-                    onTap: _onCreateAccountPressed,
-                    text: 'Create Account',
+                    onTap: _isLoading ? () {} : _onCreateAccountPressed,
+                    text: _isLoading ? 'Creating Account...' : 'Create Account',
                   ),
                   SizedBox(height: 16.h),
 
                   // Sign In link
                   Center(
                     child: GestureDetector(
-                      onTap: () => context.pushReplacementNamed(Routes.login),
+                      onTap: () => context.pushReplacementNamed(Routes.onLoginScreen),
                       child: RichText(
                         text: TextSpan(
                           style: TextStyle(
