@@ -6,6 +6,7 @@ import 'package:kemet/view/onboarding/onboarding_screen3_view.dart';
 import 'package:kemet/view/onboarding/onboarding_screen4_view.dart';
 import 'package:kemet/view/splash/splash_view.dart';
 import 'package:kemet/view/auth/login_view.dart';
+import 'package:kemet/view/auth/register_view.dart';
 import 'package:kemet/view/homeTest.dart';
 
 class AppRouter {
@@ -34,6 +35,9 @@ class AppRouter {
 
       case Routes.onLoginScreen:
         return  _fadeDominantFromRight(const onLoginScreen(), setting);
+        
+      case Routes.onRegisterScreen:
+        return  _fadeDominantFromRight(const onRegisterScreen(), setting);
 
 
       default:
