@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kemet/core/helpers/extensions.dart';
@@ -45,12 +44,7 @@ Future<void> _checkOnboarding() async {
     return;
   }
 
-  final user = FirebaseAuth.instance.currentUser;
-  if (user != null) {
-    context.pushReplacementNamed(Routes.OnHomeScreen);
-  } else {
-    context.pushReplacementNamed(Routes.onLoginScreen);
-  }
+  context.pushReplacementNamed(Routes.onLoginScreen);
 }
 
   // void _navigateToOnboarding() {
