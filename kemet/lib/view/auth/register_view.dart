@@ -30,6 +30,8 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
 
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+  bool _submitted = false; 
+
 
   @override
   void dispose() {
@@ -107,7 +109,8 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
             ),
             child: Form(
               key: _formKey,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
+              autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
+
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 child: Column(
@@ -231,8 +234,8 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
                       onTap: _isLoading
                           ? () {}
                           : () async {
-                              final isValid =
-                                  _formKey.currentState?.validate() ?? false;
+                            setState(() => _submitted = true);
+                              final isValid = _formKey.currentState?.validate() ?? false;
                               if (!isValid) return;
 
                               FocusScope.of(context).unfocus();

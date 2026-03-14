@@ -24,6 +24,7 @@ class _LoginScreenState extends State<onLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _submitted = false;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -74,7 +75,7 @@ class _LoginScreenState extends State<onLoginScreen> {
                 ),
                 child: Form(
                   key: _formKey,
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
                   child: IntrinsicHeight(
                     child: Column(
                       children: [
@@ -270,6 +271,8 @@ class _LoginScreenState extends State<onLoginScreen> {
 
   Future<void> _handleSignIn() async {
     if (_isLoading) return;
+    
+    setState(() => _submitted = true);
 
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) return;
