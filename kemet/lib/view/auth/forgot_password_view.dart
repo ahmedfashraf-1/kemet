@@ -6,6 +6,7 @@ import 'package:kemet/constants/colors.dart';
 import 'package:kemet/core/helpers/extensions.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
+import 'package:kemet/core/services/auth_service.dart';
 
 class ForgotPasswordView extends StatefulWidget {
   const ForgotPasswordView({super.key});
@@ -43,8 +44,8 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
 
     setState(() => _isLoading = true);
     try {
-      await FirebaseAuth.instance
-          .sendPasswordResetEmail(email: _emailController.text.trim());
+      final _authService = AuthService();
+      await _authService.sendPasswordReset(_emailController.text.trim());
 
       if (!mounted) return;
       _showSnackBar('Password reset link sent to your email.');
@@ -67,7 +68,9 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         ),
         backgroundColor: AppColors.mainGold.withOpacity(0.92),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10.r),
+        ),
         margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
       ),
     );
@@ -109,7 +112,8 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
               padding: EdgeInsets.symmetric(horizontal: 24.w),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: MediaQuery.of(context).size.height -
+                  minHeight:
+                      MediaQuery.of(context).size.height -
                       MediaQuery.of(context).padding.top -
                       MediaQuery.of(context).padding.bottom,
                 ),
@@ -232,7 +236,9 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                                 color: AppColors.lightGold.withOpacity(0.55),
                               ),
                               children: [
-                                const TextSpan(text: 'Remember your password?  '),
+                                const TextSpan(
+                                  text: 'Remember your password?  ',
+                                ),
                                 TextSpan(
                                   text: 'Sign In',
                                   style: GoogleFonts.cormorant(
@@ -292,17 +298,14 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         ),
         filled: true,
         fillColor: AppColors.mainGold.withOpacity(0.06),
-        contentPadding:
-            EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.r),
-          borderSide:
-              BorderSide(color: AppColors.mainGold.withOpacity(0.30)),
+          borderSide: BorderSide(color: AppColors.mainGold.withOpacity(0.30)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.r),
-          borderSide:
-              BorderSide(color: AppColors.mainGold.withOpacity(0.30)),
+          borderSide: BorderSide(color: AppColors.mainGold.withOpacity(0.30)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.r),
@@ -324,4 +327,3 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     );
   }
 }
-
