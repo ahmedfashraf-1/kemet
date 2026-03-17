@@ -7,17 +7,16 @@ import 'package:kemet/view/onboarding/onboarding_screen4_view.dart';
 import 'package:kemet/view/splash/splash_view.dart';
 import 'package:kemet/view/auth/login_view.dart';
 import 'package:kemet/view/auth/register_view.dart';
-import 'package:kemet/view/homeTest.dart';
+import 'package:kemet/view/home/home_screen.dart';
+import 'package:kemet/view/common/main_shell.dart';
 
 class AppRouter {
   Route generateRoute(RouteSettings setting) {
     switch (setting.name) {
 
-      // Splash Screen: Fade dominant
       case Routes.splashScreen:
         return _fadeDominantFromBottom(const SplashView(), setting);
 
-      // Onboarding Screens: Fade dominant
       case Routes.onBoardingScreen1:
         return _fadeDominantFromRight(const OnboardingScreen1(), setting);
 
@@ -30,15 +29,16 @@ class AppRouter {
       case Routes.onBoardingScreen4:
         return _fadeDominantFromRight(const OnboardingScreen4(), setting);
 
-      case Routes.OnHomeScreen:
-        return  _fadeDominantFromRight(const OnHomeScreen(), setting);
-
       case Routes.onLoginScreen:
-        return  _fadeDominantFromRight(const onLoginScreen(), setting);
-        
-      case Routes.onRegisterScreen:
-        return  _fadeDominantFromRight(const onRegisterScreen(), setting);
+        return _fadeDominantFromRight(const onLoginScreen(), setting);
 
+      case Routes.onRegisterScreen:
+        return _fadeDominantFromRight(const onRegisterScreen(), setting);
+
+      case Routes.HomeScreen:
+        return _fadeDominantFromRight(
+          const MainShell(child: HomeScreen()), setting
+        );
 
       default:
         return MaterialPageRoute(
@@ -51,22 +51,17 @@ class AppRouter {
     }
   }
 
-  // --------------------- Fade Dominant Transitions ---------------------
-
-  // Fade dominant + slight slide from right
   PageRouteBuilder _fadeDominantFromRight(Widget page, RouteSettings settings) {
     return PageRouteBuilder(
       settings: settings,
       pageBuilder: (_, __, ___) => page,
       transitionsBuilder: (_, animation, __, child) {
-        const beginOffset = Offset(0.2, 0.0); // Slide خفيف جدًا
+        const beginOffset = Offset(0.2, 0.0);
         const endOffset = Offset.zero;
         final offsetTween = Tween(begin: beginOffset, end: endOffset)
             .chain(CurveTween(curve: Curves.easeOut));
-
         final fadeTween = Tween<double>(begin: 0.0, end: 1.0)
             .chain(CurveTween(curve: Curves.easeIn));
-
         return SlideTransition(
           position: animation.drive(offsetTween),
           child: FadeTransition(
@@ -79,20 +74,17 @@ class AppRouter {
     );
   }
 
-  // Fade dominant + slight slide from bottom
   PageRouteBuilder _fadeDominantFromBottom(Widget page, RouteSettings settings) {
     return PageRouteBuilder(
       settings: settings,
       pageBuilder: (_, __, ___) => page,
       transitionsBuilder: (_, animation, __, child) {
-        const beginOffset = Offset(0.0, 0.2); // Slide خفيف جدًا من تحت
+        const beginOffset = Offset(0.0, 0.2);
         const endOffset = Offset.zero;
         final offsetTween = Tween(begin: beginOffset, end: endOffset)
             .chain(CurveTween(curve: Curves.easeOut));
-
         final fadeTween = Tween<double>(begin: 0.0, end: 1.0)
             .chain(CurveTween(curve: Curves.easeIn));
-
         return SlideTransition(
           position: animation.drive(offsetTween),
           child: FadeTransition(

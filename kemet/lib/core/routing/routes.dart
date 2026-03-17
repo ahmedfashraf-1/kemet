@@ -6,6 +6,8 @@ class Routes {
   static const String onBoardingScreen4 = '/onBoardingScreen4';
   static const String onLoginScreen = '/onLoginScreen';
   static const String onRegisterScreen = '/onRegisterScreen';
-  static const String OnHomeScreen = '/OnHomeScreen';
+  //static const String HeroScreen = '/HomeHeroScreen';
+  static const String HomeScreen = '/homeScreen';
+   static const String mainShell = '/mainShell';
 
 }

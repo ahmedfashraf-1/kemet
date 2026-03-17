@@ -49,7 +49,7 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
         _emailController.text,
         _passwordController.text,
       );
-      if (mounted) context.pushReplacementNamed(Routes.OnHomeScreen);
+      if (mounted) context.pushReplacementNamed(Routes.HomeScreen);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

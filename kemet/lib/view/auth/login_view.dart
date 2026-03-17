@@ -189,7 +189,7 @@ class _LoginScreenState extends State<onLoginScreen> {
                               _emailController.text,
                               _passwordController.text,
                             );
-                            if (mounted) context.pushNamed(Routes.OnHomeScreen);
+                            if (mounted) context.pushNamed(Routes.HomeScreen);
                           } catch (e) {
                             _showError("No account found with this email. Please register first.");
                           } finally {
@@ -265,7 +265,7 @@ class _LoginScreenState extends State<onLoginScreen> {
                       // Continue as guest 
                       GestureDetector(
                         onTap: () {
-                          context.pushNamed(Routes.OnHomeScreen);
+                          context.pushNamed(Routes.HomeScreen);
                         },
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -393,7 +393,7 @@ class _LoginScreenState extends State<onLoginScreen> {
     onTap: () async {
       try {
         final result = await _authService.signInWithGoogle();
-        if (result != null) context.pushNamed(Routes.OnHomeScreen);
+        if (result != null) context.pushNamed(Routes.HomeScreen);
       } catch (e) {
         _showError(e.toString());
       }

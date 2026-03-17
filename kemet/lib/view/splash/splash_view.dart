@@ -47,7 +47,7 @@ Future<void> _checkOnboarding() async {
 
   final user = FirebaseAuth.instance.currentUser;
   if (user != null) {
-    context.pushReplacementNamed(Routes.OnHomeScreen);
+    context.pushReplacementNamed(Routes.HomeScreen);
   } else {
     context.pushReplacementNamed(Routes.onLoginScreen);
   }
