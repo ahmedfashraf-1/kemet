@@ -1,30 +1,25 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/constants/colors.dart';
-import 'package:kemet/core/services/auth_service.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
-import 'package:kemet/core/widgets/auth_header.dart';
-import 'package:kemet/core/widgets/auth_label.dart';
-import 'package:kemet/core/widgets/auth_text_field.dart';
-import 'package:kemet/core/services/validation_service.dart';
 import '../../../core/helpers/extensions.dart';
 import '../../../core/routing/routes.dart';
+import 'package:kemet/core/services/auth_service.dart';
+
 
 class onLoginScreen extends StatefulWidget {
   const onLoginScreen({super.key});
-
+  
   @override
   State<onLoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<onLoginScreen> {
   final _authService = AuthService();
-  final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _obscurePassword = true;
-  bool _submitted = false;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -43,7 +38,7 @@ class _LoginScreenState extends State<onLoginScreen> {
       body: Stack(
         children: [
           Image.asset(
-            'images/onboarding1_bg.png',
+            'images/onboarding1_bg.png', 
             height: double.infinity,
             width: double.infinity,
             fit: BoxFit.cover,
@@ -73,181 +68,228 @@ class _LoginScreenState extends State<onLoginScreen> {
                       MediaQuery.of(context).padding.top -
                       MediaQuery.of(context).padding.bottom,
                 ),
-                child: Form(
-                  key: _formKey,
-                  autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
-                  child: IntrinsicHeight(
-                    child: Column(
-                      children: [
-                        SizedBox(height: 5.h),
-                        const Spacer(flex: 3),
+                child: IntrinsicHeight(
+                  child: Column(
+                    children: [
+                      SizedBox(height: 5.h),
+                      const Spacer(flex: 3),
 
-                        const AuthHeader(),
-
-                        const Spacer(flex: 2),
-
-                        _buildLabeledField(
-                          label: 'Email Address',
-                          field: AuthTextField(
-                            controller: _emailController,
-                            hintText: 'Kemet@example.com',
-                            keyboardType: TextInputType.emailAddress,
-                            validator: ValidationService.validateEmail,
+                      Transform.translate(
+                        offset: Offset(0, 10.h),
+                        child: Opacity(
+                          opacity: 0.7,
+                          child: Image.asset(
+                            'images/KEMET Logo.png',
+                            width: 170.w,
+                            fit: BoxFit.contain,
                           ),
                         ),
+                      ),
 
-                        SizedBox(height: 16.h),
+                      SizedBox(height: 1.h),
 
-                        _buildLabeledField(
-                          label: 'Password',
-                          field: AuthTextField(
-                            controller: _passwordController,
-                            hintText: '••••••••',
-                            obscureText: _obscurePassword,
-                            textInputAction: TextInputAction.done,
-                            validator: ValidationService.validateLoginPassword,
-                            onFieldSubmitted: (_) => _handleSignIn(),
-                            suffixIcon: IconButton(
-                              onPressed: () => setState(
-                                () => _obscurePassword = !_obscurePassword,
-                              ),
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: AppColors.mainGold.withOpacity(0.55),
-                                size: 20.sp,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        SizedBox(height: 10.h),
-
-                        // Forgot password
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              context.pushNamed(Routes.forgotPassword);
-                            },
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: Text(
-                              'Forgot Password?',
-                              style: TextStyle(
-                                color: AppColors.lightGold.withOpacity(0.55),
-                                fontSize: 12.sp,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        SizedBox(height: 28.h),
-
-                        AnimatedGoldButton(
-                          text: _isLoading ? 'SIGNING IN...' : 'SIGN IN',
-                          onTap: _handleSignIn,
-                        ),
-
-                        SizedBox(height: 20.h),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Divider(
-                                color: AppColors.mainGold.withOpacity(0.20),
-                                thickness: 1,
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 14.w),
-                              child: Text(
-                                'OR',
-                                style: TextStyle(
-                                  color: AppColors.mainGold.withOpacity(0.40),
-                                  fontSize: 11.sp,
-                                  letterSpacing: 2,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Divider(
-                                color: AppColors.mainGold.withOpacity(0.20),
-                                thickness: 1,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        SizedBox(height: 20.h),
-
-                        _buildGoogleButton(),
-
-                        const Spacer(flex: 2),
-                        GestureDetector(
-                          onTap: () {
-                            context.pushNamed(Routes.onRegisterScreen);
-                          },
-                          child: RichText(
-                            text: TextSpan(
-                              style: TextStyle(
-                                fontSize: 13.sp,
-                                color: AppColors.lightGold.withOpacity(0.55),
-                              ),
-                              children: [
-                                const TextSpan(
-                                  text: "Don't have an account?  ",
-                                ),
-                                TextSpan(
-                                  text: 'Create Account',
-                                  style: GoogleFonts.cormorant(
-                                    textStyle: TextStyle(
-                                      color: AppColors.mainGold,
-                                      fontSize: 16.sp,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        SizedBox(height: 16.h),
-
-                        // Continue as guest
-                        GestureDetector(
-                          onTap: () {
-                            context.pushNamed(Routes.OnHomeScreen);
-                          },
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Continue as Guest',
-                                style: TextStyle(
-                                  color: AppColors.lightGold.withOpacity(0.40),
-                                  fontSize: 13.sp,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              SizedBox(width: 4.w),
-                              Icon(
-                                Icons.arrow_forward,
-                                size: 14.sp,
-                                color: AppColors.lightGold.withOpacity(0.40),
+                      Text(
+                        'KEMET',
+                        style: GoogleFonts.cormorant(
+                          textStyle: TextStyle(
+                            color: AppColors.mainGold,
+                            fontSize: 46.sp,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 4,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.8),
+                                offset: const Offset(0, 5),
+                                blurRadius: 15,
                               ),
                             ],
                           ),
                         ),
+                      ),
 
-                        SizedBox(height: 35.h),
-                      ],
-                    ),
+                      SizedBox(height: 4.h),
+
+                      Text(
+                        'Explore the Legacy of Ancient Egypt',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.lightGold,
+                          fontSize: 13.sp,
+                          height: 1.6,
+                        ),
+                      ),
+
+                      const Spacer(flex: 2),
+
+                      // Email field 
+                      _buildLabel('Email Address'),
+                      SizedBox(height: 8.h),
+                      _buildTextField(
+                        controller: _emailController,
+                        hint: 'Kemet@example.com',
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+
+                      SizedBox(height: 16.h),
+
+                      // Password field 
+                      _buildLabel('Password'),
+                      SizedBox(height: 8.h),
+                      _buildPasswordField(),
+
+                      SizedBox(height: 10.h),
+
+                      // Forgot password
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: GestureDetector(
+                          onTap: () async {
+                            final email = _emailController.text.trim();
+                            if (email.isEmpty) {
+                              _showError('Enter your email first.');
+                              return;
+                            }
+                            try {
+                              final methods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
+                              if (methods.isEmpty) {
+                                _showError('No account found with this email.');
+                                return;
+                              }
+
+                              await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                              _showError('Reset email sent! Check your inbox.');
+                            } catch (e) {
+                              _showError(e.toString());
+                            }
+                          },
+                          child: Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              color: AppColors.lightGold.withOpacity(0.55),
+                              fontSize: 12.sp,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: 28.h),
+
+                      //  Sign In button 
+                     AnimatedGoldButton(
+                        text: _isLoading ? 'SIGNING IN...' : 'SIGN IN',
+                        onTap: () async {
+                          if (_isLoading) return; // guard at the top
+                          if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+                            _showError('Please fill in all fields.');
+                            return;
+                          }
+                          setState(() => _isLoading = true);
+                          try {
+                            await _authService.signInWithEmail(
+                              _emailController.text,
+                              _passwordController.text,
+                            );
+                            if (mounted) context.pushNamed(Routes.HomeScreen);
+                          } catch (e) {
+                            _showError("No account found with this email. Please register first.");
+                          } finally {
+                            if (mounted) setState(() => _isLoading = false);
+                          }
+                        },
+                      ),
+
+                      SizedBox(height: 20.h),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Divider(
+                              color: AppColors.mainGold.withOpacity(0.20),
+                              thickness: 1,
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 14.w),
+                            child: Text(
+                              'OR',
+                              style: TextStyle(
+                                color: AppColors.mainGold.withOpacity(0.40),
+                                fontSize: 11.sp,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: AppColors.mainGold.withOpacity(0.20),
+                              thickness: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: 20.h),
+
+                      _buildGoogleButton(),
+
+                      const Spacer(flex: 2),
+                      GestureDetector(
+                        onTap: () {
+                          context.pushNamed(Routes.onRegisterScreen);
+                        },
+                        child: RichText(
+                          text: TextSpan(
+                            style: TextStyle(
+                              fontSize: 13.sp,
+                              color: AppColors.lightGold.withOpacity(0.55),
+                            ),
+                            children: [
+                              const TextSpan(text: "Don't have an account?  "),
+                              TextSpan(
+                                text: 'Create Account',
+                                style: GoogleFonts.cormorant(
+                                  textStyle: TextStyle(
+                                    color: AppColors.mainGold,
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: 16.h),
+
+                      // Continue as guest 
+                      GestureDetector(
+                        onTap: () {
+                          context.pushNamed(Routes.HomeScreen);
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Continue as Guest',
+                              style: TextStyle(
+                                color: AppColors.lightGold.withOpacity(0.40),
+                                fontSize: 13.sp,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            SizedBox(width: 4.w),
+                            Icon(
+                              Icons.arrow_forward,
+                              size: 14.sp,
+                              color: AppColors.lightGold.withOpacity(0.40),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(height: 35.h),
+                    ],
                   ),
                 ),
               ),
@@ -258,149 +300,193 @@ class _LoginScreenState extends State<onLoginScreen> {
     );
   }
 
-  Widget _buildLabeledField({required String label, required Widget field}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AuthLabel(text: label),
-        SizedBox(height: 8.h),
-        field,
-      ],
+  Widget _buildLabel(String text) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          color: AppColors.lightGold.withOpacity(0.65),
+          fontSize: 10.sp,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 2,
+        ),
+      ),
     );
   }
 
-  Future<void> _handleSignIn() async {
-    if (_isLoading) return;
-    
-    setState(() => _submitted = true);
-
-    final isValid = _formKey.currentState?.validate() ?? false;
-    if (!isValid) return;
-
-    FocusScope.of(context).unfocus();
-    setState(() => _isLoading = true);
-
-    try {
-      debugPrint('[Login] Email/password sign-in triggered for ${_emailController.text.trim()}');
-      final UserCredential credential = await _authService.login(
-        _emailController.text,
-        _passwordController.text,
-      );
-      final User? user = credential.user;
-
-      await _afterSignIn(user);
-    } catch (e) {
-      _showError(e.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Widget _buildGoogleButton() {
-    return GestureDetector(
-      onTap: () async {
-        if (_isLoading) return;
-        setState(() => _isLoading = true);
-        try {
-          debugPrint('[Login] Google sign-in triggered.');
-          final result = await _authService.signInWithGoogle();
-          final user = result?.user;
-          if (user != null) {
-            await _afterSignIn(user);
-          } else {
-            _showError('Could not read your email from Google Sign-In.');
-          }
-        } catch (e) {
-          _showError(e.toString());
-        } finally {
-          if (mounted) setState(() => _isLoading = false);
-        }
-      },
-      child: Container(
-        width: double.infinity,
-        height: 52.h,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          border: Border.all(color: AppColors.mainGold.withOpacity(0.25)),
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: TextStyle(color: Colors.white, fontSize: 14.sp),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(
+          color: AppColors.mainGold.withOpacity(0.30),
+          fontSize: 14.sp,
+        ),
+        filled: true,
+        fillColor: AppColors.mainGold.withOpacity(0.06),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+        border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.r),
+          borderSide: BorderSide(color: AppColors.mainGold.withOpacity(0.30)),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'images/google.png',
-              width: 22.w,
-              height: 22.w,
-              fit: BoxFit.contain,
-            ),
-            SizedBox(width: 12.w),
-            Text(
-              'Continue with Google',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.80),
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          borderSide: BorderSide(color: AppColors.mainGold.withOpacity(0.30)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          borderSide: BorderSide(color: AppColors.mainGold, width: 1),
         ),
       ),
     );
   }
 
-  /// Email/password sign-in routes to Verify Email.
-  Future<void> _afterSignIn(User? user) async {
-    if (user == null) {
-      _showError('Unable to read current user. Please sign in again.');
-      return;
-    }
-
-    debugPrint('[Login] Resolving post-sign-in verification for user: ${user.email}');
-    final verificationResult = await _authService.resolveSignInVerification(
-      signedInUser: user,
-    );
-
-    if (!mounted) return;
-
-    if (verificationResult.isVerified) {
-      debugPrint('[Login] User is verified or does not require verification. Navigating home.');
-      context.pushReplacementNamed(Routes.home);
-      return;
-    }
-
-    final normalizedEmail =
-        verificationResult.user.email?.trim().toLowerCase() ??
-        _emailController.text.trim().toLowerCase();
-
-    if (verificationResult.verificationEmailStatus ==
-        VerificationEmailSendStatus.sent) {
-      _showError('Verification email sent to $normalizedEmail');
-    } else if (verificationResult.verificationEmailStatus ==
-        VerificationEmailSendStatus.skippedCooldown) {
-      final remaining = _authService.getRemainingVerificationCooldown(
-        user: verificationResult.user,
-      );
-      final seconds = remaining.inSeconds > 0 ? remaining.inSeconds : 1;
-      _showError('Please wait $seconds seconds before requesting another email.');
-    }
-
-    debugPrint(
-      '[Login] Navigating to verify screen. sendStatus=${verificationResult.verificationEmailStatus}, email=$normalizedEmail',
-    );
-
-    context.pushReplacementNamed(
-      Routes.verifyEmailOtp,
-      arguments: normalizedEmail,
-    );
-  }
-
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.mainGold.withOpacity(0.9),
+  Widget _buildPasswordField() {
+    return TextField(
+      controller: _passwordController,
+      obscureText: _obscurePassword,
+      style: TextStyle(color: Colors.white, fontSize: 14.sp),
+      decoration: InputDecoration(
+        hintText: '••••••••',
+        hintStyle: TextStyle(
+          color: AppColors.mainGold.withOpacity(0.30),
+          fontSize: 14.sp,
+        ),
+        filled: true,
+        fillColor: AppColors.mainGold.withOpacity(0.06),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          borderSide: BorderSide(color: AppColors.mainGold.withOpacity(0.30)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          borderSide: BorderSide(color: AppColors.mainGold.withOpacity(0.30)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          borderSide: BorderSide(color: AppColors.mainGold, width: 1),
+        ),
+        suffixIcon: GestureDetector(
+          onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+          child: Icon(
+            _obscurePassword
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
+            color: AppColors.mainGold.withOpacity(0.55),
+            size: 20.sp,
+          ),
+        ),
       ),
     );
   }
+  Widget _buildGoogleButton() {
+  return GestureDetector(
+    onTap: () async {
+      try {
+        final result = await _authService.signInWithGoogle();
+        if (result != null) context.pushNamed(Routes.HomeScreen);
+      } catch (e) {
+        _showError(e.toString());
+      }
+    },
+    child: Container(
+      width: double.infinity,
+      height: 52.h,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        border: Border.all(color: AppColors.mainGold.withOpacity(0.25)),
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            'images/google.png', 
+            width: 22.w,
+            height: 22.w,
+            fit: BoxFit.contain,
+          ),
+          SizedBox(width: 12.w),
+          Text(
+            'Continue with Google',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.80),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
+
+void _showError(String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      backgroundColor: AppColors.mainGold.withOpacity(0.9),
+    ),
+  );
+}
+}
+
+// Widget _buildGoogleButton() {
+//   return GestureDetector(
+//     onTap: () async {
+//       try {
+//         final result = await _authService.signInWithGoogle();
+//         if (result != null) context.pushNamed(Routes.OnHomeScreen);
+//       } catch (e) {
+//         _showError(e.toString());
+//       }
+//     },
+//     child: Container(
+//       width: double.infinity,
+//       height: 52.h,
+//       decoration: BoxDecoration(
+//         color: Colors.white.withOpacity(0.05),
+//         border: Border.all(color: AppColors.mainGold.withOpacity(0.25)),
+//         borderRadius: BorderRadius.circular(12.r),
+//       ),
+//       child: Row(
+//         mainAxisAlignment: MainAxisAlignment.center,
+//         children: [
+//           Image.asset(
+//             'images/google.png', 
+//             width: 22.w,
+//             height: 22.w,
+//             fit: BoxFit.contain,
+//           ),
+//           SizedBox(width: 12.w),
+//           Text(
+//             'Continue with Google',
+//             style: TextStyle(
+//               color: Colors.white.withOpacity(0.80),
+//               fontSize: 14.sp,
+//               fontWeight: FontWeight.w500,
+//             ),
+//           ),
+//         ],
+//       ),
+//     ),
+//   );
+// }
+
+// void _showError(String message) {
+//   ScaffoldMessenger.of(context).showSnackBar(
+//     SnackBar(
+//       content: Text(message),
+//       backgroundColor: AppColors.mainGold.withOpacity(0.9),
+//     ),
+//   );
+// }

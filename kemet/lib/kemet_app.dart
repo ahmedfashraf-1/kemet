@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:kemet/core/routing/app_router.dart';
 import 'package:kemet/view/auth/login_view.dart';
-import 'package:kemet/view/homeTest.dart';
 import 'package:kemet/view/splash/splash_view.dart';
 
 class KemetApp extends StatelessWidget {

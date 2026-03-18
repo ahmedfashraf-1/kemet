@@ -30,8 +30,6 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
 
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
-  bool _submitted = false; 
-
 
   @override
   void dispose() {
@@ -42,6 +40,27 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
     _confirmPasswordController.dispose();
     super.dispose();
   }
+
+  void _onCreateAccountPressed() async {
+  if (_formKey.currentState?.validate() ?? false) {
+    setState(() => _isLoading = true);
+    try {
+      await _authService.registerWithEmail(
+        _emailController.text,
+        _passwordController.text,
+      );
+      if (mounted) context.pushReplacementNamed(Routes.HomeScreen);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+}
 
   Widget _buildVisibilityIcon({
     required bool isVisible,
@@ -57,7 +76,10 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
     );
   }
 
-  Widget _buildLabeledField({required String label, required Widget field}) {
+  Widget _buildLabeledField({
+    required String label,
+    required Widget field,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -109,208 +131,158 @@ class _OnRegisterScreenState extends State<onRegisterScreen> {
             ),
             child: Form(
               key: _formKey,
-              autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
-
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Back button
-                    IconButton(
-                      onPressed: context.pop,
-                      padding: EdgeInsets.zero,
-                      constraints: BoxConstraints(
-                        minWidth: 32.w,
-                        minHeight: 32.h,
-                      ),
-                      visualDensity: VisualDensity.compact,
-                      icon: Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: AppColors.textPrimary,
-                        size: 20.sp,
+                  // Back button
+                  IconButton(
+                    onPressed: context.pop,
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(minWidth: 32.w, minHeight: 32.h),
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: AppColors.textPrimary,
+                      size: 20.sp,
+                    ),
+                  ),
+
+                  // Header
+                  const Center(child: AuthHeader()),
+                  SizedBox(height: 12.h),
+
+
+                  // First Name
+                  _buildLabeledField(
+                    label: 'First Name',
+                    field: AuthTextField(
+                      controller: _firstNameController,
+                      hintText: 'Ahmed',
+                      textInputAction: TextInputAction.next,
+                      validator: (value) =>
+                          value.trim().isEmpty ? 'Required' : null,
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+
+                  // Last Name
+                  _buildLabeledField(
+                    label: 'Last Name',
+                    field: AuthTextField(
+                      controller: _lastNameController,
+                      hintText: 'Ashraf',
+                      textInputAction: TextInputAction.next,
+                      validator: (value) =>
+                          value.trim().isEmpty ? 'Required' : null,
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+
+                  // Email
+                  _buildLabeledField(
+                    label: 'Email Address',
+                    field: AuthTextField(
+                      controller: _emailController,
+                      hintText: 'Kemet@example.com',
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      validator: ValidationService.validateEmail,
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+
+                  // Password
+                  _buildLabeledField(
+                    label: 'Password',
+                    field: AuthTextField(
+                      controller: _passwordController,
+                      hintText: '••••••••',
+                      textInputAction: TextInputAction.next,
+                      obscureText: !_isPasswordVisible,
+                      validator: ValidationService.validatePassword,
+                      onChanged: (_) {
+                        if (_confirmPasswordController.text.isNotEmpty) {
+                          _formKey.currentState?.validate();
+                        }
+                      },
+                      suffixIcon: _buildVisibilityIcon(
+                        isVisible: _isPasswordVisible,
+                        onPressed: () =>
+                            setState(() => _isPasswordVisible = !_isPasswordVisible),
                       ),
                     ),
+                  ),
+                  SizedBox(height: 12.h),
 
-                    // Header
-                    const Center(child: AuthHeader()),
-                    SizedBox(height: 12.h),
-
-                    // First Name
-                    _buildLabeledField(
-                      label: 'First Name',
-                      field: AuthTextField(
-                        controller: _firstNameController,
-                        hintText: 'Ahmed',
-                        textInputAction: TextInputAction.next,
-                        validator: (value) => ValidationService.validateName(
-                          value,
-                          fieldName: 'First name',
-                        ),
+                  // Confirm Password
+                  _buildLabeledField(
+                    label: 'Confirm Password',
+                    field: AuthTextField(
+                      controller: _confirmPasswordController,
+                      hintText: '••••••••',
+                      textInputAction: TextInputAction.done,
+                      obscureText: !_isConfirmPasswordVisible,
+                      validator: (value) =>
+                          ValidationService.validateConfirmPassword(
+                        _passwordController.text,
+                        value ?? '',
                       ),
-                    ),
-                    SizedBox(height: 12.h),
-
-                    // Last Name
-                    _buildLabeledField(
-                      label: 'Last Name',
-                      field: AuthTextField(
-                        controller: _lastNameController,
-                        hintText: 'Ashraf',
-                        textInputAction: TextInputAction.next,
-                        validator: (value) => ValidationService.validateName(
-                          value,
-                          fieldName: 'Last name',
-                        ),
+                      suffixIcon: _buildVisibilityIcon(
+                        isVisible: _isConfirmPasswordVisible,
+                        onPressed: () => setState(() =>
+                            _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
                       ),
+                      onFieldSubmitted: (_) => _onCreateAccountPressed(),
                     ),
-                    SizedBox(height: 12.h),
+                  ),
+                  SizedBox(height: 24.h),
 
-                    // Email
-                    _buildLabeledField(
-                      label: 'Email Address',
-                      field: AuthTextField(
-                        controller: _emailController,
-                        hintText: 'Kemet@example.com',
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        validator: ValidationService.validateEmail,
-                      ),
-                    ),
-                    SizedBox(height: 12.h),
+                  // Create Account button
+                  AnimatedGoldButton(
+                    onTap: _isLoading ? () {} : _onCreateAccountPressed,
+                    text: _isLoading ? 'Creating Account...' : 'Create Account',
+                  ),
+                  SizedBox(height: 16.h),
 
-                    // Password
-                    _buildLabeledField(
-                      label: 'Password',
-                      field: AuthTextField(
-                        controller: _passwordController,
-                        hintText: '••••••••',
-                        textInputAction: TextInputAction.next,
-                        obscureText: !_isPasswordVisible,
-                        validator: ValidationService.validatePassword,
-                        onChanged: (_) {
-                          if (_confirmPasswordController.text.isNotEmpty) {
-                            _formKey.currentState?.validate();
-                          }
-                        },
-                        suffixIcon: _buildVisibilityIcon(
-                          isVisible: _isPasswordVisible,
-                          onPressed: () => setState(
-                            () => _isPasswordVisible = !_isPasswordVisible,
+                  // Sign In link
+                  Center(
+                    child: GestureDetector(
+                      onTap: () => context.pushReplacementNamed(Routes.onLoginScreen),
+                      child: RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontSize: 13.sp,
+                            color: AppColors.lightGold.withValues(alpha: 0.55),
                           ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 12.h),
-
-                    // Confirm Password
-                    _buildLabeledField(
-                      label: 'Confirm Password',
-                      field: AuthTextField(
-                        controller: _confirmPasswordController,
-                        hintText: '••••••••',
-                        textInputAction: TextInputAction.done,
-                        obscureText: !_isConfirmPasswordVisible,
-                        validator: (value) =>
-                            ValidationService.validateConfirmPassword(
-                              _passwordController.text,
-                              value ?? '',
-                            ),
-                        suffixIcon: _buildVisibilityIcon(
-                          isVisible: _isConfirmPasswordVisible,
-                          onPressed: () => setState(
-                            () => _isConfirmPasswordVisible =
-                                !_isConfirmPasswordVisible,
-                          ),
-                        ),
-                        onFieldSubmitted: (_) =>
-                            FocusScope.of(context).unfocus(),
-                      ),
-                    ),
-                    SizedBox(height: 24.h),
-
-                    // Create Account button
-                    AnimatedGoldButton(
-                      onTap: _isLoading
-                          ? () {}
-                          : () async {
-                            setState(() => _submitted = true);
-                              final isValid = _formKey.currentState?.validate() ?? false;
-                              if (!isValid) return;
-
-                              FocusScope.of(context).unfocus();
-                              setState(() => _isLoading = true);
-
-                              try {
-                                await _authService.register(
-                                  _emailController.text,
-                                  _passwordController.text,
-                                );
-
-                                await _authService.signOut();
-
-                                if (!mounted) return;
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Account created successfully. Please login to continue.',
-                                    ),
-                                  ),
-                                );
-                                context.pushReplacementNamed(Routes.login);
-                              } catch (e) {
-                                if (!mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(e.toString())),
-                                );
-                              } finally {
-                                if (mounted) setState(() => _isLoading = false);
-                              }
-                            },
-                      text: _isLoading
-                          ? 'Creating Account...'
-                          : 'Create Account',
-                    ),
-                    SizedBox(height: 16.h),
-
-                    // Sign In link
-                    Center(
-                      child: GestureDetector(
-                        onTap: () => context.pushReplacementNamed(Routes.login),
-                        child: RichText(
-                          text: TextSpan(
-                            style: TextStyle(
-                              fontSize: 13.sp,
-                              color: AppColors.lightGold.withValues(
-                                alpha: 0.55,
-                              ),
-                            ),
-                            children: [
-                              const TextSpan(text: 'Already have an account? '),
-                              TextSpan(
-                                text: 'Sign In',
-                                style: GoogleFonts.cormorant(
-                                  textStyle: TextStyle(
-                                    color: AppColors.mainGold,
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          children: [
+                            const TextSpan(text: 'Already have an account? '),
+                            TextSpan(
+                              text: 'Sign In',
+                              style: GoogleFonts.cormorant(
+                                textStyle: TextStyle(
+                                  color: AppColors.mainGold,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    SizedBox(height: 8.h),
-                  ],
-                ),
+                  ),
+                  SizedBox(height: 8.h),
+                ],
               ),
             ),
           ),
+        ),
         ],
       ),
     );
   }
 }
+
