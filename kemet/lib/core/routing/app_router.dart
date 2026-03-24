@@ -7,7 +7,8 @@ import 'package:kemet/view/onboarding/onboarding_screen4_view.dart';
 import 'package:kemet/view/splash/splash_view.dart';
 import 'package:kemet/view/auth/login_view.dart';
 import 'package:kemet/view/auth/register_view.dart';
-import 'package:kemet/view/homeTest.dart';
+import 'package:kemet/view/common/main_shell.dart';
+import 'package:kemet/view/home/home_screen.dart';
 
 class AppRouter {
   Route generateRoute(RouteSettings setting) {
@@ -30,8 +31,17 @@ class AppRouter {
       case Routes.onBoardingScreen4:
         return _fadeDominantFromRight(const OnboardingScreen4(), setting);
 
-      case Routes.OnHomeScreen:
-        return  _fadeDominantFromRight(const OnHomeScreen(), setting);
+      case Routes.HomeScreen:
+        return _fadeDominantFromRight(
+          const MainShell(child: HomeScreen()),
+          setting,
+        );
+
+      case Routes.mainShell:
+        return _fadeDominantFromRight(
+          const MainShell(child: HomeScreen()),
+          setting,
+        );
 
       case Routes.onLoginScreen:
         return  _fadeDominantFromRight(const onLoginScreen(), setting);
