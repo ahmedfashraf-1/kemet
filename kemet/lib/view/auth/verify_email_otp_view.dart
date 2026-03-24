@@ -20,8 +20,7 @@ class VerifyEmailOtpView extends StatefulWidget {
   State<VerifyEmailOtpView> createState() => _VerifyEmailOtpViewState();
 }
 
-class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView>
-{
+class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView> {
   final _authService = AuthService();
   bool _isChecking = false;
   bool _isSendingEmail = false;
@@ -146,7 +145,11 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView>
 
       if (sendStatus == VerificationEmailSendStatus.skippedCooldown) {
         if (showCooldownNotice) {
-          _showMessage(_cooldownLabel.isEmpty ? 'Please wait before resending.' : _cooldownLabel);
+          _showMessage(
+            _cooldownLabel.isEmpty
+                ? 'Please wait before resending.'
+                : _cooldownLabel,
+          );
         }
         return;
       }
@@ -190,7 +193,7 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView>
 
       if (user.emailVerified) {
         context.pushNamedAndRemoveUntil(
-          Routes.home,
+          Routes.HomeScreen,
           predicate: (route) => false,
         );
         return;
@@ -254,7 +257,7 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView>
                     alignment: Alignment.centerLeft,
                     child: IconButton(
                       onPressed: () =>
-                          context.pushReplacementNamed(Routes.login),
+                          context.pushReplacementNamed(Routes.onLoginScreen),
                       padding: EdgeInsets.zero,
                       constraints: BoxConstraints(
                         minWidth: 32.w,
@@ -363,7 +366,8 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView>
 
                   // ── Back to Login ─────────────────────────────
                   TextButton(
-                    onPressed: () => context.pushReplacementNamed(Routes.login),
+                    onPressed: () =>
+                        context.pushReplacementNamed(Routes.onLoginScreen),
                     child: Text(
                       'Back to Login',
                       style: TextStyle(
