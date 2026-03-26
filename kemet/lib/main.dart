@@ -8,7 +8,7 @@ void main() async {
   
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  // await FirebaseAuth.instance.signOut(); // for test المفروض تتشال علشان السيشن 
+  await FirebaseAuth.instance.signOut(); // for test المفروض تتشال علشان السيشن 
   print("🔥 Firebase Connected Successfully");
 
   runApp(
@@ -16,4 +16,5 @@ void main() async {
       appRouter: AppRouter(),
     ),
   );
+  
 }

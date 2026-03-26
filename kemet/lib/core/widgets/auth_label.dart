@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:kemet/constants/colors.dart';
+import 'package:kemet/core/constants/colors.dart';
 
 class AuthLabel extends StatelessWidget {
   const AuthLabel({

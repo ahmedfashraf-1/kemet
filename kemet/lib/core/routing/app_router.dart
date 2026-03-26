@@ -1,14 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/core/routing/routes.dart';
-import 'package:kemet/view/onboarding/onboarding_screen1_view.dart';
-import 'package:kemet/view/onboarding/onboarding_screen2_view.dart';
-import 'package:kemet/view/onboarding/onboarding_screen3_view.dart';
-import 'package:kemet/view/onboarding/onboarding_screen4_view.dart';
-import 'package:kemet/view/splash/splash_view.dart';
-import 'package:kemet/view/auth/login_view.dart';
-import 'package:kemet/view/auth/register_view.dart';
-import 'package:kemet/view/common/main_shell.dart';
-import 'package:kemet/view/home/home_screen.dart';
+import 'package:kemet/features/auth/domain/repository_Abstract/auth_repository.dart';
+import 'package:kemet/features/auth/domain/usecases/check_email_verified_use_case.dart';
+import 'package:kemet/features/auth/domain/usecases/send_password_reset_use_case.dart';
+import 'package:kemet/features/auth/domain/usecases/send_verification_email_use_case.dart';
+import 'package:kemet/features/auth/domain/usecases/sign_in_use_case.dart';
+import 'package:kemet/features/auth/domain/usecases/sign_in_with_google_use_case.dart';
+import 'package:kemet/features/auth/domain/usecases/sign_out_use_case.dart';
+import 'package:kemet/features/auth/domain/usecases/sign_up_use_case.dart';
+import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:kemet/features/auth/presentation/screens/forgot_password_view.dart';
+import 'package:kemet/features/auth/presentation/screens/verify_email_otp_view.dart';
+import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen1_view.dart';
+import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen2_view.dart';
+import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen3_view.dart';
+import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen4_view.dart';
+import 'package:kemet/features/splash/presentation/screens/splash_view.dart';
+import 'package:kemet/features/auth/presentation/screens/login_view.dart';
+import 'package:kemet/features/auth/presentation/screens/register_view.dart';
+import 'package:kemet/features/main/presentation/screens/main_shell.dart';
+import 'package:kemet/features/home/presentation/screens/home_screen.dart';
 
 class AppRouter {
   Route generateRoute(RouteSettings setting) {
@@ -42,12 +54,38 @@ class AppRouter {
           const MainShell(child: HomeScreen()),
           setting,
         );
-
-      case Routes.onLoginScreen:
-        return  _fadeDominantFromRight(const onLoginScreen(), setting);
         
-      case Routes.onRegisterScreen:
-        return  _fadeDominantFromRight(const onRegisterScreen(), setting);
+      case Routes.forgotPassword:
+        return _fadeDominantFromRight(const ForgotPasswordView(), setting);
+
+      case Routes.verifyEmailOtp:
+        final emailArg = setting.arguments;
+        return _fadeDominantFromRight(
+          VerifyEmailOtpView(
+            initialEmail: emailArg is String ? emailArg : null,
+          ),
+          setting,
+        );
+
+      case Routes.LoginView:
+        return _fadeDominantFromRight(
+          BlocProvider(
+            create: (context) => AuthCubit(
+              signIn: SignInUseCase(context.read<AuthRepository>()),
+              signUp: SignUpUseCase(context.read<AuthRepository>()),
+              signInWithGoogle: SignInWithGoogleUseCase(context.read<AuthRepository>()),
+              sendPasswordReset: SendPasswordResetUseCase(context.read<AuthRepository>()),
+              sendVerificationEmail: SendVerificationEmailUseCase(context.read<AuthRepository>()),
+              checkEmailVerified: CheckEmailVerifiedUseCase(context.read<AuthRepository>()),
+              signOut: SignOutUseCase(context.read<AuthRepository>()),
+            ),
+            child: const LoginView(),
+          ),
+          setting,
+        );
+        
+      case Routes.RegisterView:
+        return  _fadeDominantFromRight(const RegisterView(), setting);
 
 
       default:
