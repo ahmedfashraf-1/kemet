@@ -1,0 +1,7 @@
+import 'package:dartz/dartz.dart';
+import 'package:kemet/core/errors/failures.dart';
+import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
+
+abstract class LandmarksRepository {
+  Future<Either<Failure, List<Landmark>>> getAllLandmarks({required int limit, required int offset});
+}

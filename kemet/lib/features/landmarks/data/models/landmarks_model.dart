@@ -15,9 +15,9 @@ class LandmarkModel extends Landmark {
     super.audioUrl,
   });
 
-  factory LandmarkModel.fromJson(Map<String, dynamic> json, String docId) {
+  factory LandmarkModel.fromJson(Map<String, dynamic> json) {
     return LandmarkModel(
-      id: docId,
+      id: json['id'] ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       city: json['city'] ?? '',
@@ -36,6 +36,7 @@ class LandmarkModel extends Landmark {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'name': name,
       'description': description,
       'city': city,
