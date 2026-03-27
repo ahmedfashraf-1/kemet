@@ -1,5 +1,5 @@
 import '../entities/user.dart';
-import '../repository_Abstract/auth_repository.dart';
+import '../repositories/auth_repository.dart';
 
 class SignInUseCase {
   const SignInUseCase(this._repository);

@@ -1,4 +1,4 @@
-import '../repository_Abstract/auth_repository.dart';
+import '../repositories/auth_repository.dart';
 
 class SignUpUseCase {
   const SignUpUseCase(this._repository);

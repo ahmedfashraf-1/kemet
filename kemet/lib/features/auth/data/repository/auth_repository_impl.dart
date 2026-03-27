@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import '../../domain/entities/user.dart' as domain;
-import '../../domain/repository_Abstract/auth_repository.dart';
-import '../data_source/auth_remote_datasource.dart';
+import '../../domain/repositories/auth_repository.dart';
+import '../datasources/auth_remote_datasource.dart';
 import '../models/user_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
@@ -16,10 +16,9 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Stream<domain.User?> get authStateChanges =>
-      _datasource.authStateChanges.map(
-        (fbUser) => fbUser != null ? _mapUser(fbUser) : null,
-      );
+  Stream<domain.User?> get authStateChanges => _datasource.authStateChanges.map(
+    (fbUser) => fbUser != null ? _mapUser(fbUser) : null,
+  );
 
   @override
   Future<domain.User> signInWithEmail(String email, String password) async {
@@ -67,9 +66,9 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   domain.User _mapUser(fb.User fbUser) => UserModel(
-        id: fbUser.uid,
-        username: fbUser.displayName ?? fbUser.email!.split('@').first,
-        email: fbUser.email!,
-        createdAt: fbUser.metadata.creationTime ?? DateTime.now(),
-      );
+    id: fbUser.uid,
+    username: fbUser.displayName ?? fbUser.email!.split('@').first,
+    email: fbUser.email!,
+    createdAt: fbUser.metadata.creationTime ?? DateTime.now(),
+  );
 }

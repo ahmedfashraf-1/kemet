@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/core/routing/routes.dart';
-import 'package:kemet/features/auth/domain/repository_Abstract/auth_repository.dart';
+import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kemet/features/auth/domain/usecases/check_email_verified_use_case.dart';
 import 'package:kemet/features/auth/domain/usecases/send_password_reset_use_case.dart';
 import 'package:kemet/features/auth/domain/usecases/send_verification_email_use_case.dart';
@@ -25,7 +25,6 @@ import 'package:kemet/features/home/presentation/screens/home_screen.dart';
 class AppRouter {
   Route generateRoute(RouteSettings setting) {
     switch (setting.name) {
-
       // Splash Screen: Fade dominant
       case Routes.splashScreen:
         return _fadeDominantFromBottom(const SplashView(), setting);
@@ -54,9 +53,31 @@ class AppRouter {
           const MainShell(child: HomeScreen()),
           setting,
         );
-        
+
       case Routes.forgotPassword:
-        return _fadeDominantFromRight(const ForgotPasswordView(), setting);
+        return _fadeDominantFromRight(
+          BlocProvider(
+            create: (context) => AuthCubit(
+              signIn: SignInUseCase(context.read<AuthRepository>()),
+              signUp: SignUpUseCase(context.read<AuthRepository>()),
+              signInWithGoogle: SignInWithGoogleUseCase(
+                context.read<AuthRepository>(),
+              ),
+              sendPasswordReset: SendPasswordResetUseCase(
+                context.read<AuthRepository>(),
+              ),
+              sendVerificationEmail: SendVerificationEmailUseCase(
+                context.read<AuthRepository>(),
+              ),
+              checkEmailVerified: CheckEmailVerifiedUseCase(
+                context.read<AuthRepository>(),
+              ),
+              signOut: SignOutUseCase(context.read<AuthRepository>()),
+            ),
+            child: const ForgotPasswordView(),
+          ),
+          setting,
+        );
 
       case Routes.verifyEmailOtp:
         final emailArg = setting.arguments;
@@ -73,27 +94,54 @@ class AppRouter {
             create: (context) => AuthCubit(
               signIn: SignInUseCase(context.read<AuthRepository>()),
               signUp: SignUpUseCase(context.read<AuthRepository>()),
-              signInWithGoogle: SignInWithGoogleUseCase(context.read<AuthRepository>()),
-              sendPasswordReset: SendPasswordResetUseCase(context.read<AuthRepository>()),
-              sendVerificationEmail: SendVerificationEmailUseCase(context.read<AuthRepository>()),
-              checkEmailVerified: CheckEmailVerifiedUseCase(context.read<AuthRepository>()),
+              signInWithGoogle: SignInWithGoogleUseCase(
+                context.read<AuthRepository>(),
+              ),
+              sendPasswordReset: SendPasswordResetUseCase(
+                context.read<AuthRepository>(),
+              ),
+              sendVerificationEmail: SendVerificationEmailUseCase(
+                context.read<AuthRepository>(),
+              ),
+              checkEmailVerified: CheckEmailVerifiedUseCase(
+                context.read<AuthRepository>(),
+              ),
               signOut: SignOutUseCase(context.read<AuthRepository>()),
             ),
             child: const LoginView(),
           ),
           setting,
         );
-        
-      case Routes.RegisterView:
-        return  _fadeDominantFromRight(const RegisterView(), setting);
 
+      case Routes.RegisterView:
+        return _fadeDominantFromRight(
+          BlocProvider(
+            create: (context) => AuthCubit(
+              signIn: SignInUseCase(context.read<AuthRepository>()),
+              signUp: SignUpUseCase(context.read<AuthRepository>()),
+              signInWithGoogle: SignInWithGoogleUseCase(
+                context.read<AuthRepository>(),
+              ),
+              sendPasswordReset: SendPasswordResetUseCase(
+                context.read<AuthRepository>(),
+              ),
+              sendVerificationEmail: SendVerificationEmailUseCase(
+                context.read<AuthRepository>(),
+              ),
+              checkEmailVerified: CheckEmailVerifiedUseCase(
+                context.read<AuthRepository>(),
+              ),
+              signOut: SignOutUseCase(context.read<AuthRepository>()),
+            ),
+            child: const RegisterView(),
+          ),
+          setting,
+        );
 
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
-            body: Center(
-              child: Text('No route defined for ${setting.name}'),
-            ),
+            body: Center(child: Text('No route defined for ${setting.name}')),
           ),
         );
     }
@@ -109,11 +157,15 @@ class AppRouter {
       transitionsBuilder: (_, animation, __, child) {
         const beginOffset = Offset(0.2, 0.0); // Slide خفيف جدًا
         const endOffset = Offset.zero;
-        final offsetTween = Tween(begin: beginOffset, end: endOffset)
-            .chain(CurveTween(curve: Curves.easeOut));
+        final offsetTween = Tween(
+          begin: beginOffset,
+          end: endOffset,
+        ).chain(CurveTween(curve: Curves.easeOut));
 
-        final fadeTween = Tween<double>(begin: 0.0, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeIn));
+        final fadeTween = Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeIn));
 
         return SlideTransition(
           position: animation.drive(offsetTween),
@@ -128,18 +180,25 @@ class AppRouter {
   }
 
   // Fade dominant + slight slide from bottom
-  PageRouteBuilder _fadeDominantFromBottom(Widget page, RouteSettings settings) {
+  PageRouteBuilder _fadeDominantFromBottom(
+    Widget page,
+    RouteSettings settings,
+  ) {
     return PageRouteBuilder(
       settings: settings,
       pageBuilder: (_, __, ___) => page,
       transitionsBuilder: (_, animation, __, child) {
         const beginOffset = Offset(0.0, 0.2); // Slide خفيف جدًا من تحت
         const endOffset = Offset.zero;
-        final offsetTween = Tween(begin: beginOffset, end: endOffset)
-            .chain(CurveTween(curve: Curves.easeOut));
+        final offsetTween = Tween(
+          begin: beginOffset,
+          end: endOffset,
+        ).chain(CurveTween(curve: Curves.easeOut));
 
-        final fadeTween = Tween<double>(begin: 0.0, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeIn));
+        final fadeTween = Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeIn));
 
         return SlideTransition(
           position: animation.drive(offsetTween),
