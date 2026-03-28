@@ -122,39 +122,6 @@ class OnboardingScreen4 extends StatelessWidget {
                   ),
 
                   SizedBox(height: 30.h),
-                  /*
-                  GestureDetector(
-                    onTap: () {
-                      //context.pushNamed(Routes.loginScreen); // or home
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      height: 60.h,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFE3B06C), Color(0xFF96703D)],
-                        ),
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.4),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        "START JOURNEY",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 21.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-*/
                   AnimatedGoldButton(
                     text: "START JOURNEY",
                     onTap: () async {
@@ -195,9 +162,8 @@ class OnboardingScreen4 extends StatelessWidget {
       children: [
         Row(
           children: [
-            // المعين الذهبي الصغير
             Transform.rotate(
-              angle: 0.8, // تدوير المربع ليصبح معين
+              angle: 0.8, 
               child: Container(
                 width: 8.w,
                 height: 8.w,
