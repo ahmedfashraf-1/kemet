@@ -136,7 +136,7 @@ class OnboardingScreen2 extends StatelessWidget {
                   // Skip Button
                   GestureDetector(
                     onTap: () {
-                      context.pushNamed(Routes.LoginView); 
+                      context.pushNamed(Routes.onBoardingScreen4); 
                     },
                     child: Text(
                       "skip",
