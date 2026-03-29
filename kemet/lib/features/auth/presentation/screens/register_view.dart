@@ -272,14 +272,21 @@ class _RegisterViewState extends State<RegisterView> {
     context.read<AuthCubit>().signUp(
           _emailController.text,
           _passwordController.text,
+          _firstNameController.text,
+          _lastNameController.text,
         );
   }
 
   void _onStateChange(BuildContext context, AuthState state) {
     if (state is AuthNeedsEmailVerification) {
       _showSnackBar(
-          context, 'Account created. Please verify your email to continue.');
-      context.pushReplacementNamed(Routes.LoginView);
+        context,
+        'Account created successfully. Please verify your email.',
+      );
+      context.pushReplacementNamed(
+        Routes.verifyEmailOtp,
+        arguments: _emailController.text.trim().toLowerCase(),
+      );
     } else if (state is AuthError) {
       _showSnackBar(context, state.message);
     }

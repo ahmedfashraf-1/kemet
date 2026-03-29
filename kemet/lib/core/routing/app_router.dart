@@ -82,8 +82,27 @@ class AppRouter {
       case Routes.verifyEmailOtp:
         final emailArg = setting.arguments;
         return _fadeDominantFromRight(
-          VerifyEmailOtpView(
-            initialEmail: emailArg is String ? emailArg : null,
+          BlocProvider(
+            create: (context) => AuthCubit(
+              signIn: SignInUseCase(context.read<AuthRepository>()),
+              signUp: SignUpUseCase(context.read<AuthRepository>()),
+              signInWithGoogle: SignInWithGoogleUseCase(
+                context.read<AuthRepository>(),
+              ),
+              sendPasswordReset: SendPasswordResetUseCase(
+                context.read<AuthRepository>(),
+              ),
+              sendVerificationEmail: SendVerificationEmailUseCase(
+                context.read<AuthRepository>(),
+              ),
+              checkEmailVerified: CheckEmailVerifiedUseCase(
+                context.read<AuthRepository>(),
+              ),
+              signOut: SignOutUseCase(context.read<AuthRepository>()),
+            ),
+            child: VerifyEmailOtpView(
+              initialEmail: emailArg is String ? emailArg : null,
+            ),
           ),
           setting,
         );

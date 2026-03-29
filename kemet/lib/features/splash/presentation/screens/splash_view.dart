@@ -37,7 +37,7 @@ class _SplashViewState extends State<SplashView> {
   Future<void> _checkOnboarding() async {
     await Future.delayed(const Duration(seconds: 3));
     final prefs = await SharedPreferences.getInstance();
-    final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
+    final seenOnboarding = prefs.getBool('onboarding_seen') ?? false;
     if (!mounted) return;
 
     if (!seenOnboarding) {
@@ -45,10 +45,16 @@ class _SplashViewState extends State<SplashView> {
       return;
     }
 
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     final user = FirebaseAuth.instance.currentUser;
-    if (isLoggedIn || user != null) {
-      context.pushReplacementNamed(Routes.HomeScreen);
+    if (user != null) {
+      if (user.emailVerified) {
+        context.pushReplacementNamed(Routes.HomeScreen);
+      } else {
+        context.pushReplacementNamed(
+          Routes.verifyEmailOtp,
+          arguments: user.email?.trim().toLowerCase(),
+        );
+      }
     } else {
       context.pushReplacementNamed(Routes.LoginView);
     }

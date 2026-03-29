@@ -40,17 +40,31 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final user = await _signIn(email, password);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
-      emit(AuthAuthenticated(user));
+      await prefs.setBool('is_logged_in', true);
+      final verified = await _checkEmailVerified();
+      if (verified) {
+        emit(AuthAuthenticated(user));
+      } else {
+        emit(const AuthNeedsEmailVerification());
+      }
     } catch (e) {
       emit(AuthError(e.toString()));
     }
   }
 
-  Future<void> signUp(String email, String password) async {
+  Future<void> signUp(
+    String email,
+    String password,
+    String firstName,
+    String lastName,
+  ) async {
     emit(const AuthLoading());
     try {
-      await _signUp(email, password);
+      await _signUp(email, password, firstName, lastName);
+      // Keep the user session active and send verification immediately.
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_logged_in', true);
+      await _sendVerificationEmail();
       emit(const AuthNeedsEmailVerification());
     } catch (e) {
       emit(AuthError(e.toString()));
@@ -63,7 +77,7 @@ class AuthCubit extends Cubit<AuthState> {
       final user = await _signInWithGoogle();
       if (user != null) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('isLoggedIn', true);
+        await prefs.setBool('is_logged_in', true);
         emit(AuthAuthenticated(user));
       } else {
         emit(const AuthInitial());
@@ -92,9 +106,18 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> checkEmailVerified() async {
+    emit(const AuthLoading());
     try {
       final verified = await _checkEmailVerified();
-      if (verified) emit(AuthEmailVerified());
+      if (verified) {
+        emit(AuthEmailVerified());
+      } else {
+        emit(
+          const AuthError(
+            'Please verify your email first before continuing.',
+          ),
+        );
+      }
     } catch (e) {
       emit(AuthError(e.toString()));
     }
@@ -103,7 +126,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> signOut() async {
     await _signOut();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', false);
+    await prefs.setBool('is_logged_in', false);
     emit(const AuthInitial());
   }
 }

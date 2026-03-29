@@ -5,7 +5,12 @@ abstract class AuthRepository {
   Stream<User?> get authStateChanges;
 
   Future<User> signInWithEmail(String email, String password);
-  Future<User> signUpWithEmail(String email, String password);
+  Future<User> signUpWithEmail(
+    String email,
+    String password,
+    String firstName,
+    String lastName,
+  );
   Future<User?> signInWithGoogle();
   Future<void> sendPasswordReset(String email);
   Future<void> sendVerificationEmail();
