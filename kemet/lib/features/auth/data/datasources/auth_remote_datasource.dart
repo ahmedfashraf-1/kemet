@@ -98,9 +98,30 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-      return await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
+      final user = userCredential.user;
+
+      if (user != null) {
+        final docRef = _firestore.collection('users').doc(user.uid);
+        final doc = await docRef.get();
+
+        if (!doc.exists) {
+          await docRef.set({
+            'id': user.uid,
+            'email': user.email,
+            'fullName': user.displayName ?? '',
+            'createdAt': DateTime.now().toIso8601String(),
+          });
+        }
+      }
+
+      return userCredential;
     } on fb.FirebaseAuthException catch (e) {
       throw _mapAuthError(e);
+    } on FirebaseException catch (e) {
+      throw _mapFirestoreError(e);
+    } catch (_) {
+      throw const AuthRemoteException('Failed to complete Google sign in.');
     }
   }
 
