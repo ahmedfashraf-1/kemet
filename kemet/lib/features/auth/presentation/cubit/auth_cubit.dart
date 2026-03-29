@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/usecases/sign_in_use_case.dart';
 import '../../domain/usecases/sign_up_use_case.dart';
 import '../../domain/usecases/sign_in_with_google_use_case.dart';
@@ -17,14 +18,14 @@ class AuthCubit extends Cubit<AuthState> {
     required SendVerificationEmailUseCase sendVerificationEmail,
     required CheckEmailVerifiedUseCase checkEmailVerified,
     required SignOutUseCase signOut,
-  })  : _signIn = signIn,
-        _signUp = signUp,
-        _signInWithGoogle = signInWithGoogle,
-        _sendPasswordReset = sendPasswordReset,
-        _sendVerificationEmail = sendVerificationEmail,
-        _checkEmailVerified = checkEmailVerified,
-        _signOut = signOut,
-        super(const AuthInitial());
+  }) : _signIn = signIn,
+       _signUp = signUp,
+       _signInWithGoogle = signInWithGoogle,
+       _sendPasswordReset = sendPasswordReset,
+       _sendVerificationEmail = sendVerificationEmail,
+       _checkEmailVerified = checkEmailVerified,
+       _signOut = signOut,
+       super(const AuthInitial());
 
   final SignInUseCase _signIn;
   final SignUpUseCase _signUp;
@@ -38,6 +39,8 @@ class AuthCubit extends Cubit<AuthState> {
     emit(const AuthLoading());
     try {
       final user = await _signIn(email, password);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
       emit(AuthAuthenticated(user));
     } catch (e) {
       emit(AuthError(e.toString()));
@@ -59,6 +62,8 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final user = await _signInWithGoogle();
       if (user != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isLoggedIn', true);
         emit(AuthAuthenticated(user));
       } else {
         emit(const AuthInitial());
@@ -97,6 +102,8 @@ class AuthCubit extends Cubit<AuthState> {
 
   Future<void> signOut() async {
     await _signOut();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', false);
     emit(const AuthInitial());
   }
 }

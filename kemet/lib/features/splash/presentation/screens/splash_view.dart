@@ -34,24 +34,25 @@ class _SplashViewState extends State<SplashView> {
     // });
   }
 
-Future<void> _checkOnboarding() async {
-  await Future.delayed(const Duration(seconds: 3));
-  final prefs = await SharedPreferences.getInstance();
-  final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
-  if (!mounted) return;
+  Future<void> _checkOnboarding() async {
+    await Future.delayed(const Duration(seconds: 3));
+    final prefs = await SharedPreferences.getInstance();
+    final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
+    if (!mounted) return;
 
-  if (!seenOnboarding) {
-    context.pushReplacementNamed(Routes.onBoardingScreen1);
-    return;
-  }
+    if (!seenOnboarding) {
+      context.pushReplacementNamed(Routes.onBoardingScreen1);
+      return;
+    }
 
-  final user = FirebaseAuth.instance.currentUser;
-  if (user != null) {
-    context.pushReplacementNamed(Routes.HomeScreen);
-  } else {
-    context.pushReplacementNamed(Routes.LoginView);
+    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    final user = FirebaseAuth.instance.currentUser;
+    if (isLoggedIn || user != null) {
+      context.pushReplacementNamed(Routes.HomeScreen);
+    } else {
+      context.pushReplacementNamed(Routes.LoginView);
+    }
   }
-}
 
   // void _navigateToOnboarding() {
   //   final MaterialApp? app = context
