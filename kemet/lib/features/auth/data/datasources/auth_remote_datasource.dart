@@ -4,8 +4,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 
 abstract class AuthRemoteDatasource {
-  fb.User? get currentUser;
-  Stream<fb.User?> get authStateChanges;
+  fb.User? get currentUser; // Get the currently signed-in user
+  Stream<fb.User?> get authStateChanges; // Listen to auth state changes (sign in/out)
 
   Future<fb.UserCredential> signInWithEmail(String email, String password);
   Future<fb.UserCredential> signUpWithEmail(

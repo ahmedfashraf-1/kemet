@@ -300,7 +300,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       },
       style: TextStyle(color: Colors.white, fontSize: 14.sp),
       decoration: InputDecoration(
-        hintText: 'Kemet@example.com',
+        hintText: 'Enter your email',
         hintStyle: TextStyle(
           color: AppColors.mainGold.withOpacity(0.30),
           fontSize: 14.sp,

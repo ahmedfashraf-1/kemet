@@ -118,7 +118,7 @@ class _RegisterViewState extends State<RegisterView> {
                             label: 'First Name',
                             field: AuthTextField(
                               controller: _firstNameController,
-                              hintText: 'Ahmed',
+                              hintText: 'Enter Your First Name',
                               textInputAction: TextInputAction.next,
                               validator: (value) =>
                                   ValidationService.validateName(
@@ -134,7 +134,7 @@ class _RegisterViewState extends State<RegisterView> {
                             label: 'Last Name',
                             field: AuthTextField(
                               controller: _lastNameController,
-                              hintText: 'Ashraf',
+                              hintText: 'Enter Your Last Name',
                               textInputAction: TextInputAction.next,
                               validator: (value) =>
                                   ValidationService.validateName(
@@ -150,7 +150,7 @@ class _RegisterViewState extends State<RegisterView> {
                             label: 'Email Address',
                             field: AuthTextField(
                               controller: _emailController,
-                              hintText: 'Kemet@example.com',
+                              hintText: 'Enter Your Email Address',
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
                               validator: ValidationService.validateEmail,
@@ -163,7 +163,7 @@ class _RegisterViewState extends State<RegisterView> {
                             label: 'Password',
                             field: AuthTextField(
                               controller: _passwordController,
-                              hintText: '••••••••',
+                              hintText: 'Enter Your Password',
                               textInputAction: TextInputAction.next,
                               obscureText: !_isPasswordVisible,
                               validator: ValidationService.validatePassword,
@@ -187,7 +187,7 @@ class _RegisterViewState extends State<RegisterView> {
                             label: 'Confirm Password',
                             field: AuthTextField(
                               controller: _confirmPasswordController,
-                              hintText: '••••••••',
+                              hintText: 'Confirm Your Password',
                               textInputAction: TextInputAction.done,
                               obscureText: !_isConfirmPasswordVisible,
                               validator: (value) =>
