@@ -7,7 +7,12 @@ import 'package:kemet/features/landmarks/domain/entities/landmarkcategory.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarkphotos.dart';
 
 abstract class LandmarkRemoteDataSource {
-   Future<List<LandmarkModel>> getAllLandmarks({required int limit, required int offset});
+  Future<List<LandmarkModel>> getAllLandmarks({
+    required int page,
+    required int limit,
+    String? city,
+    String? kind,
+  });
 }
 
 const BASE_URL = "https://api.opentripmap.com/0.1/en/places/bbox";
@@ -22,39 +27,56 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
   LandmarkRemoteDataSourceImpl({required this.client});
 
   @override
-  Future<List<LandmarkModel>> getAllLandmarks({required int limit, required int offset}) async {
-    final response = await client.get(
-      Uri.parse("$BASE_URL?lon_min=$lonMin&lat_min=$latMin&lon_max=$lonMax&lat_max=$latMax&kinds=interesting_places&format=json&limit=$limit&offset=$offset&apikey=$API_KEY"),
-      headers: {"Content-Type": "application/json"},
-    );
+  Future<List<LandmarkModel>> getAllLandmarks({required int page, required int limit, String? city, String? kind}) async {
+
+    final int offset = (page - 1) * limit;
+    final String kindsParam = kind ?? 'interesting_places';
+
+    http.Response response;
+    if (city != null && city.isNotEmpty) {
+      final geoResponse = await client.get(
+        Uri.parse('https://api.opentripmap.com/0.1/en/places/geoname?name=$city&apikey=$API_KEY'),
+      );
+
+      if (geoResponse.statusCode == 200) {
+        final geoData = json.decode(geoResponse.body);
+        if (geoData['status'] == 'OK') {
+          final lat = geoData['lat'];
+          final lon = geoData['lon'];
+
+          final radiusUrl = "https://api.opentripmap.com/0.1/en/places/radius?radius=10000&lon=$lon&lat=$lat&kinds=$kindsParam&format=json&limit=$limit&offset=$offset&apikey=$API_KEY";
+          response = await client.get(Uri.parse(radiusUrl));
+        } else {
+          throw ServerException();
+        }
+      } else {
+        throw ServerException();
+      }
+    } else {
+      final boxUrl = "https://api.opentripmap.com/0.1/en/places/bbox?lon_min=$lonMin&lat_min=$latMin&lon_max=$lonMax&lat_max=$latMax&kinds=$kindsParam&format=json&limit=$limit&offset=$offset&apikey=$API_KEY";
+      response = await client.get(Uri.parse(boxUrl));
+    }
 
     if (response.statusCode == 200) {
       final List decodedJson = json.decode(response.body) as List;
-      List<LandmarkModel> landmarkModels = [];
 
-      for (var item in decodedJson) {
-        final String xid = item['xid'];
-        
-        final detailsUrl = Uri.parse(
-            'https://api.opentripmap.com/0.1/en/places/xid/$xid?apikey=$API_KEY');
-            
-        final detailsResponse = await client.get(detailsUrl);
+      final futures = decodedJson.map((item) async {
+        final xid = item['xid'];
+        final detailsResponse = await client.get(
+          Uri.parse('https://api.opentripmap.com/0.1/en/places/xid/$xid?apikey=$API_KEY'),
+        );
 
         if (detailsResponse.statusCode == 200) {
-          final Map<String, dynamic> jsonDetails =
-              json.decode(detailsResponse.body);
-
-          if (jsonDetails['name'] != null &&
-              jsonDetails['name'].toString().isNotEmpty) {
-            landmarkModels.add(_mapJsonToModel(jsonDetails));
+          final jsonDetails = json.decode(detailsResponse.body);
+          if (jsonDetails['name'] != null && jsonDetails['name'].toString().isNotEmpty) {
+            return _mapJsonToModel(jsonDetails);
           }
         }
-        // final List decodedJson = json.decode(response.body) as List;
-        // final List<LandmarkModel> landmarkModels = decodedJson
-        //     .map<LandmarkModel>((jsonLandmarkModel) => LandmarkModel.fromJson(jsonLandmarkModel))
-        //     .toList();
-      }
-      return landmarkModels;
+        return null;
+      }).toList();
+
+      final results = await Future.wait(futures);
+      return results.whereType<LandmarkModel>().toList();
     } else {
       throw ServerException();
     }
@@ -67,7 +89,7 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
       name: json['name'] ?? 'Unknown',
 
       description:
-          json['wikipedia_extracts']?['text'] ?? 'No description available',
+      json['wikipedia_extracts']?['text'] ?? 'No description available',
 
       city: json['address']?['state'] ??
           json['address']?['village'] ??
@@ -86,7 +108,7 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
   }
 
   LandmarkCategory _mapKinds(String? kinds) {
-      if (kinds == null) {
+    if (kinds == null) {
       return LandmarkCategory(id: "other", name: "Other");
     }
 
@@ -135,50 +157,4 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
 
     return photos;
   }
-
-  //TO DO:
-  /*
-  @override
-  Future<List<LandmarkModel>> getAllLandmarks({
-    required int limit,
-    required int offset,
-  }) async {
-    final response = await client.get(
-      Uri.parse(
-        "$BASE_URL?lon_min=24.7&lat_min=22.0&lon_max=36.9&lat_max=31.6&kinds=interesting_places&format=json&limit=$limit&offset=$offset&apikey=$API_KEY",
-      ),
-    );
-
-    if (response.statusCode != 200) {
-      throw ServerException();
-    }
-
-    final List decodedJson = json.decode(response.body);
-
-    final futures = decodedJson.map((item) async {
-      final xid = item['xid'];
-
-      final detailsResponse = await client.get(
-        Uri.parse(
-          'https://api.opentripmap.com/0.1/en/places/xid/$xid?apikey=$API_KEY',
-        ),
-      );
-
-      if (detailsResponse.statusCode == 200) {
-        final jsonDetails = json.decode(detailsResponse.body);
-
-        if (jsonDetails['name'] != null &&
-            jsonDetails['name'].toString().isNotEmpty) {
-          return _mapJsonToModel(jsonDetails);
-        }
-      }
-
-      return null;
-    }).toList();
-
-    final results = await Future.wait(futures);
-
-    return results.whereType<LandmarkModel>().toList();
-  }
-  */
 }

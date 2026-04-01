@@ -55,7 +55,8 @@ class LandmarkLocalDataSourceImpl implements LandmarkLocalDataSource {
   Future<List<LandmarkModel>> getCachedLandmarksSafe() async {
   try {
     return await getCachedLandmarks();
-  } catch (_) {
+  } catch (_)
+  {
     return [];
   }
 }
