@@ -7,11 +7,7 @@ class CategoryFilter extends StatefulWidget {
   final List<String> categories;
   final void Function(String selected)? onSelected;
 
-  const CategoryFilter({
-    super.key,
-    required this.categories,
-    this.onSelected,
-  });
+  const CategoryFilter({super.key, required this.categories, this.onSelected});
 
   @override
   State<CategoryFilter> createState() => _CategoryFilterState();
@@ -43,9 +39,7 @@ class _CategoryFilterState extends State<CategoryFilter> {
               duration: const Duration(milliseconds: 250),
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.mainGold
-                    : AppColors.cardBackground,
+                color: isActive ? AppColors.mainGold : AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(9999),
                 border: Border.all(
                   color: isActive

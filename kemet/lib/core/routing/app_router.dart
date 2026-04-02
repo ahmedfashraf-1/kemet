@@ -20,8 +20,9 @@ import 'package:kemet/features/splash/presentation/screens/splash_view.dart';
 import 'package:kemet/features/auth/presentation/screens/login_view.dart';
 import 'package:kemet/features/auth/presentation/screens/register_view.dart';
 import 'package:kemet/features/main/presentation/screens/main_shell.dart';
-import 'package:kemet/features/home/presentation/screens/home_screen.dart';
-
+import 'package:kemet/features/landmarks/presentation/screens/home_screen.dart';
+import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
+import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 
 //landmarks
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
@@ -64,6 +65,20 @@ class AppRouter {
       case Routes.mainShell:
         return _fadeDominantFromRight(
           const MainShell(child: HomeScreen()),
+          setting,
+        );
+
+      case Routes.landmarkDetails:
+        final landmarkArg = setting.arguments;
+        if (landmarkArg is! Landmark) {
+          return MaterialPageRoute(
+            builder: (_) => const Scaffold(
+              body: Center(child: Text('Invalid landmark data')),
+            ),
+          );
+        }
+        return _fadeDominantFromRight(
+          LandmarkDetailsScreen(landmark: landmarkArg),
           setting,
         );
 
