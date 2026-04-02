@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get_it/get_it.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
+import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:kemet/features/auth/presentation/cubit/auth_state.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 
 
@@ -11,7 +14,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
-
+import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:kemet/features/profile/presentation/di/profile_di.dart';
+import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
+import 'package:kemet/features/profile/presentation/widgets/profile_avatar_button.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
+import 'package:kemet/features/profile/presentation/widgets/profile_avatar_button.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -66,6 +75,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final bottomSafeArea = MediaQuery.of(context).padding.bottom;
     final shellOverlayClearance = 140.h + bottomSafeArea;
     const headerItemsCount = 9;
+    
+//     final userId = context.read<AuthCubit>().state.user.id;
+// if (authState is AuthAuthenticated) {
+//   currentUserId = authState.user.id; // أو user.uid حسب اسم الحقل عندك في الـ Model
+// }
 
     return Scaffold(
       backgroundColor: _bgColor,
@@ -184,28 +198,59 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            width: 40.w,
-            height: 40.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.03),
-              border: Border.all(color: _goldColor.withOpacity(0.75), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: _goldColor.withOpacity(0.12),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+          // 
+          
+            ProfileAvatarButton(
+              name: 'Mariem Tarek',
+              email: 'mariemtarek@gmail.com',
+              // onViewProfile: () {
+              //   Navigator.push(
+              //     context,
+              //     MaterialPageRoute(
+              //       builder: (_) => BlocProvider(
+              //         create: (_) => getIt<ProfileCubit>(),
+              //         child: ProfileScreen(userId: currentUserId), // ← من AuthCubit/SharedPrefs
+              //       ),
+              //     ),
+              //   );
+              // },
+
+          //     onViewProfile: () {
+          //   final authState = context.read<AuthCubit>().state;
+
+          //   if (authState is AuthAuthenticated) {
+          //     final userId = authState.user.id;
+
+          //     Navigator.push(
+          //       context,
+          //       MaterialPageRoute(
+          //         builder: (_) => BlocProvider(
+          //           create: (_) => getIt<ProfileCubit>(),
+          //           child: ProfileScreen(userId: userId),
+          //         ),
+          //       ),
+          //     );
+          //   }
+          // },
+          onViewProfile: () async {
+  final prefs = await SharedPreferences.getInstance();
+  final userId = prefs.getString('userId') ?? '';
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => BlocProvider(
+   create: (_) => getIt<ProfileCubit>(),
+      child: ProfileScreen(userId: userId),
+      )
+    ),
+  );
+},
+              onLogout: () {
+                context.read<ProfileCubit>().logout();
+              },
             ),
-            clipBehavior: Clip.antiAlias,
-            child: const Icon(
-              Icons.person,
-              color: AppColors.textDarkOnGold,
-              size: 22,
-            ),
-          ),
+
           Text(
             'KEMET',
             style: GoogleFonts.cinzel(
