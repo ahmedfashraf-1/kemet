@@ -1,6 +1,30 @@
 part of 'reviews_cubit.dart';
 
-@immutable
-sealed class ReviewsState {}
+abstract class ReviewsState extends Equatable {
+  const ReviewsState();
 
-final class ReviewsInitial extends ReviewsState {}
+  @override
+  List<Object?> get props => [];
+}
+
+class ReviewsInitial extends ReviewsState {}
+
+class ReviewsLoading extends ReviewsState {}
+
+class ReviewsLoaded extends ReviewsState {
+  final List<Review> reviews;
+
+  const ReviewsLoaded({required this.reviews});
+
+  @override
+  List<Object?> get props => [reviews];
+}
+
+class ReviewsError extends ReviewsState {
+  final String message;
+
+  const ReviewsError({required this.message});
+
+  @override
+  List<Object?> get props => [message];
+}
