@@ -67,14 +67,9 @@ class _LoginViewState extends State<LoginView> {
 
             // ── Content ───────────────────────────────────────────
             SafeArea(
-              child: SingleChildScrollView(
+              child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24.w),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: MediaQuery.of(context).size.height -
-                        MediaQuery.of(context).padding.top -
-                        MediaQuery.of(context).padding.bottom,
-                  ),
+                child: SizedBox.expand(
                   child: BlocBuilder<AuthCubit, AuthState>(
                     builder: (context, state) {
                       final isLoading = state is AuthLoading;
@@ -84,186 +79,188 @@ class _LoginViewState extends State<LoginView> {
                         autovalidateMode: _submitted
                             ? AutovalidateMode.onUserInteraction
                             : AutovalidateMode.disabled,
-                        child: IntrinsicHeight(
-                          child: Column(
-                            children: [
-                              SizedBox(height: 5.h),
-                              const Spacer(flex: 3),
+                        child: Column(
+                          children: [
+                            SizedBox(height: 5.h),
+                            const Spacer(flex: 3),
 
-                              const AuthHeader(),
-                              const Spacer(flex: 2),
+                            const AuthHeader(),
+                            const Spacer(flex: 2),
 
-                              // ── Email ──────────────────────────
-                              _buildLabeledField(
-                                label: 'Email Address',
-                                field: AuthTextField(
-                                  controller: _emailController,
-                                  hintText: 'Kemet@example.com',
-                                  keyboardType: TextInputType.emailAddress,
-                                  textInputAction: TextInputAction.next,
-                                  validator: ValidationService.validateEmail,
-                                ),
+                            // ── Email ──────────────────────────
+                            _buildLabeledField(
+                              label: 'Email Address',
+                              field: AuthTextField(
+                                controller: _emailController,
+                                hintText: 'Enter your email',
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                validator: ValidationService.validateEmail,
                               ),
-                              SizedBox(height: 16.h),
+                            ),
+                            SizedBox(height: 16.h),
 
-                              // ── Password ───────────────────────
-                              _buildLabeledField(
-                                label: 'Password',
-                                field: AuthTextField(
-                                  controller: _passwordController,
-                                  hintText: '••••••••',
-                                  obscureText: _obscurePassword,
-                                  textInputAction: TextInputAction.done,
-                                  validator:
-                                      ValidationService.validateLoginPassword,
-                                  onFieldSubmitted: (_) =>
-                                      _submit(context, isLoading),
-                                  suffixIcon: IconButton(
-                                    onPressed: () => setState(() =>
-                                        _obscurePassword = !_obscurePassword),
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_outlined
-                                          : Icons.visibility_off_outlined,
-                                      color:
-                                          AppColors.mainGold.withOpacity(0.55),
-                                      size: 20.sp,
-                                    ),
+                            // ── Password ───────────────────────
+                            _buildLabeledField(
+                              label: 'Password',
+                              field: AuthTextField(
+                                controller: _passwordController,
+                                hintText: 'Enter your password',
+                                obscureText: _obscurePassword,
+                                textInputAction: TextInputAction.done,
+                                validator:
+                                    ValidationService.validateLoginPassword,
+                                onFieldSubmitted: (_) =>
+                                    _submit(context, isLoading),
+                                suffixIcon: IconButton(
+                                  onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  ),
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                    color: AppColors.mainGold.withOpacity(0.55),
+                                    size: 20.sp,
                                   ),
                                 ),
                               ),
-                              SizedBox(height: 10.h),
+                            ),
+                            SizedBox(height: 10.h),
 
-                              // ── Forgot Password ────────────────
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: () =>
-                                      context.pushNamed(Routes.forgotPassword),
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    minimumSize: Size.zero,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
+                            // ── Forgot Password ────────────────
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () =>
+                                    context.pushNamed(Routes.forgotPassword),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  'Forgot Password?',
+                                  style: TextStyle(
+                                    color: AppColors.lightGold.withOpacity(
+                                      0.55,
+                                    ),
+                                    fontSize: 12.sp,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 28.h),
+
+                            // ── Sign In button ─────────────────
+                            AnimatedGoldButton(
+                              text: isLoading ? 'SIGNING IN...' : 'SIGN IN',
+                              onTap: isLoading
+                                  ? () {}
+                                  : () => _submit(context, isLoading),
+                            ),
+                            SizedBox(height: 20.h),
+
+                            // ── Divider ────────────────────────
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Divider(
+                                    color: AppColors.mainGold.withOpacity(0.20),
+                                    thickness: 1,
+                                  ),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 14.w,
                                   ),
                                   child: Text(
-                                    'Forgot Password?',
+                                    'OR',
                                     style: TextStyle(
-                                      color: AppColors.lightGold
-                                          .withOpacity(0.55),
-                                      fontSize: 12.sp,
+                                      color: AppColors.mainGold.withOpacity(
+                                        0.40,
+                                      ),
+                                      fontSize: 11.sp,
+                                      letterSpacing: 2,
                                     ),
                                   ),
                                 ),
-                              ),
-                              SizedBox(height: 28.h),
+                                Expanded(
+                                  child: Divider(
+                                    color: AppColors.mainGold.withOpacity(0.20),
+                                    thickness: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 20.h),
 
-                              // ── Sign In button ─────────────────
-                              AnimatedGoldButton(
-                                text: isLoading ? 'SIGNING IN...' : 'SIGN IN',
-                                onTap: isLoading
-                                    ? () {}
-                                    : () => _submit(context, isLoading),
-                              ),
-                              SizedBox(height: 20.h),
+                            // ── Google button ──────────────────
+                            _buildGoogleButton(context, isLoading),
+                            const Spacer(flex: 2),
 
-                              // ── Divider ────────────────────────
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Divider(
-                                      color:
-                                          AppColors.mainGold.withOpacity(0.20),
-                                      thickness: 1,
+                            // ── Register link ──────────────────
+                            GestureDetector(
+                              onTap: () =>
+                                  context.pushNamed(Routes.RegisterView),
+                              child: RichText(
+                                text: TextSpan(
+                                  style: TextStyle(
+                                    fontSize: 13.sp,
+                                    color: AppColors.lightGold.withOpacity(
+                                      0.55,
                                     ),
                                   ),
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(
-                                        horizontal: 14.w),
-                                    child: Text(
-                                      'OR',
-                                      style: TextStyle(
-                                        color: AppColors.mainGold
-                                            .withOpacity(0.40),
-                                        fontSize: 11.sp,
-                                        letterSpacing: 2,
-                                      ),
+                                  children: [
+                                    const TextSpan(
+                                      text: "Don't have an account?  ",
                                     ),
-                                  ),
-                                  Expanded(
-                                    child: Divider(
-                                      color:
-                                          AppColors.mainGold.withOpacity(0.20),
-                                      thickness: 1,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 20.h),
-
-                              // ── Google button ──────────────────
-                              _buildGoogleButton(context, isLoading),
-                              const Spacer(flex: 2),
-
-                              // ── Register link ──────────────────
-                              GestureDetector(
-                                onTap: () => context
-                                    .pushNamed(Routes.RegisterView),
-                                child: RichText(
-                                  text: TextSpan(
-                                    style: TextStyle(
-                                      fontSize: 13.sp,
-                                      color: AppColors.lightGold
-                                          .withOpacity(0.55),
-                                    ),
-                                    children: [
-                                      const TextSpan(
-                                          text: "Don't have an account?  "),
-                                      TextSpan(
-                                        text: 'Create Account',
-                                        style: GoogleFonts.cormorant(
-                                          textStyle: TextStyle(
-                                            color: AppColors.mainGold,
-                                            fontSize: 16.sp,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                    TextSpan(
+                                      text: 'Create Account',
+                                      style: GoogleFonts.cormorant(
+                                        textStyle: TextStyle(
+                                          color: AppColors.mainGold,
+                                          fontSize: 16.sp,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: 16.h),
-
-                              // ── Guest ──────────────────────────
-                              GestureDetector(
-                                onTap: () =>
-                                    context.pushNamed(Routes.HomeScreen),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Continue as Guest',
-                                      style: TextStyle(
-                                        color: AppColors.lightGold
-                                            .withOpacity(0.40),
-                                        fontSize: 13.sp,
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
-                                    SizedBox(width: 4.w),
-                                    Icon(
-                                      Icons.arrow_forward,
-                                      size: 14.sp,
-                                      color:
-                                          AppColors.lightGold.withOpacity(0.40),
                                     ),
                                   ],
                                 ),
                               ),
-                              SizedBox(height: 35.h),
-                            ],
-                          ),
+                            ),
+                            SizedBox(height: 16.h),
+
+                            // ── Guest ──────────────────────────
+                            GestureDetector(
+                              onTap: () => context.pushNamed(Routes.HomeScreen),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Continue as Guest',
+                                    style: TextStyle(
+                                      color: AppColors.lightGold.withOpacity(
+                                        0.40,
+                                      ),
+                                      fontSize: 13.sp,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                  SizedBox(width: 4.w),
+                                  Icon(
+                                    Icons.arrow_forward,
+                                    size: 14.sp,
+                                    color: AppColors.lightGold.withOpacity(
+                                      0.40,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: 35.h),
+                          ],
                         ),
                       );
                     },
@@ -285,9 +282,9 @@ class _LoginViewState extends State<LoginView> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
     context.read<AuthCubit>().signIn(
-          _emailController.text,
-          _passwordController.text,
-        );
+      _emailController.text,
+      _passwordController.text,
+    );
   }
 
   void _onStateChange(BuildContext context, AuthState state) {
@@ -316,10 +313,7 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
-  Widget _buildLabeledField({
-    required String label,
-    required Widget field,
-  }) {
+  Widget _buildLabeledField({required String label, required Widget field}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -340,8 +334,7 @@ class _LoginViewState extends State<LoginView> {
         height: 52.h,
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.05),
-          border:
-              Border.all(color: AppColors.mainGold.withOpacity(0.25)),
+          border: Border.all(color: AppColors.mainGold.withOpacity(0.25)),
           borderRadius: BorderRadius.circular(12.r),
         ),
         child: Row(

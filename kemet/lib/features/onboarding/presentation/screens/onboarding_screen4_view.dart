@@ -9,7 +9,7 @@ import 'package:kemet/core/utils/extensions.dart';
 
 Future<void> completeOnboarding() async {
   final prefs = await SharedPreferences.getInstance();
-  await prefs.setBool('seenOnboarding', true);
+  await prefs.setBool('onboarding_seen', true);
 }
 
 class OnboardingScreen4 extends StatelessWidget {

@@ -27,8 +27,18 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<domain.User> signUpWithEmail(String email, String password) async {
-    final credential = await _datasource.signUpWithEmail(email, password);
+  Future<domain.User> signUpWithEmail(
+    String email,
+    String password,
+    String firstName,
+    String lastName,
+  ) async {
+    final credential = await _datasource.signUpWithEmail(
+      email,
+      password,
+      firstName,
+      lastName,
+    );
     return _mapUser(credential.user!);
   }
 
