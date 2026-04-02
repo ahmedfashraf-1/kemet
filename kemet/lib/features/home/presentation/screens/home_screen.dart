@@ -6,25 +6,12 @@ import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 
-class Place {
-  final String image;
-  final String title;
-  final String location;
-  final String rating;
-  final String reviews;
-  final String category;
-  final String description;
 
-  const Place({
-    required this.image,
-    required this.title,
-    required this.location,
-    required this.rating,
-    required this.reviews,
-    required this.category,
-    required this.description,
-  });
-}
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
+import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
+import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,71 +24,27 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Color _bgColor = Color(0xFF0E0E0E);
   static const Color _goldColor = Color(0xFFD4AF37);
 
-  String _selectedCategory = 'All';
   final TextEditingController _searchController = TextEditingController();
 
-  final List<Place> _places = [
-    Place(
-      image: 'images/KarnakTemple.jpg',
-      title: 'Karnak Temple Complex',
-      location: 'Luxor, Egypt',
-      rating: '4.9',
-      reviews: '12.4k',
-      category: 'Temples',
-      description:
-          'The largest ancient religious site in the world, home to 134 massive pillars.',
-    ),
-    Place(
-      image: 'images/valley.jpg',
-      title: 'Valley of the Kings',
-      location: 'Luxor, Egypt',
-      rating: '4.8',
-      reviews: '9.2k',
-      category: 'Tomb',
-      description:
-          'Royal burial ground of Egypt\'s most powerful pharaohs for over 500 years.',
-    ),
-    Place(
-      image: 'images/pyramids.jpg',
-      title: 'Great Pyramids of Giza',
-      location: 'Cairo, Egypt',
-      rating: '5.0',
-      reviews: '20k',
-      category: 'Temples',
-      description:
-          'One of the Seven Wonders of the Ancient World, standing for over 7,500 years.',
-    ),
-    Place(
-      image: 'images/museum.jpg',
-      title: 'Egyptian Museum',
-      location: 'Cairo, Egypt',
-      rating: '4.7',
-      reviews: '8.1k',
-      category: 'Museums',
-      description:
-          'Home to the world\'s largest collection of ancient Egyptian antiquities.',
-    ),
+  String _selectedCategory = '';
+  String _selectedCity = '';
+
+  final List<String> _egyptCities = [
+    'Cairo', 'Luxor', 'Aswan', 'Giza', 'Alexandria', 'Red Sea', 'South Sinai'
   ];
 
+  final List<String> _categories = [
+    'historic', 'temple', 'museum', 'nature', 'island'
+  ];
 
   final Map<String, bool> _favourites = {};
 
-  List<Place> get _filteredPlaces {
-    final query = _searchController.text.trim().toLowerCase();
-
-    final categoryFiltered = _selectedCategory == 'All'
-        ? _places
-        : _places.where((p) => p.category == _selectedCategory).toList();
-
-    if (query.isEmpty) {
-      return categoryFiltered;
-    }
-
-    return categoryFiltered.where((p) {
-      return p.title.toLowerCase().contains(query) ||
-          p.location.toLowerCase().contains(query) ||
-          p.description.toLowerCase().contains(query);
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LandmarksCubit>().getLandmarks(page: 1);
+    });
   }
 
   @override
@@ -110,11 +53,18 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  void _applyFilters() {
+    context.read<LandmarksCubit>().applyFilter(
+      city: _selectedCity.isEmpty ? null : _selectedCity,
+      kind: _selectedCategory.isEmpty ? null : _selectedCategory,
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final bottomSafeArea = MediaQuery.of(context).padding.bottom;
     final shellOverlayClearance = 140.h + bottomSafeArea;
-    final filteredPlaces = _filteredPlaces;
     const headerItemsCount = 9;
 
     return Scaffold(
@@ -123,30 +73,98 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _buildTopAppBar(),
           Expanded(
-            child: ListView.builder(
+            child: CustomScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.only(bottom: shellOverlayClearance),
-              itemCount: headerItemsCount + filteredPlaces.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) return SizedBox(height: 18.h);
-                if (index == 1) return _buildSearchBar();
-                if (index == 2) return SizedBox(height: 22.h);
-                if (index == 3) return const HeroSlider();
-                if (index == 4) return SizedBox(height: 24.h);
-                if (index == 5) return _buildCategoryChips();
-                if (index == 6) return SizedBox(height: 34.h);
-                if (index == 7) return _buildHeroTitle();
-                if (index == 8) return SizedBox(height: 24.h);
-                if (index == headerItemsCount + filteredPlaces.length) {
-                  return SizedBox(height: 12.h);
-                }
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 18.h),
+                      const HeroSlider(),
+                      SizedBox(height: 24.h),
+                      _buildHeroTitle(),
+                      SizedBox(height: 24.h),
 
-                final place = filteredPlaces[index - headerItemsCount];
-                return Padding(
-                  padding: EdgeInsets.only(bottom: 28.h),
-                  child: _buildLandmarkCard(place),
-                );
-              },
+                      _buildFilterList(
+                        items: _egyptCities,
+                        selectedValue: _selectedCity,
+                        onSelected: (val) {
+                          setState(() => _selectedCity = val == 'All' ? '' : val);
+                          _applyFilters();
+                        },
+                      ),
+                      SizedBox(height: 16.h),
+
+                      _buildFilterList(
+                        items: _categories,
+                        selectedValue: _selectedCategory,
+                        onSelected: (val) {
+                          setState(() => _selectedCategory = val == 'All' ? '' : val);
+                          _applyFilters();
+                        },
+                      ),
+                      SizedBox(height: 24.h),
+                    ],
+                  ),
+                ),
+
+                BlocBuilder<LandmarksCubit, LandmarksState>(
+                  builder: (context, state) {
+                    if (state is LandmarksLoading) {
+                      return const SliverFillRemaining(
+                        child: Center(child: CircularProgressIndicator(color: _goldColor)),
+                      );
+                    } else if (state is LandmarksError) {
+                      return SliverFillRemaining(
+                        child: Center(
+                          child: Text(state.message, style: const TextStyle(color: Colors.redAccent)),
+                        ),
+                      );
+                    } else if (state is LandmarksLoaded) {
+                      if (state.landmarks.isEmpty) {
+                        return const SliverFillRemaining(
+                          child: Center(
+                            child: Text('No landmarks found.', style: TextStyle(color: Colors.white54)),
+                          ),
+                        );
+                      }
+
+                      return SliverPadding(
+                        padding: EdgeInsets.only(bottom: shellOverlayClearance),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                              if (index == state.landmarks.length) {
+                                return _buildPagination(
+                                  currentPage: state.currentPage,
+                                  isLastPage: state.isLastPage,
+                                  onPageSelected: (page) {
+                                    context.read<LandmarksCubit>().getLandmarks(
+                                      page: page,
+                                      city: state.city,
+                                      kind: state.kind,
+                                      isPagination: true,
+                                    );
+                                  },
+                                );
+                              }
+
+                              final landmark = state.landmarks[index];
+                              return Padding(
+                                padding: EdgeInsets.only(bottom: 28.h),
+                                child: _buildLandmarkCard(landmark),
+                              );
+                            },
+                            childCount: state.landmarks.length + 1,
+                          ),
+                        ),
+                      );
+                    }
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  },
+                ),
+              ],
             ),
           ),
         ],
@@ -300,70 +318,47 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildCategoryChips() {
-    final categories = ['All', ..._places.map((p) => p.category).toSet()];
+
+  Widget _buildFilterList({
+    required List<String> items,
+    required String selectedValue,
+    required Function(String) onSelected,
+  }) {
+    final allItems = ['All', ...items];
+    final activeValue = selectedValue.isEmpty ? 'All' : selectedValue;
 
     return SizedBox(
-      height: 42.h,
+      height: 38.h,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         padding: EdgeInsets.symmetric(horizontal: 24.w),
-        itemCount: categories.length,
+        itemCount: allItems.length,
         separatorBuilder: (_, __) => SizedBox(width: 10.w),
         itemBuilder: (context, index) {
-          final category = categories[index];
-          final isActive = _selectedCategory == category;
+          final item = allItems[index];
+          final isActive = activeValue == item;
 
           return GestureDetector(
-            onTap: () {
-              setState(() => _selectedCategory = category);
-            },
+            onTap: () => onSelected(item),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOutCubic,
-              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
+              duration: const Duration(milliseconds: 250),
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
               decoration: BoxDecoration(
+                color: isActive ? AppColors.mainGold : AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(9999),
-                color: isActive
-                    ? AppColors.mainGold
-                    : AppColors.cardBackground.withOpacity(0.78),
-                gradient: isActive
-                    ? LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.darkGold,
-                          AppColors.mainGold,
-                          AppColors.lightGold,
-                        ],
-                      )
-                    : null,
                 border: Border.all(
-                  color: isActive
-                      ? AppColors.mainGold
-                      : AppColors.subtleGoldBorder,
+                  color: isActive ? AppColors.mainGold : AppColors.subtleGoldBorder,
                 ),
-                boxShadow: isActive
-                    ? [
-                        BoxShadow(
-                          color: AppColors.darkGold.withOpacity(0.45),
-                          blurRadius: 14,
-                          offset: const Offset(0, 6),
-                        ),
-                      ]
-                    : null,
               ),
               child: Center(
                 child: Text(
-                  category.toUpperCase(),
+                  item.toUpperCase(),
                   style: GoogleFonts.cinzel(
-                    fontSize: 10.5.sp,
+                    fontSize: 10.sp,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1.25,
-                    color: isActive
-                        ? AppColors.textDarkOnGold
-                        : AppColors.textSecondary,
+                    letterSpacing: 1.5,
+                    color: isActive ? AppColors.textDarkOnGold : AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -374,17 +369,95 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildLandmarkCard(Place place) {
-    final isFav = _favourites[place.title] ?? false;
-    final rawUrl = place.image;
-    final imageUrl = rawUrl.trim();
+  Widget _buildPagination({
+    required int currentPage,
+    required bool isLastPage,
+    required Function(int) onPageSelected,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 20.h, horizontal: 24.w),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          GestureDetector(
+            onTap: currentPage > 1 ? () => onPageSelected(currentPage - 1) : null,
+            child: Text(
+              'BACK',
+              style: GoogleFonts.cinzel(
+                color: currentPage > 1 ? _goldColor : Colors.white24,
+                fontWeight: FontWeight.bold,
+                fontSize: 14.sp,
+              ),
+            ),
+          ),
+          SizedBox(width: 16.w),
+
+          if (currentPage > 1) ...[
+            _pageNumberNode(1, onPageSelected, false),
+            if (currentPage > 2) ...[
+              Text('...', style: TextStyle(color: _goldColor, fontSize: 16.sp)),
+              SizedBox(width: 8.w),
+            ]
+          ],
+
+          _pageNumberNode(currentPage, onPageSelected, true),
+
+          if (!isLastPage) ...[
+            _pageNumberNode(currentPage + 1, onPageSelected, false),
+            SizedBox(width: 8.w),
+            Text('...', style: TextStyle(color: _goldColor, fontSize: 16.sp)),
+          ],
+
+          SizedBox(width: 16.w),
+          GestureDetector(
+            onTap: !isLastPage ? () => onPageSelected(currentPage + 1) : null,
+            child: Text(
+              'NEXT',
+              style: GoogleFonts.cinzel(
+                color: !isLastPage ? _goldColor : Colors.white24,
+                fontWeight: FontWeight.bold,
+                fontSize: 14.sp,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _pageNumberNode(int page, Function(int) onPageSelected, bool isActive) {
+    return GestureDetector(
+      onTap: () => onPageSelected(page),
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 4.w),
+        padding: EdgeInsets.all(8.w),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isActive ? _goldColor : Colors.transparent,
+        ),
+        child: Text(
+          page.toString(),
+          style: GoogleFonts.cinzel(
+            color: isActive ? _bgColor : _goldColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 14.sp,
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildLandmarkCard(Landmark landmark) {
+    final isFav = _favourites[landmark.id] ?? false;
+
+
+    final imageUrl = landmark.photos.isNotEmpty ? landmark.photos.first.url : '';
     final parsedUri = Uri.tryParse(imageUrl);
-    final hasValidNetworkUrl =
-        imageUrl.isNotEmpty &&
+    final hasValidNetworkUrl = imageUrl.isNotEmpty &&
         parsedUri != null &&
         (parsedUri.scheme == 'http' || parsedUri.scheme == 'https');
-
-    debugPrint('Home card image url: $imageUrl');
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -393,21 +466,10 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.03),
           borderRadius: BorderRadius.circular(26.r),
-          border: Border.all(
-            color: _goldColor.withOpacity(0.22),
-            width: 1,
-          ),
+          border: Border.all(color: _goldColor.withOpacity(0.22), width: 1),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.38),
-              blurRadius: 24,
-              offset: const Offset(0, 14),
-            ),
-            BoxShadow(
-              color: _goldColor.withOpacity(0.06),
-              blurRadius: 22,
-              offset: const Offset(0, 10),
-            ),
+            BoxShadow(color: Colors.black.withOpacity(0.38), blurRadius: 24, offset: const Offset(0, 14)),
+            BoxShadow(color: _goldColor.withOpacity(0.06), blurRadius: 22, offset: const Offset(0, 10)),
           ],
         ),
         child: Column(
@@ -417,57 +479,18 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 AspectRatio(
                   aspectRatio: 16 / 10,
+
                   child: hasValidNetworkUrl
                       ? CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: const Color(0xFF161616),
-                          ),
-                          errorWidget: (context, url, error) {
-                            debugPrint('Image load failed: $url | $error');
-                            return Container(
-                              color: const Color(0xFF1A1A1A),
-                              child: Center(
-                                child: Icon(
-                                  Icons.landscape,
-                                  color: _goldColor,
-                                  size: 60,
-                                ),
-                              ),
-                            );
-                          },
-                        )
-                      : (imageUrl.isNotEmpty
-                          ? Image.asset(
-                              imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                debugPrint(
-                                  'Invalid image source: $imageUrl | $error',
-                                );
-                                return Container(
-                                  color: const Color(0xFF1A1A1A),
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.landscape,
-                                      color: _goldColor,
-                                      size: 60,
-                                    ),
-                                  ),
-                                );
-                              },
-                            )
-                          : Container(
-                              color: const Color(0xFF1A1A1A),
-                              child: Center(
-                                child: Icon(
-                                  Icons.landscape,
-                                  color: _goldColor,
-                                  size: 60,
-                                ),
-                              ),
-                            )),
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: const Color(0xFF161616),
+                      child: const Center(child: CircularProgressIndicator(color: _goldColor)),
+                    ),
+                    errorWidget: (context, url, error) => _buildPlaceholderImage(),
+                  )
+                      : _buildPlaceholderImage(),
                 ),
                 Positioned.fill(
                   child: Container(
@@ -475,11 +498,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.15),
-                          Colors.black.withOpacity(0.34),
-                          _bgColor.withOpacity(0.92),
-                        ],
+                        colors: [Colors.black.withOpacity(0.15), Colors.black.withOpacity(0.34), _bgColor.withOpacity(0.92)],
                         stops: const [0.1, 0.45, 1.0],
                       ),
                     ),
@@ -495,14 +514,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(color: _goldColor.withOpacity(0.35)),
                     ),
+
                     child: Text(
-                      place.category.toUpperCase(),
-                      style: TextStyle(
-                        color: _goldColor,
-                        fontSize: 9.8.sp,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.2,
-                      ),
+                      landmark.category.name.toUpperCase(),
+                      style: TextStyle(color: _goldColor, fontSize: 9.8.sp, fontWeight: FontWeight.w600, letterSpacing: 1.2),
                     ),
                   ),
                 ),
@@ -512,7 +527,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: GestureDetector(
                     onTap: () {
                       setState(() {
-                        _favourites[place.title] = !isFav;
+                        _favourites[landmark.id] = !isFav;
                       });
                     },
                     child: Container(
@@ -521,15 +536,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: _bgColor.withOpacity(0.62),
-                        border: Border.all(
-                          color: _goldColor.withOpacity(0.24),
-                        ),
+                        border: Border.all(color: _goldColor.withOpacity(0.24)),
                       ),
-                      child: Icon(
-                        isFav ? Icons.favorite : Icons.favorite_border,
-                        color: _goldColor,
-                        size: 21,
-                      ),
+                      child: Icon(isFav ? Icons.favorite : Icons.favorite_border, color: _goldColor, size: 21),
                     ),
                   ),
                 ),
@@ -543,47 +552,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          place.title,
+                          landmark.name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.cormorant(
-                            fontSize: 28.sp,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            height: 1.0,
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 12.w),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-                        decoration: BoxDecoration(
-                          color: _bgColor.withOpacity(0.72),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: _goldColor.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.star_rounded, color: _goldColor, size: 14.sp),
-                            SizedBox(width: 3.w),
-                            Text(
-                              place.rating,
-                              style: TextStyle(
-                                fontSize: 12.5.sp,
-                                fontWeight: FontWeight.w700,
-                                color: _goldColor,
-                              ),
-                            ),
-                            SizedBox(width: 4.w),
-                            Text(
-                              place.reviews,
-                              style: TextStyle(
-                                fontSize: 11.sp,
-                                color: Colors.white.withOpacity(0.68),
-                              ),
-                            ),
-                          ],
+                          style: GoogleFonts.cormorant(fontSize: 28.sp, fontWeight: FontWeight.w700, color: Colors.white, height: 1.0),
                         ),
                       ),
                     ],
@@ -591,7 +563,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-
             Padding(
               padding: EdgeInsets.fromLTRB(18.w, 16.h, 18.w, 18.h),
               child: Column(
@@ -599,35 +570,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.location_on_outlined,
-                          color: _goldColor.withOpacity(0.82), size: 16.sp),
+                      Icon(Icons.location_on_outlined, color: _goldColor.withOpacity(0.82), size: 16.sp),
                       SizedBox(width: 6.w),
                       Text(
-                        place.location,
-                        style: TextStyle(
-                          fontSize: 12.5.sp,
-                          color: Colors.white.withOpacity(0.72),
-                          letterSpacing: 0.3,
-                        ),
+                        landmark.city,
+                        style: TextStyle(fontSize: 12.5.sp, color: Colors.white.withOpacity(0.72), letterSpacing: 0.3),
                       ),
                     ],
                   ),
-
                   SizedBox(height: 12.h),
-
                   Text(
-                    place.description,
+                    landmark.description,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13.sp,
-                      color: Colors.white.withOpacity(0.68),
-                      height: 1.55,
-                    ),
+                    style: TextStyle(fontSize: 13.sp, color: Colors.white.withOpacity(0.68), height: 1.55),
                   ),
-
                   SizedBox(height: 18.h),
-
                   GestureDetector(
                     onTap: () {},
                     behavior: HitTestBehavior.opaque,
@@ -640,27 +598,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.darkGold,
-                            AppColors.mainGold,
-                            AppColors.darkGold,
-                          ],
+                          colors: [AppColors.darkGold, AppColors.mainGold, AppColors.darkGold],
                         ),
                         boxShadow: [
-                          BoxShadow(
-                            color: AppColors.darkGold.withOpacity(0.45),
-                            blurRadius: 14,
-                            offset: const Offset(0, 6),
-                          ),
+                          BoxShadow(color: AppColors.darkGold.withOpacity(0.45), blurRadius: 14, offset: const Offset(0, 6)),
                         ],
                       ),
                       child: Text(
                         'VIEW DETAILS',
-                        style: GoogleFonts.inter(
-                          color: AppColors.textDarkOnGold,
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: GoogleFonts.inter(color: AppColors.textDarkOnGold, fontSize: 18.sp, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -669,6 +615,15 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderImage() {
+    return Container(
+      color: const Color(0xFF1A1A1A),
+      child: Center(
+        child: Icon(Icons.landscape, color: _goldColor, size: 60),
       ),
     );
   }

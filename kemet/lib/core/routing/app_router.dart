@@ -22,6 +22,12 @@ import 'package:kemet/features/auth/presentation/screens/register_view.dart';
 import 'package:kemet/features/main/presentation/screens/main_shell.dart';
 import 'package:kemet/features/home/presentation/screens/home_screen.dart';
 
+
+//landmarks
+import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
+import 'package:kemet/features/landmarks/domain/usecases/get_all_landmarks.dart';
+import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
+
 class AppRouter {
   Route generateRoute(RouteSettings setting) {
     switch (setting.name) {
@@ -44,7 +50,14 @@ class AppRouter {
 
       case Routes.HomeScreen:
         return _fadeDominantFromRight(
-          const MainShell(child: HomeScreen()),
+          BlocProvider(
+            create: (context) => LandmarksCubit(
+              getAllLandmarksUsecase: GetAllLandmarksUsecase(
+                context.read<LandmarksRepository>(),
+              ),
+            ),
+            child: const MainShell(child: HomeScreen()),
+          ),
           setting,
         );
 
