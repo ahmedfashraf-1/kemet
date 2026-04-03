@@ -1,0 +1,173 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
+import '../../../../core/utils/extensions.dart';
+import '../../../../../core/routing/routes.dart';
+
+class OnboardingScreen2 extends StatelessWidget {
+  const OnboardingScreen2({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F0D0B),
+      body: Stack(
+        children: [
+          // 1. Background Image
+          Image.asset(
+            'images/onboarding1_bg.png',
+            height: double.infinity,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+
+          // 2. Gradient
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF0F0D0B).withOpacity(0.2),
+                  const Color(0xFF0A0E14).withOpacity(0.8),
+                  const Color(0xFF1A120B).withOpacity(1.0),
+                ],
+                stops: const [0.0, 0.6, 1.0],
+              ),
+            ),
+          ),
+
+          // 3. Content
+          SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 30.w),
+              child: Column(
+                children: [
+                  const Spacer(flex: 4),
+
+                  Opacity(
+                    opacity: 0.5,
+                    child: Image.asset(
+                      'images/headphone.png',
+                      width: 200.w,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+
+                  SizedBox(height: 30.h),
+
+                  Text(
+                    context.tr('onboarding2_title'),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.cormorant(
+                      // feeeh kteer cizel w hgat kda srasho
+                      fontSize: 42.sp,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFFDAAB5F),
+                      height: 0.9,
+                      letterSpacing: 2,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.8),
+                          offset: const Offset(0, 5),
+                          blurRadius: 15,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 30.h),
+
+                  Text(
+                    context.tr('onboarding2_subtitle'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.lightGold,
+                      fontSize: 15.sp,
+                      height: 1.5,
+                    ),
+                  ),
+
+                  const Spacer(flex: 2),
+
+                  // Page Indicator
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildDot(isActive: false),
+                      _buildDot(isActive: true),
+                      _buildDot(isActive: false),
+                      _buildDot(isActive: false),
+                    ],
+                  ),
+
+                  SizedBox(height: 30.h),
+
+                  GestureDetector(
+                    onTap: () {
+                      context.pushNamed(Routes.onBoardingScreen3);
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 55.h,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(30.r),
+                        border: Border.all(
+                          color: const Color(0xFFE3B06C).withOpacity(0.6),
+                          width: 1.5,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        context.tr('next_caps'),
+                        style: TextStyle(
+                          color: const Color(0xFFE3B06C),
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 4,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: 30.h),
+
+                  // Skip Button
+                  GestureDetector(
+                    onTap: () {
+                      context.pushNamed(Routes.onBoardingScreen4); 
+                    },
+                    child: Text(
+                      context.tr('skip'),
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.4),
+                        fontSize: 14.sp,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 35.h),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDot({required bool isActive}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      width: isActive ? 12.w : 6.w,
+      height: 6.w,
+      decoration: BoxDecoration(
+        color: isActive
+            ? const Color(0xFFC69C5D)
+            : Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+    );
+  }
+}
