@@ -82,7 +82,6 @@ class LandmarkDetailsScreen extends StatelessWidget {
                   SliverToBoxAdapter(
                     child: DiscoverMoreSection(
                       landmark: landmark,
-                      photos: landmark.photos,
                     ),
                   ),
 
