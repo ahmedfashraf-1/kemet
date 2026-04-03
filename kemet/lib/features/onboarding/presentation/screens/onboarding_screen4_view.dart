@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kemet/core/routing/routes.dart';
@@ -69,7 +70,7 @@ class OnboardingScreen4 extends StatelessWidget {
                   Transform.translate(
                     offset: Offset(0, -10.h),
                     child: Text(
-                      "GUIDE & MAPS",
+                      context.tr('onboarding4_title'),
                       style: GoogleFonts.cormorant(
                         textStyle: TextStyle(
                           color: AppColors.mainGold,
@@ -85,7 +86,7 @@ class OnboardingScreen4 extends StatelessWidget {
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20.w),
                     child: Text(
-                      "Access essential info. Opening hours, ticket prices, and routes, perfectly planned.",
+                      context.tr('onboarding4_subtitle'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppColors.lightGold,
@@ -102,9 +103,9 @@ class OnboardingScreen4 extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildInfoItem("Hours", "08:00 - 17:00"),
-                        _buildInfoItem("Tickets", "450 EGP"),
-                        _buildInfoItem("Distance", "1.2 KM"),
+                        _buildInfoItem(context.tr('hours'), "08:00 - 17:00"),
+                        _buildInfoItem(context.tr('tickets'), "450 EGP"),
+                        _buildInfoItem(context.tr('distance'), "1.2 KM"),
                       ],
                     ),
                   ),
@@ -123,7 +124,7 @@ class OnboardingScreen4 extends StatelessWidget {
 
                   SizedBox(height: 30.h),
                   AnimatedGoldButton(
-                    text: "START JOURNEY",
+                    text: context.tr('start_journey'),
                     onTap: () async {
                       await completeOnboarding();
                       context.pushReplacementNamed(Routes.LoginView); // login لاكن دلوقتي بجرب
@@ -178,7 +179,7 @@ class OnboardingScreen4 extends StatelessWidget {
           ],
         ),
         Padding(
-          padding: EdgeInsets.only(left: 16.w),
+          padding: EdgeInsetsDirectional.only(start: 16.w),
           child: Text(
             value,
             style: TextStyle(

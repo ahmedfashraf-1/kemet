@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/utils/extensions.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
@@ -89,27 +90,32 @@ class _LoginViewState extends State<LoginView> {
 
                             // ── Email ──────────────────────────
                             _buildLabeledField(
-                              label: 'Email Address',
+                              label: context.tr('email_address'),
                               field: AuthTextField(
                                 controller: _emailController,
-                                hintText: 'Enter your email',
+                                hintText: context.tr('enter_email'),
                                 keyboardType: TextInputType.emailAddress,
                                 textInputAction: TextInputAction.next,
-                                validator: ValidationService.validateEmail,
+                                validator: (value) => ValidationService.validateEmail(
+                                  value,
+                                  translate: (key, {args}) => context.tr(key, args: args),
+                                ),
                               ),
                             ),
                             SizedBox(height: 16.h),
 
                             // ── Password ───────────────────────
                             _buildLabeledField(
-                              label: 'Password',
+                              label: context.tr('password'),
                               field: AuthTextField(
                                 controller: _passwordController,
-                                hintText: 'Enter your password',
+                                hintText: context.tr('enter_password'),
                                 obscureText: _obscurePassword,
                                 textInputAction: TextInputAction.done,
-                                validator:
-                                    ValidationService.validateLoginPassword,
+                                validator: (value) => ValidationService.validateLoginPassword(
+                                  value,
+                                  translate: (key, {args}) => context.tr(key, args: args),
+                                ),
                                 onFieldSubmitted: (_) =>
                                     _submit(context, isLoading),
                                 suffixIcon: IconButton(
@@ -130,7 +136,7 @@ class _LoginViewState extends State<LoginView> {
 
                             // ── Forgot Password ────────────────
                             Align(
-                              alignment: Alignment.centerRight,
+                              alignment: AlignmentDirectional.centerEnd,
                               child: TextButton(
                                 onPressed: () =>
                                     context.pushNamed(Routes.forgotPassword),
@@ -141,7 +147,7 @@ class _LoginViewState extends State<LoginView> {
                                       MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 child: Text(
-                                  'Forgot Password?',
+                                  context.tr('login_forgot_password'),
                                   style: TextStyle(
                                     color: AppColors.lightGold.withOpacity(
                                       0.55,
@@ -155,7 +161,7 @@ class _LoginViewState extends State<LoginView> {
 
                             // ── Sign In button ─────────────────
                             AnimatedGoldButton(
-                              text: isLoading ? 'SIGNING IN...' : 'SIGN IN',
+                              text: isLoading ? context.tr('signing_in').toUpperCase() : context.tr('sign_in').toUpperCase(),
                               onTap: isLoading
                                   ? () {}
                                   : () => _submit(context, isLoading),
@@ -176,7 +182,7 @@ class _LoginViewState extends State<LoginView> {
                                     horizontal: 14.w,
                                   ),
                                   child: Text(
-                                    'OR',
+                                    context.tr('or'),
                                     style: TextStyle(
                                       color: AppColors.mainGold.withOpacity(
                                         0.40,
@@ -213,11 +219,11 @@ class _LoginViewState extends State<LoginView> {
                                     ),
                                   ),
                                   children: [
-                                    const TextSpan(
-                                      text: "Don't have an account?  ",
+                                    TextSpan(
+                                      text: '${context.tr('no_account')}  ',
                                     ),
                                     TextSpan(
-                                      text: 'Create Account',
+                                      text: context.tr('create_account'),
                                       style: GoogleFonts.cormorant(
                                         textStyle: TextStyle(
                                           color: AppColors.mainGold,
@@ -239,7 +245,7 @@ class _LoginViewState extends State<LoginView> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    'Continue as Guest',
+                                    context.tr('continue_as_guest'),
                                     style: TextStyle(
                                       color: AppColors.lightGold.withOpacity(
                                         0.40,
@@ -348,7 +354,7 @@ class _LoginViewState extends State<LoginView> {
             ),
             SizedBox(width: 12.w),
             Text(
-              'Continue with Google',
+              context.tr('continue_with_google'),
               style: TextStyle(
                 color: Colors.white.withOpacity(0.80),
                 fontSize: 14.sp,

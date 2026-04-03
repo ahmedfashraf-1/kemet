@@ -124,9 +124,19 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> signOut() async {
-    await _signOut();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_logged_in', false);
+    try {
+      await _signOut();
+    } catch (_) {
+      // Keep sign-out flow stable even if remote cleanup fails.
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_logged_in', false);
+    } catch (_) {
+      // Ignore local storage failures and still reset UI state.
+    }
+
     emit(const AuthInitial());
   }
 }

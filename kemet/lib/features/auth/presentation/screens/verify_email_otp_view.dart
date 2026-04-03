@@ -5,9 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/utils/extensions.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
+import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_state.dart';
 
@@ -31,19 +33,13 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView> {
 
   bool get _isCooldownActive => _remainingCooldown > Duration.zero;
 
-  String get _cooldownLabel {
-    final s = _remainingCooldown.inSeconds;
-    return s > 0 ? 'Resend available in ${s}s' : '';
-  }
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_didAutoSend) {
         _didAutoSend = true;
-        context.read<AuthCubit>().sendVerificationEmail();
-        _startCooldown();
+        _sendVerificationAndSyncCooldown();
       }
     });
   }
@@ -54,14 +50,28 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView> {
     super.dispose();
   }
 
-  void _startCooldown() {
-    setState(() => _remainingCooldown = const Duration(seconds: 60));
+  Future<void> _syncCooldownFromRepository() async {
+    final remaining = context
+        .read<AuthRepository>()
+        .getRemainingVerificationCooldown();
+    if (!mounted) return;
+    setState(() => _remainingCooldown = remaining);
+  }
+
+  Future<void> _sendVerificationAndSyncCooldown() async {
+    await context.read<AuthCubit>().sendVerificationEmail();
+    await _syncCooldownFromRepository();
+    _startCooldownTicker();
+  }
+
+  void _startCooldownTicker() {
     _cooldownTicker?.cancel();
     _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {
-        final next = _remainingCooldown - const Duration(seconds: 1);
-        _remainingCooldown = next.isNegative ? Duration.zero : next;
+        _remainingCooldown = context
+            .read<AuthRepository>()
+            .getRemainingVerificationCooldown();
       });
       if (_remainingCooldown == Duration.zero) {
         _cooldownTicker?.cancel();
@@ -107,6 +117,12 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView> {
                 child: BlocBuilder<AuthCubit, AuthState>(
                   builder: (context, state) {
                     final isChecking = state is AuthLoading;
+                    final cooldownLabel = _remainingCooldown.inSeconds > 0
+                        ? context.tr(
+                            'resend_available_in',
+                            args: {'seconds': '${_remainingCooldown.inSeconds}'},
+                          )
+                        : '';
 
                     return Column(
                       children: [
@@ -114,7 +130,7 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView> {
 
                         // ── Back button ────────────────────────
                         Align(
-                          alignment: Alignment.centerLeft,
+                          alignment: AlignmentDirectional.centerStart,
                           child: IconButton(
                             onPressed: () => context
                                 .pushReplacementNamed(Routes.LoginView),
@@ -161,7 +177,7 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView> {
 
                         // ── Title ──────────────────────────────
                         Text(
-                          'Verify Your Email',
+                          context.tr('verify_email_title'),
                           style: GoogleFonts.cormorant(
                             color: AppColors.textPrimary,
                             fontSize: 36.sp,
@@ -173,7 +189,7 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView> {
 
                         // ── Subtitle ───────────────────────────
                         Text(
-                          'We sent a verification link to your email. After verifying, press the button below.',
+                          context.tr('verify_email_subtitle'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color:
@@ -200,8 +216,8 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView> {
                         // ── Check Verification button ──────────
                         AnimatedGoldButton(
                           text: isChecking
-                              ? 'CHECKING...'
-                              : 'Check Verification',
+                              ? context.tr('checking_upper')
+                              : context.tr('check_verification'),
                           onTap: isChecking
                               ? () {}
                               : () => context
@@ -217,10 +233,10 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView> {
                               : _resend,
                           child: Text(
                             isChecking
-                                ? 'Checking...'
+                                ? context.tr('checking')
                                 : _isCooldownActive
-                                    ? _cooldownLabel
-                                    : 'Resend Email',
+                                    ? cooldownLabel
+                                    : context.tr('resend_email'),
                             style: TextStyle(
                               color:
                                   AppColors.mainGold.withOpacity(0.85),
@@ -235,7 +251,7 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView> {
                           onPressed: () => context.pushReplacementNamed(
                               Routes.LoginView),
                           child: Text(
-                            'Back to Login',
+                            context.tr('back_to_login'),
                             style: TextStyle(
                               color: AppColors.textSecondary
                                   .withOpacity(0.55),
@@ -259,10 +275,9 @@ class _VerifyEmailOtpViewState extends State<VerifyEmailOtpView> {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  void _resend() {
+  Future<void> _resend() async {
     if (_isCooldownActive) return;
-    context.read<AuthCubit>().sendVerificationEmail();
-    _startCooldown();
+    await _sendVerificationAndSyncCooldown();
   }
 
   void _onStateChange(BuildContext context, AuthState state) {

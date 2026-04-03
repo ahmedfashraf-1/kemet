@@ -1,8 +1,10 @@
+import '../entities/auth_session.dart';
 import '../entities/user.dart';
 
 abstract class AuthRepository {
   User? get currentUser;
   Stream<User?> get authStateChanges;
+  String? get currentSessionId;
 
   Future<User> signInWithEmail(String email, String password);
   Future<User> signUpWithEmail(
@@ -17,4 +19,7 @@ abstract class AuthRepository {
   Future<bool> checkEmailVerified();
   Future<void> signOut();
   Duration getRemainingVerificationCooldown();
+
+  Stream<List<AuthSession>> watchActiveSessions();
+  Future<void> clearOtherSessions();
 }

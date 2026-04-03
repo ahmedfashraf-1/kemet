@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 
@@ -10,7 +13,6 @@ import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
-import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -25,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Color _goldColor = Color(0xFFD4AF37);
 
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   String _selectedCategory = '';
   String _selectedCity = '';
@@ -49,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -57,7 +61,15 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<LandmarksCubit>().applyFilter(
       city: _selectedCity.isEmpty ? null : _selectedCity,
       kind: _selectedCategory.isEmpty ? null : _selectedCategory,
+      query: _searchController.text.trim().isEmpty
+          ? null
+          : _searchController.text.trim(),
     );
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), _applyFilters);
   }
 
 
@@ -85,6 +97,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       SizedBox(height: 24.h),
                       _buildHeroTitle(),
                       SizedBox(height: 24.h),
+                      _buildSearchBar(),
+                      SizedBox(height: 18.h),
 
                       _buildFilterList(
                         items: _egyptCities,
@@ -115,21 +129,36 @@ class _HomeScreenState extends State<HomeScreen> {
                       return const SliverFillRemaining(
                         child: Center(child: CircularProgressIndicator(color: _goldColor)),
                       );
+                    } else if (state is LandmarksEmpty) {
+                      return SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: Text(
+                            context.tr('no_data'),
+                            style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 16.sp),
+                          ),
+                        ),
+                      );
                     } else if (state is LandmarksError) {
                       return SliverFillRemaining(
                         child: Center(
-                          child: Text(state.message, style: const TextStyle(color: Colors.redAccent)),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(state.message, style: const TextStyle(color: Colors.redAccent)),
+                              SizedBox(height: 12.h),
+                              SizedBox(
+                                width: 170.w,
+                                child: AnimatedGoldButton(
+                                  text: context.tr('retry'),
+                                  onTap: _applyFilters,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     } else if (state is LandmarksLoaded) {
-                      if (state.landmarks.isEmpty) {
-                        return const SliverFillRemaining(
-                          child: Center(
-                            child: Text('No landmarks found.', style: TextStyle(color: Colors.white54)),
-                          ),
-                        );
-                      }
-
                       return SliverPadding(
                         padding: EdgeInsets.only(bottom: shellOverlayClearance),
                         sliver: SliverList(
@@ -144,6 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       page: page,
                                       city: state.city,
                                       kind: state.kind,
+                                      query: state.query,
                                       isPagination: true,
                                     );
                                   },
@@ -252,10 +282,10 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: TextField(
                 controller: _searchController,
-                onChanged: (_) => setState(() {}),
+                onChanged: _onSearchChanged,
                 style: TextStyle(color: Colors.white, fontSize: 14.sp),
                 decoration: InputDecoration(
-                  hintText: 'Search landmarks, places, cities',
+                  hintText: context.tr('search_hint'),
                   hintStyle: TextStyle(
                     color: Colors.white.withOpacity(0.45),
                     fontSize: 13.sp,
@@ -287,14 +317,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               children: [
                 TextSpan(
-                  text: 'Iconic\n',
+                  text: '${context.tr('iconic')}\n',
                   style: TextStyle(
                     fontWeight: FontWeight.w400,
                     color: Colors.white,
                   ),
                 ),
                 TextSpan(
-                  text: 'Landmarks',
+                  text: context.tr('landmarks'),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: _goldColor,
@@ -305,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           SizedBox(height: 10.h),
           Text(
-            'Curated destinations with timeless history and elegance.',
+            context.tr('hero_subtitle'),
             style: TextStyle(
               color: Colors.white.withOpacity(0.62),
               fontSize: 12.5.sp,
@@ -353,7 +383,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Center(
                 child: Text(
-                  item.toUpperCase(),
+                  _filterLabel(context, item).toUpperCase(),
                   style: GoogleFonts.cinzel(
                     fontSize: 10.sp,
                     fontWeight: FontWeight.w700,
@@ -382,7 +412,7 @@ class _HomeScreenState extends State<HomeScreen> {
           GestureDetector(
             onTap: currentPage > 1 ? () => onPageSelected(currentPage - 1) : null,
             child: Text(
-              'BACK',
+              context.tr('back').toUpperCase(),
               style: GoogleFonts.cinzel(
                 color: currentPage > 1 ? _goldColor : Colors.white24,
                 fontWeight: FontWeight.bold,
@@ -412,7 +442,7 @@ class _HomeScreenState extends State<HomeScreen> {
           GestureDetector(
             onTap: !isLastPage ? () => onPageSelected(currentPage + 1) : null,
             child: Text(
-              'NEXT',
+              context.tr('next_caps').toUpperCase(),
               style: GoogleFonts.cinzel(
                 color: !isLastPage ? _goldColor : Colors.white24,
                 fontWeight: FontWeight.bold,
@@ -605,7 +635,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                       child: Text(
-                        'VIEW DETAILS',
+                        context.tr('view_details'),
                         style: GoogleFonts.inter(color: AppColors.textDarkOnGold, fontSize: 18.sp, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -626,5 +656,38 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Icon(Icons.landscape, color: _goldColor, size: 60),
       ),
     );
+  }
+
+  String _filterLabel(BuildContext context, String value) {
+    switch (value) {
+      case 'All':
+        return context.tr('all');
+      case 'Cairo':
+        return context.tr('city_cairo');
+      case 'Luxor':
+        return context.tr('city_luxor');
+      case 'Aswan':
+        return context.tr('city_aswan');
+      case 'Giza':
+        return context.tr('city_giza');
+      case 'Alexandria':
+        return context.tr('city_alexandria');
+      case 'Red Sea':
+        return context.tr('city_red_sea');
+      case 'South Sinai':
+        return context.tr('city_south_sinai');
+      case 'historic':
+        return context.tr('category_historic');
+      case 'temple':
+        return context.tr('category_temple');
+      case 'museum':
+        return context.tr('category_museum');
+      case 'nature':
+        return context.tr('category_nature');
+      case 'island':
+        return context.tr('category_island');
+      default:
+        return value;
+    }
   }
 }

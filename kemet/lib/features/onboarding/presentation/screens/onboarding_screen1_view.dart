@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../../core/routing/routes.dart';
@@ -64,7 +65,7 @@ class OnboardingScreen1 extends StatelessWidget {
                   SizedBox(height: 10.h),
 
                   Text(
-                    "KEMET",
+                    context.tr('onboarding1_title'),
                     style: GoogleFonts.cormorant(
                       textStyle: TextStyle(
                         color: AppColors.mainGold,
@@ -84,7 +85,7 @@ class OnboardingScreen1 extends StatelessWidget {
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20.w),
                     child: Text(
-                      "Step into the land where history, culture, and civilization began",
+                      context.tr('onboarding1_subtitle'),
                       textAlign: TextAlign.center,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
@@ -112,7 +113,7 @@ class OnboardingScreen1 extends StatelessWidget {
                   SizedBox(height: 30.h),
 
                   AnimatedGoldButton(
-                    text: "EXPLORE",
+                    text: context.tr('explore'),
                     onTap: () {
                       context.pushNamed(Routes.onBoardingScreen2);
                     },
@@ -126,7 +127,7 @@ class OnboardingScreen1 extends StatelessWidget {
                       context.pushNamed(Routes.onBoardingScreen4); 
                     },
                     child: Text(
-                      "skip",
+                      context.tr('skip'),
                       style: TextStyle(
                         color: const Color.fromARGB(
                           255,
