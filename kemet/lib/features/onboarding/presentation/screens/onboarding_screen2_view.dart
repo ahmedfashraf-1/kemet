@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../../core/routing/routes.dart';
 
@@ -58,7 +59,7 @@ class OnboardingScreen2 extends StatelessWidget {
                   SizedBox(height: 30.h),
 
                   Text(
-                    "IMMERSE\nIN HISTORY",
+                    context.tr('onboarding2_title'),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.cormorant(
                       // feeeh kteer cizel w hgat kda srasho
@@ -80,7 +81,7 @@ class OnboardingScreen2 extends StatelessWidget {
                   SizedBox(height: 30.h),
 
                   Text(
-                    "Experience the chronicles of the Pharaohs through sound.",
+                    context.tr('onboarding2_subtitle'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: AppColors.lightGold,
@@ -120,7 +121,7 @@ class OnboardingScreen2 extends StatelessWidget {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        "NEXT",
+                        context.tr('next_caps'),
                         style: TextStyle(
                           color: const Color(0xFFE3B06C),
                           fontSize: 16.sp,
@@ -139,7 +140,7 @@ class OnboardingScreen2 extends StatelessWidget {
                       context.pushNamed(Routes.onBoardingScreen4); 
                     },
                     child: Text(
-                      "skip",
+                      context.tr('skip'),
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.4),
                         fontSize: 14.sp,

@@ -1,3 +1,12 @@
+ import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
+import 'package:kemet/core/routing/app_router.dart';
+import 'package:kemet/core/utils/services/notification_service.dart';
+import 'package:kemet/features/profile/presentation/di/profile_di.dart';
+import 'package:kemet/kemet_app.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 // import 'package:flutter/material.dart';
 // import 'package:firebase_core/firebase_core.dart';
 // import 'package:kemet/core/routing/app_router.dart';
@@ -25,19 +34,21 @@
 
 
 
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:kemet/core/routing/app_router.dart';
-import 'package:kemet/features/profile/presentation/di/profile_di.dart';
-import 'package:kemet/kemet_app.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
-  // ✅ لازم تيجي أول حاجة قبل أي async call
+
+
+Future<void> main() async {
+
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp();
-  print("🔥 Firebase Connected Successfully");
+
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+  final navigatorKey = GlobalKey<NavigatorState>();
+  await NotificationService.instance.initialize(navigatorKey: navigatorKey);
+
 
   // ✅ بعد Firebase
   setupProfileDi();
@@ -48,6 +59,8 @@ void main() async {
     KemetApp(
       appRouter: AppRouter(),
       sharedPreferences: sharedPrefs,
+      navigatorKey: navigatorKey,
     ),
   );
+}
 }

@@ -1,4 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+
+import '../../domain/entities/auth_session.dart';
 import '../../domain/entities/user.dart' as domain;
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
@@ -21,9 +23,16 @@ class AuthRepositoryImpl implements AuthRepository {
   );
 
   @override
+  String? get currentSessionId => _datasource.currentSessionId;
+
+  @override
   Future<domain.User> signInWithEmail(String email, String password) async {
     final credential = await _datasource.signInWithEmail(email, password);
-    return _mapUser(credential.user!);
+    final fbUser = credential.user;
+    if (fbUser == null) {
+      throw const AuthRemoteException('Sign-in succeeded without user data.');
+    }
+    return _mapUser(fbUser);
   }
 
   @override
@@ -39,14 +48,24 @@ class AuthRepositoryImpl implements AuthRepository {
       firstName,
       lastName,
     );
-    return _mapUser(credential.user!);
+    final fbUser = credential.user;
+    if (fbUser == null) {
+      throw const AuthRemoteException('Sign-up succeeded without user data.');
+    }
+    return _mapUser(fbUser);
   }
 
   @override
   Future<domain.User?> signInWithGoogle() async {
     final credential = await _datasource.signInWithGoogle();
-    if (credential?.user == null) return null;
-    return _mapUser(credential!.user!);
+    if (credential == null) return null;
+    final fbUser = credential.user;
+    if (fbUser == null) {
+      throw const AuthRemoteException(
+        'Google sign-in succeeded without user data.',
+      );
+    }
+    return _mapUser(fbUser);
   }
 
   @override
@@ -75,10 +94,32 @@ class AuthRepositoryImpl implements AuthRepository {
     return _datasource.getRemainingVerificationCooldown(uid);
   }
 
+  @override
+  Stream<List<AuthSession>> watchActiveSessions() {
+    final uid = _datasource.currentUser?.uid;
+    if (uid == null) return const Stream<List<AuthSession>>.empty();
+    return _datasource.watchUserSessions(uid);
+  }
+
+  @override
+  Future<void> clearOtherSessions() async {
+    final uid = _datasource.currentUser?.uid;
+    if (uid == null) return;
+    await _datasource.clearOtherSessions(uid);
+  }
+
   domain.User _mapUser(fb.User fbUser) => UserModel(
     id: fbUser.uid,
-    username: fbUser.displayName ?? fbUser.email!.split('@').first,
-    email: fbUser.email!,
+    username: fbUser.displayName ?? _requireEmail(fbUser).split('@').first,
+    email: _requireEmail(fbUser),
     createdAt: fbUser.metadata.creationTime ?? DateTime.now(),
   );
+
+  String _requireEmail(fb.User fbUser) {
+    final email = fbUser.email;
+    if (email == null || email.isEmpty) {
+      throw const AuthRemoteException('Authenticated user email is unavailable.');
+    }
+    return email;
+  }
 }

@@ -3,8 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
-import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/utils/extensions.dart';
+import 'package:kemet/core/utils/services/validation_service.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_state.dart';
@@ -122,7 +123,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                             // ── Title ──────────────────────────
                             Center(
                               child: Text(
-                                'Forgot Password',
+                                context.tr('forgot_password'),
                                 style: GoogleFonts.cormorant(
                                   textStyle: TextStyle(
                                     color: AppColors.mainGold,
@@ -146,7 +147,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                             // ── Description ────────────────────
                             Center(
                               child: Text(
-                                'Enter your email to receive a password reset link.',
+                                context.tr('forgot_password_desc'),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: AppColors.lightGold
@@ -166,7 +167,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                                 crossAxisAlignment:
                                     CrossAxisAlignment.start,
                                 children: [
-                                  _buildLabel('Email Address'),
+                                  _buildLabel(context.tr('email_address')),
                                   SizedBox(height: 8.h),
                                   _buildEmailField(isLoading),
                                 ],
@@ -177,8 +178,8 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                             // ── Send Reset Link button ──────────
                             AnimatedGoldButton(
                               text: isLoading
-                                  ? 'SENDING...'
-                                  : 'SEND RESET LINK',
+                                  ? context.tr('sending').toUpperCase()
+                                  : context.tr('send_reset_link_upper').toUpperCase(),
                               onTap: isLoading
                                   ? () {}
                                   : () => _submit(context),
@@ -197,11 +198,11 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                                           .withOpacity(0.55),
                                     ),
                                     children: [
-                                      const TextSpan(
-                                        text: 'Remember your password?  ',
+                                      TextSpan(
+                                        text: '${context.tr('remember_password')}  ',
                                       ),
                                       TextSpan(
-                                        text: 'Sign In',
+                                        text: context.tr('sign_in'),
                                         style: GoogleFonts.cormorant(
                                           textStyle: TextStyle(
                                             color: AppColors.mainGold,
@@ -244,7 +245,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
 
   void _onStateChange(BuildContext context, AuthState state) {
     if (state is AuthPasswordResetSent) {
-      _showSnackBar(context, 'Password reset link sent to your email.');
+      _showSnackBar(context, context.tr('password_reset_link_sent'));
       context.pop();
     } else if (state is AuthError) {
       _showSnackBar(context, state.message);
@@ -287,20 +288,13 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       textInputAction: TextInputAction.done,
       enabled: !isLoading,
       onFieldSubmitted: (_) => _submit(context),
-      validator: (value) {
-        if (value == null || value.trim().isEmpty) {
-          return 'Email address is required.';
-        }
-        final emailRegex =
-            RegExp(r'^[\w\-.]+@([\w\-]+\.)+[\w\-]{2,4}$');
-        if (!emailRegex.hasMatch(value.trim())) {
-          return 'Please enter a valid email address.';
-        }
-        return null;
-      },
+      validator: (value) => ValidationService.validateEmail(
+        value,
+        translate: (key, {args}) => context.tr(key, args: args),
+      ),
       style: TextStyle(color: Colors.white, fontSize: 14.sp),
       decoration: InputDecoration(
-        hintText: 'Enter your email',
+        hintText: context.tr('enter_email'),
         hintStyle: TextStyle(
           color: AppColors.mainGold.withOpacity(0.30),
           fontSize: 14.sp,

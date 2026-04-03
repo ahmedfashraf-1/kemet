@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/utils/extensions.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
@@ -115,15 +116,16 @@ class _RegisterViewState extends State<RegisterView> {
 
                           // ── First Name ─────────────────────────
                           _buildLabeledField(
-                            label: 'First Name',
+                            label: context.tr('first_name'),
                             field: AuthTextField(
                               controller: _firstNameController,
-                              hintText: 'Enter Your First Name',
+                              hintText: context.tr('enter_first_name'),
                               textInputAction: TextInputAction.next,
                               validator: (value) =>
                                   ValidationService.validateName(
                                 value,
                                 fieldName: 'First name',
+                                translate: (key, {args}) => context.tr(key, args: args),
                               ),
                             ),
                           ),
@@ -131,15 +133,16 @@ class _RegisterViewState extends State<RegisterView> {
 
                           // ── Last Name ──────────────────────────
                           _buildLabeledField(
-                            label: 'Last Name',
+                            label: context.tr('last_name'),
                             field: AuthTextField(
                               controller: _lastNameController,
-                              hintText: 'Enter Your Last Name',
+                              hintText: context.tr('enter_last_name'),
                               textInputAction: TextInputAction.next,
                               validator: (value) =>
                                   ValidationService.validateName(
                                 value,
                                 fieldName: 'Last name',
+                                translate: (key, {args}) => context.tr(key, args: args),
                               ),
                             ),
                           ),
@@ -147,26 +150,32 @@ class _RegisterViewState extends State<RegisterView> {
 
                           // ── Email ──────────────────────────────
                           _buildLabeledField(
-                            label: 'Email Address',
+                            label: context.tr('email_address'),
                             field: AuthTextField(
                               controller: _emailController,
-                              hintText: 'Enter Your Email Address',
+                              hintText: context.tr('enter_email_address'),
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
-                              validator: ValidationService.validateEmail,
+                              validator: (value) => ValidationService.validateEmail(
+                                value,
+                                translate: (key, {args}) => context.tr(key, args: args),
+                              ),
                             ),
                           ),
                           SizedBox(height: 12.h),
 
                           // ── Password ───────────────────────────
                           _buildLabeledField(
-                            label: 'Password',
+                            label: context.tr('password'),
                             field: AuthTextField(
                               controller: _passwordController,
-                              hintText: 'Enter Your Password',
+                              hintText: context.tr('enter_password'),
                               textInputAction: TextInputAction.next,
                               obscureText: !_isPasswordVisible,
-                              validator: ValidationService.validatePassword,
+                              validator: (value) => ValidationService.validatePassword(
+                                value,
+                                translate: (key, {args}) => context.tr(key, args: args),
+                              ),
                               onChanged: (_) {
                                 if (_confirmPasswordController
                                     .text.isNotEmpty) {
@@ -184,16 +193,17 @@ class _RegisterViewState extends State<RegisterView> {
 
                           // ── Confirm Password ───────────────────
                           _buildLabeledField(
-                            label: 'Confirm Password',
+                            label: context.tr('confirm_password'),
                             field: AuthTextField(
                               controller: _confirmPasswordController,
-                              hintText: 'Confirm Your Password',
+                              hintText: context.tr('confirm_your_password'),
                               textInputAction: TextInputAction.done,
                               obscureText: !_isConfirmPasswordVisible,
                               validator: (value) =>
                                   ValidationService.validateConfirmPassword(
                                 _passwordController.text,
                                 value ?? '',
+                                translate: (key, {args}) => context.tr(key, args: args),
                               ),
                               suffixIcon: _buildVisibilityIcon(
                                 isVisible: _isConfirmPasswordVisible,
@@ -211,8 +221,8 @@ class _RegisterViewState extends State<RegisterView> {
                           // ── Create Account button ──────────────
                           AnimatedGoldButton(
                             text: isLoading
-                                ? 'Creating Account...'
-                                : 'Create Account',
+                                ? context.tr('creating_account')
+                                : context.tr('create_account'),
                             onTap: isLoading
                                 ? () {}
                                 : () => _submit(context),
@@ -232,10 +242,10 @@ class _RegisterViewState extends State<RegisterView> {
                                         AppColors.lightGold.withOpacity(0.55),
                                   ),
                                   children: [
-                                    const TextSpan(
-                                        text: 'Already have an account? '),
+                                      TextSpan(
+                                        text: '${context.tr('already_have_account')} ',),
                                     TextSpan(
-                                      text: 'Sign In',
+                                      text: context.tr('sign_in'),
                                       style: GoogleFonts.cormorant(
                                         textStyle: TextStyle(
                                           color: AppColors.mainGold,
