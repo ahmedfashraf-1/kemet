@@ -24,9 +24,9 @@ class ProfileStatsWidget extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _StatItem(value: trips, label: 'TRIPS'),
+          _StatItem(value: trips, label: 'EXPLORED'),
           _Divider(),
-          _StatItem(value: saved, label: 'SAVED'),
+          _StatItem(value: saved, label: 'FAVORITE'),
           _Divider(),
           _StatItem(value: reviews, label: 'REVIEWS'),
         ],

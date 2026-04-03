@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 /// الأيقونة الصغيرة في الـ AppBar مع الـ Glow Effect
@@ -69,7 +70,7 @@ class ProfileAvatarButton extends StatelessWidget {
         // ── Logout
         PopupMenuItem(
           padding: EdgeInsets.zero,
-          onTap: onLogout,
+          onTap: () => _logout(context),
           child: const _PopupAction(
             icon: Icons.logout,
             label: 'LOGOUT',
@@ -259,4 +260,14 @@ class _PopupAction extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _logout(BuildContext context) async {
+  await FirebaseAuth.instance.signOut();
+
+  Navigator.pushNamedAndRemoveUntil(
+    context,
+    '/onLoginScreen',
+    (route) => false,
+  );
 }

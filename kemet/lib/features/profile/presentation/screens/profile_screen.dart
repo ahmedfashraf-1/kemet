@@ -284,6 +284,7 @@
 
 
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -295,6 +296,9 @@ import '../cubit/profile_cubit.dart';
 import '../widgets/profile_cover_widget.dart';
 import '../widgets/profile_stats_widget.dart';
 import '../widgets/profile_widgets.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   /// userId بيجي من AuthCubit أو SharedPrefs لما بتفتح الصفحة
@@ -310,14 +314,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const Color _bgColor   = Color(0xFF0E0E0E);
   static const Color _goldColor = Color(0xFFD4AF37);
 
+  File? _image;
+  Future<void> pickImage() async {
+  final picker = ImagePicker();
+  final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+  if (pickedFile != null) {
+    setState(() {
+      _image = File(pickedFile.path);
+    });
+  }
+}
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // ✅ بنمرر الـ userId
+      
       context.read<ProfileCubit>().loadProfile(widget.userId);
     });
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         listener: (context, state) {
           if (state is ProfileLoggedOut) {
             context.pushNamedAndRemoveUntil(
-              '/login',
+              '/onLoginScreen',
               predicate: (route) => false,
             );
           }

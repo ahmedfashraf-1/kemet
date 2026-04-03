@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
-class ProfileCoverWidget extends StatelessWidget {
+class ProfileCoverWidget extends StatefulWidget {
   final String name;
   final String? location;
 
@@ -11,12 +13,34 @@ class ProfileCoverWidget extends StatelessWidget {
   });
 
   @override
+  State<ProfileCoverWidget> createState() => _ProfileCoverWidgetState();
+}
+
+class _ProfileCoverWidgetState extends State<ProfileCoverWidget> {
+  File? _image;
+
+  Future<void> _pickImage() async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+      if (pickedFile != null) {
+        setState(() => _image = File(pickedFile.path));
+      }
+    } catch (e) {
+      debugPrint('Image picker error: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.bottomCenter,
       children: [
-        // ── Cover background
+        // ── Cover
         Container(
           height: 140,
           width: double.infinity,
@@ -66,28 +90,31 @@ class ProfileCoverWidget extends StatelessWidget {
           ),
         ),
 
-        // ── Edit cover button
+        // ── Edit cover button (القلم على اليمين)
         Positioned(
           top: MediaQuery.of(context).padding.top + 12,
           right: 16,
-          child: Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFFC9A84C).withOpacity(0.4),
+          child: GestureDetector(
+            onTap: _pickImage, // ← نفس الفانكشن
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFFC9A84C).withOpacity(0.4),
+                ),
               ),
-            ),
-            child: const Icon(
-              Icons.edit_outlined,
-              color: Color(0xFFC9A84C),
-              size: 16,
+              child: const Icon(
+                Icons.edit_outlined,
+                color: Color(0xFFC9A84C),
+                size: 16,
+              ),
             ),
           ),
         ),
 
-        // ── Avatar with gold glow
+        // ── Avatar
         Positioned(
           bottom: -44,
           child: Stack(
@@ -103,6 +130,12 @@ class ProfileCoverWidget extends StatelessWidget {
                     color: const Color(0xFFC9A84C),
                     width: 2.5,
                   ),
+                  image: _image != null
+                      ? DecorationImage(
+                          image: FileImage(_image!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFFC9A84C).withOpacity(0.35),
@@ -116,31 +149,41 @@ class ProfileCoverWidget extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Text(
-                    'A',
-                    style: TextStyle(
-                      color: Color(0xFFC9A84C),
-                      fontSize: 32,
-                      fontFamily: 'Georgia',
-                    ),
-                  ),
-                ),
+                child: _image == null
+                    ? Center(
+                        child: Text(
+                          widget.name.isNotEmpty
+                              ? widget.name[0].toUpperCase()
+                              : 'A',
+                          style: const TextStyle(
+                            color: Color(0xFFC9A84C),
+                            fontSize: 32,
+                            fontFamily: 'Georgia',
+                          ),
+                        ),
+                      )
+                    : null,
               ),
 
-              // ── Edit avatar badge
-              Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFC9A84C),
-                  border: Border.all(color: const Color(0xFF0E0E0E), width: 2),
-                ),
-                child: const Icon(
-                  Icons.edit,
-                  color: Color(0xFF111111),
-                  size: 12,
+              // ── Edit avatar badge (القلم جوا الأفاتار)
+              GestureDetector(
+                onTap: _pickImage, // ← نفس الفانكشن
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFC9A84C),
+                    border: Border.all(
+                      color: const Color(0xFF0E0E0E),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.edit,
+                    color: Color(0xFF111111),
+                    size: 12,
+                  ),
                 ),
               ),
             ],

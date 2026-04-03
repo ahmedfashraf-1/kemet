@@ -3,37 +3,37 @@ import '../../domain/entities/review.dart';
 class ReviewModel extends Review {
   ReviewModel({
     required super.id,
-    //required super.userId,
-    //required super.landmarkId,
-    //required super.comment,
-    required super.rating,
-    required super.placeName,
-    required super.date
-    //required super.createdAt,
+    super.userId,
+    super.landmarkId,
+    super.comment,
+    super.rating,
+    super.placeName,
+    super.date,
+    super.createdAt
   });
 
   /// 🔹 from JSON (Firebase)
   factory ReviewModel.fromJson(Map<String, dynamic> json, String id) {
     return ReviewModel(
       id: id,
-      //userId: json['userId'],
-    //  landmarkId: json['landmarkId'],
-    //  comment: json['comment'],
+      userId: json['userId'],
+      landmarkId: json['landmarkId'],
+      comment: json['comment'],
       rating: (json['rating'] as num).toDouble(),
       placeName: (json['placename']),
-      date:  (json['date'])
-    //  createdAt: DateTime.parse(json['createdAt']),
+      date:  (json['date']),
+      createdAt: DateTime.parse(json['createdAt']),
     );
   }
 
   /// 🔹 to JSON (Firebase)
   Map<String, dynamic> toJson() {
     return {
-    //  'userId': userId,
-    //  'landmarkId': landmarkId,
-    //  'comment': comment,
-      'rating': rating,
-    //  'createdAt': createdAt.toIso8601String(),
+    'userId': userId,
+    'landmarkId': landmarkId,
+    'comment': comment,
+    'rating': rating,
+    'createdAt': createdAt?.toIso8601String(),
     };
   }
 
@@ -43,11 +43,11 @@ class ReviewModel extends Review {
       id: id,
       placeName: placeName,
       date: date,
-    //  userId: userId,
-    //  landmarkId: landmarkId,
-    //  comment: comment,
+      userId: userId,
+      landmarkId: landmarkId,
+      comment: comment,
       rating: rating,
-    //  createdAt: createdAt,
+      createdAt: createdAt,
     );
   }
 
@@ -57,8 +57,8 @@ class ReviewModel extends Review {
       id: review.id,
       placeName: review.placeName,
       date: review.date,
-    //  userId: review.userId,
-    //  landmarkId: review.landmarkId,
+      userId: review.userId,
+      landmarkId: review.landmarkId,
   //    comment: review.comment,
       rating: review.rating,
   //    createdAt: review.createdAt,

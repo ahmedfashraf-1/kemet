@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 // ─────────────────────────────────────────
@@ -82,20 +83,15 @@ class ProfileTripCard extends StatelessWidget {
 // Review Item
 // ─────────────────────────────────────────
 class ProfileReviewItem extends StatelessWidget {
-  final String place;
-  final double rating;
-  final String date;
+  final String? place;
+  final double? rating;
+  final String? date;
 
-  const ProfileReviewItem({
-    super.key,
-    required this.place,
-    required this.rating,
-    required this.date,
-  });
+  const ProfileReviewItem({super.key, this.place, this.rating, this.date});
 
   @override
   Widget build(BuildContext context) {
-    final stars = List.generate(5, (i) => i < rating ? '★' : '☆').join();
+    final stars = List.generate(5, (i) => i < rating! ? '★' : '☆').join();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -113,11 +109,10 @@ class ProfileReviewItem extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF1E1A0A),
               borderRadius: BorderRadius.circular(10),
-              border:
-                  Border.all(color: const Color(0xFF3A3010), width: 0.5),
+              border: Border.all(color: const Color(0xFF3A3010), width: 0.5),
             ),
             //child: Center(
-              //child: Text(icon, style: const TextStyle(fontSize: 16)),
+            //child: Text(icon, style: const TextStyle(fontSize: 16)),
             //),
           ),
           const SizedBox(width: 10),
@@ -126,23 +121,26 @@ class ProfileReviewItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  place,
+                  place!,
                   style: const TextStyle(
-                      color: Color(0xFFDDDDDD), fontSize: 12),
+                    color: Color(0xFFDDDDDD),
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   stars,
                   style: const TextStyle(
-                      color: Color(0xFFC9A84C), fontSize: 11),
+                    color: Color(0xFFC9A84C),
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
           ),
           Text(
-            date,
-            style: const TextStyle(
-                color: Color(0xFF555555), fontSize: 10),
+            date!,
+            style: const TextStyle(color: Color(0xFF555555), fontSize: 10),
           ),
         ],
       ),
@@ -182,8 +180,7 @@ class ProfileSavedItem extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF1E1A0A),
               borderRadius: BorderRadius.circular(10),
-              border:
-                  Border.all(color: const Color(0xFF3A3010), width: 0.5),
+              border: Border.all(color: const Color(0xFF3A3010), width: 0.5),
             ),
             child: Center(
               child: Text(icon, style: const TextStyle(fontSize: 16)),
@@ -197,7 +194,9 @@ class ProfileSavedItem extends StatelessWidget {
                 Text(
                   name,
                   style: const TextStyle(
-                      color: Color(0xFFDDDDDD), fontSize: 12),
+                    color: Color(0xFFDDDDDD),
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -230,9 +229,7 @@ class ProfileSignOutButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // TODO: hook to AuthBloc / sign out use case
-      },
+      onTap: () => _logout(context),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 13),
@@ -243,7 +240,7 @@ class ProfileSignOutButton extends StatelessWidget {
         ),
         child: const Center(
           child: Text(
-            '↩  SIGN OUT',
+            'SIGN OUT',
             style: TextStyle(
               color: Color(0xFFC04040),
               fontSize: 12,
@@ -254,4 +251,14 @@ class ProfileSignOutButton extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _logout(BuildContext context) async {
+  await FirebaseAuth.instance.signOut();
+
+  Navigator.pushNamedAndRemoveUntil(
+    context,
+    '/onLoginScreen',
+    (route) => false,
+  );
 }
