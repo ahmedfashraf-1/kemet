@@ -9,10 +9,13 @@ import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_state.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 
+import 'package:kemet/features/landmarks/presentation/screens/hero_slider.dart';
+import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
+<<<<<<< HEAD:kemet/lib/features/home/presentation/screens/home_screen.dart
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:kemet/features/profile/presentation/di/profile_di.dart';
@@ -21,6 +24,8 @@ import 'package:kemet/features/profile/presentation/widgets/profile_avatar_butto
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:kemet/features/profile/presentation/widgets/profile_avatar_button.dart';
+=======
+>>>>>>> features/reviews:kemet/lib/features/landmarks/presentation/screens/home_screen.dart
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,11 +44,21 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedCity = '';
 
   final List<String> _egyptCities = [
-    'Cairo', 'Luxor', 'Aswan', 'Giza', 'Alexandria', 'Red Sea', 'South Sinai'
+    'Cairo',
+    'Luxor',
+    'Aswan',
+    'Giza',
+    'Alexandria',
+    'Red Sea',
+    'South Sinai',
   ];
 
   final List<String> _categories = [
-    'historic', 'temple', 'museum', 'nature', 'island'
+    'historic',
+    'temple',
+    'museum',
+    'nature',
+    'island',
   ];
 
   final Map<String, bool> _favourites = {};
@@ -69,17 +84,28 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openLandmarkDetails(Landmark landmark) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LandmarkDetailsScreen(landmark: landmark),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final bottomSafeArea = MediaQuery.of(context).padding.bottom;
     final shellOverlayClearance = 140.h + bottomSafeArea;
+<<<<<<< HEAD:kemet/lib/features/home/presentation/screens/home_screen.dart
     const headerItemsCount = 9;
     
 //     final userId = context.read<AuthCubit>().state.user.id;
 // if (authState is AuthAuthenticated) {
 //   currentUserId = authState.user.id; // أو user.uid حسب اسم الحقل عندك في الـ Model
 // }
+=======
+>>>>>>> features/reviews:kemet/lib/features/landmarks/presentation/screens/home_screen.dart
 
     return Scaffold(
       backgroundColor: _bgColor,
@@ -104,7 +130,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         items: _egyptCities,
                         selectedValue: _selectedCity,
                         onSelected: (val) {
-                          setState(() => _selectedCity = val == 'All' ? '' : val);
+                          setState(
+                            () => _selectedCity = val == 'All' ? '' : val,
+                          );
                           _applyFilters();
                         },
                       ),
@@ -114,7 +142,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         items: _categories,
                         selectedValue: _selectedCategory,
                         onSelected: (val) {
-                          setState(() => _selectedCategory = val == 'All' ? '' : val);
+                          setState(
+                            () => _selectedCategory = val == 'All' ? '' : val,
+                          );
                           _applyFilters();
                         },
                       ),
@@ -127,19 +157,27 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder: (context, state) {
                     if (state is LandmarksLoading) {
                       return const SliverFillRemaining(
-                        child: Center(child: CircularProgressIndicator(color: _goldColor)),
+                        child: Center(
+                          child: CircularProgressIndicator(color: _goldColor),
+                        ),
                       );
                     } else if (state is LandmarksError) {
                       return SliverFillRemaining(
                         child: Center(
-                          child: Text(state.message, style: const TextStyle(color: Colors.redAccent)),
+                          child: Text(
+                            state.message,
+                            style: const TextStyle(color: Colors.redAccent),
+                          ),
                         ),
                       );
                     } else if (state is LandmarksLoaded) {
                       if (state.landmarks.isEmpty) {
                         return const SliverFillRemaining(
                           child: Center(
-                            child: Text('No landmarks found.', style: TextStyle(color: Colors.white54)),
+                            child: Text(
+                              'No landmarks found.',
+                              style: TextStyle(color: Colors.white54),
+                            ),
                           ),
                         );
                       }
@@ -147,31 +185,31 @@ class _HomeScreenState extends State<HomeScreen> {
                       return SliverPadding(
                         padding: EdgeInsets.only(bottom: shellOverlayClearance),
                         sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                              if (index == state.landmarks.length) {
-                                return _buildPagination(
-                                  currentPage: state.currentPage,
-                                  isLastPage: state.isLastPage,
-                                  onPageSelected: (page) {
-                                    context.read<LandmarksCubit>().getLandmarks(
-                                      page: page,
-                                      city: state.city,
-                                      kind: state.kind,
-                                      isPagination: true,
-                                    );
-                                  },
-                                );
-                              }
-
-                              final landmark = state.landmarks[index];
-                              return Padding(
-                                padding: EdgeInsets.only(bottom: 28.h),
-                                child: _buildLandmarkCard(landmark),
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            if (index == state.landmarks.length) {
+                              return _buildPagination(
+                                currentPage: state.currentPage,
+                                isLastPage: state.isLastPage,
+                                onPageSelected: (page) {
+                                  context.read<LandmarksCubit>().getLandmarks(
+                                    page: page,
+                                    city: state.city,
+                                    kind: state.kind,
+                                    isPagination: true,
+                                  );
+                                },
                               );
-                            },
-                            childCount: state.landmarks.length + 1,
-                          ),
+                            }
+
+                            final landmark = state.landmarks[index];
+                            return Padding(
+                              padding: EdgeInsets.only(bottom: 28.h),
+                              child: _buildLandmarkCard(landmark),
+                            );
+                          }, childCount: state.landmarks.length + 1),
                         ),
                       );
                     }
@@ -198,6 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+<<<<<<< HEAD:kemet/lib/features/home/presentation/screens/home_screen.dart
           // 
           
             ProfileAvatarButton(
@@ -249,6 +288,25 @@ class _HomeScreenState extends State<HomeScreen> {
               onLogout: () {
                 context.read<ProfileCubit>().logout();
               },
+=======
+          Container(
+            width: 40.w,
+            height: 40.w,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.03),
+              border: Border.all(
+                color: _goldColor.withOpacity(0.75),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _goldColor.withOpacity(0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+>>>>>>> features/reviews:kemet/lib/features/landmarks/presentation/screens/home_screen.dart
             ),
 
           Text(
@@ -262,57 +320,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             onPressed: () {},
-            icon: Icon(
-              Icons.notifications,
-              color: _goldColor,
-              size: 24,
-            ),
+            icon: Icon(Icons.notifications, color: _goldColor, size: 24),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 24.w),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
-          borderRadius: BorderRadius.circular(9999),
-          border: Border.all(color: _goldColor.withOpacity(0.22)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.25),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            SizedBox(width: 16.w),
-            Icon(Icons.search, color: _goldColor.withOpacity(0.75), size: 21.sp),
-            SizedBox(width: 8.w),
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                onChanged: (_) => setState(() {}),
-                style: TextStyle(color: Colors.white, fontSize: 14.sp),
-                decoration: InputDecoration(
-                  hintText: 'Search landmarks, places, cities',
-                  hintStyle: TextStyle(
-                    color: Colors.white.withOpacity(0.45),
-                    fontSize: 13.sp,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 14.h),
-                ),
-              ),
-            ),
-            SizedBox(width: 16.w),
-          ],
-        ),
       ),
     );
   }
@@ -363,7 +373,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
   Widget _buildFilterList({
     required List<String> items,
     required String selectedValue,
@@ -393,7 +402,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: isActive ? AppColors.mainGold : AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(9999),
                 border: Border.all(
-                  color: isActive ? AppColors.mainGold : AppColors.subtleGoldBorder,
+                  color: isActive
+                      ? AppColors.mainGold
+                      : AppColors.subtleGoldBorder,
                 ),
               ),
               child: Center(
@@ -403,7 +414,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontSize: 10.sp,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.5,
-                    color: isActive ? AppColors.textDarkOnGold : AppColors.textSecondary,
+                    color: isActive
+                        ? AppColors.textDarkOnGold
+                        : AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -425,7 +438,9 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           GestureDetector(
-            onTap: currentPage > 1 ? () => onPageSelected(currentPage - 1) : null,
+            onTap: currentPage > 1
+                ? () => onPageSelected(currentPage - 1)
+                : null,
             child: Text(
               'BACK',
               style: GoogleFonts.cinzel(
@@ -440,9 +455,12 @@ class _HomeScreenState extends State<HomeScreen> {
           if (currentPage > 1) ...[
             _pageNumberNode(1, onPageSelected, false),
             if (currentPage > 2) ...[
-              Text('...', style: TextStyle(color: _goldColor, fontSize: 16.sp)),
+              Text(
+                '...',
+                style: TextStyle(color: _goldColor, fontSize: 16.sp),
+              ),
               SizedBox(width: 8.w),
-            ]
+            ],
           ],
 
           _pageNumberNode(currentPage, onPageSelected, true),
@@ -450,7 +468,10 @@ class _HomeScreenState extends State<HomeScreen> {
           if (!isLastPage) ...[
             _pageNumberNode(currentPage + 1, onPageSelected, false),
             SizedBox(width: 8.w),
-            Text('...', style: TextStyle(color: _goldColor, fontSize: 16.sp)),
+            Text(
+              '...',
+              style: TextStyle(color: _goldColor, fontSize: 16.sp),
+            ),
           ],
 
           SizedBox(width: 16.w),
@@ -470,8 +491,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
-  Widget _pageNumberNode(int page, Function(int) onPageSelected, bool isActive) {
+  Widget _pageNumberNode(
+    int page,
+    Function(int) onPageSelected,
+    bool isActive,
+  ) {
     return GestureDetector(
       onTap: () => onPageSelected(page),
       child: Container(
@@ -493,172 +517,239 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
   Widget _buildLandmarkCard(Landmark landmark) {
     final isFav = _favourites[landmark.id] ?? false;
 
-
-    final imageUrl = landmark.photos.isNotEmpty ? landmark.photos.first.url : '';
+    final imageUrl = landmark.photos.isNotEmpty
+        ? landmark.photos.first.url
+        : '';
     final parsedUri = Uri.tryParse(imageUrl);
-    final hasValidNetworkUrl = imageUrl.isNotEmpty &&
+    final hasValidNetworkUrl =
+        imageUrl.isNotEmpty &&
         parsedUri != null &&
         (parsedUri.scheme == 'http' || parsedUri.scheme == 'https');
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.03),
-          borderRadius: BorderRadius.circular(26.r),
-          border: Border.all(color: _goldColor.withOpacity(0.22), width: 1),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.38), blurRadius: 24, offset: const Offset(0, 14)),
-            BoxShadow(color: _goldColor.withOpacity(0.06), blurRadius: 22, offset: const Offset(0, 10)),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                AspectRatio(
-                  aspectRatio: 16 / 10,
-
-                  child: hasValidNetworkUrl
-                      ? CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: const Color(0xFF161616),
-                      child: const Center(child: CircularProgressIndicator(color: _goldColor)),
-                    ),
-                    errorWidget: (context, url, error) => _buildPlaceholderImage(),
-                  )
-                      : _buildPlaceholderImage(),
-                ),
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.black.withOpacity(0.15), Colors.black.withOpacity(0.34), _bgColor.withOpacity(0.92)],
-                        stops: const [0.1, 0.45, 1.0],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 14.h,
-                  left: 14.w,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                    decoration: BoxDecoration(
-                      color: _goldColor.withOpacity(0.18),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: _goldColor.withOpacity(0.35)),
-                    ),
-
-                    child: Text(
-                      landmark.category.name.toUpperCase(),
-                      style: TextStyle(color: _goldColor, fontSize: 9.8.sp, fontWeight: FontWeight.w600, letterSpacing: 1.2),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 12.h,
-                  right: 12.w,
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _favourites[landmark.id] = !isFav;
-                      });
-                    },
-                    child: Container(
-                      width: 48.w,
-                      height: 48.w,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _bgColor.withOpacity(0.62),
-                        border: Border.all(color: _goldColor.withOpacity(0.24)),
-                      ),
-                      child: Icon(isFav ? Icons.favorite : Icons.favorite_border, color: _goldColor, size: 21),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 18.h,
-                  left: 18.w,
-                  right: 18.w,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          landmark.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.cormorant(fontSize: 28.sp, fontWeight: FontWeight.w700, color: Colors.white, height: 1.0),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(18.w, 16.h, 18.w, 18.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: GestureDetector(
+        onTap: () => _openLandmarkDetails(landmark),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.03),
+            borderRadius: BorderRadius.circular(26.r),
+            border: Border.all(color: _goldColor.withOpacity(0.22), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.38),
+                blurRadius: 24,
+                offset: const Offset(0, 14),
+              ),
+              BoxShadow(
+                color: _goldColor.withOpacity(0.06),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.location_on_outlined, color: _goldColor.withOpacity(0.82), size: 16.sp),
-                      SizedBox(width: 6.w),
-                      Text(
-                        landmark.city,
-                        style: TextStyle(fontSize: 12.5.sp, color: Colors.white.withOpacity(0.72), letterSpacing: 0.3),
-                      ),
-                    ],
+                  AspectRatio(
+                    aspectRatio: 16 / 10,
+
+                    child: Hero(
+                      tag: _heroTag(landmark.id),
+                      child: hasValidNetworkUrl
+                          ? CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: const Color(0xFF161616),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: _goldColor,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) =>
+                                  _buildPlaceholderImage(),
+                            )
+                          : _buildPlaceholderImage(),
+                    ),
                   ),
-                  SizedBox(height: 12.h),
-                  Text(
-                    landmark.description,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13.sp, color: Colors.white.withOpacity(0.68), height: 1.55),
-                  ),
-                  SizedBox(height: 18.h),
-                  GestureDetector(
-                    onTap: () {},
-                    behavior: HitTestBehavior.opaque,
+                  Positioned.fill(
                     child: Container(
-                      width: double.infinity,
-                      height: 55.h,
-                      alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(30.r),
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [AppColors.darkGold, AppColors.mainGold, AppColors.darkGold],
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.15),
+                            Colors.black.withOpacity(0.34),
+                            _bgColor.withOpacity(0.92),
+                          ],
+                          stops: const [0.1, 0.45, 1.0],
                         ),
-                        boxShadow: [
-                          BoxShadow(color: AppColors.darkGold.withOpacity(0.45), blurRadius: 14, offset: const Offset(0, 6)),
-                        ],
                       ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 14.h,
+                    left: 14.w,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 6.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _goldColor.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: _goldColor.withOpacity(0.35)),
+                      ),
+
                       child: Text(
-                        'VIEW DETAILS',
-                        style: GoogleFonts.inter(color: AppColors.textDarkOnGold, fontSize: 18.sp, fontWeight: FontWeight.bold),
+                        landmark.category.name.toUpperCase(),
+                        style: TextStyle(
+                          color: _goldColor,
+                          fontSize: 9.8.sp,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.2,
+                        ),
                       ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 12.h,
+                    right: 12.w,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _favourites[landmark.id] = !isFav;
+                        });
+                      },
+                      child: Container(
+                        width: 48.w,
+                        height: 48.w,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _bgColor.withOpacity(0.62),
+                          border: Border.all(
+                            color: _goldColor.withOpacity(0.24),
+                          ),
+                        ),
+                        child: Icon(
+                          isFav ? Icons.favorite : Icons.favorite_border,
+                          color: _goldColor,
+                          size: 21,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 18.h,
+                    left: 18.w,
+                    right: 18.w,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            landmark.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.cormorant(
+                              fontSize: 28.sp,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+              Padding(
+                padding: EdgeInsets.fromLTRB(18.w, 16.h, 18.w, 18.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          color: _goldColor.withOpacity(0.82),
+                          size: 16.sp,
+                        ),
+                        SizedBox(width: 6.w),
+                        Text(
+                          landmark.city,
+                          style: TextStyle(
+                            fontSize: 12.5.sp,
+                            color: Colors.white.withOpacity(0.72),
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12.h),
+                    Text(
+                      landmark.description,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.sp,
+                        color: Colors.white.withOpacity(0.68),
+                        height: 1.55,
+                      ),
+                    ),
+                    SizedBox(height: 18.h),
+                    GestureDetector(
+                      onTap: () => _openLandmarkDetails(landmark),
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: double.infinity,
+                        height: 55.h,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(30.r),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppColors.darkGold,
+                              AppColors.mainGold,
+                              AppColors.darkGold,
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.darkGold.withOpacity(0.45),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          'VIEW DETAILS',
+                          style: GoogleFonts.inter(
+                            color: AppColors.textDarkOnGold,
+                            fontSize: 18.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -667,9 +758,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPlaceholderImage() {
     return Container(
       color: const Color(0xFF1A1A1A),
-      child: Center(
-        child: Icon(Icons.landscape, color: _goldColor, size: 60),
-      ),
+      child: Center(child: Icon(Icons.landscape, color: _goldColor, size: 60)),
     );
   }
+
+  String _heroTag(String id) => 'landmark-hero-$id';
 }

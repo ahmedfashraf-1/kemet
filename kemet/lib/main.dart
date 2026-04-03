@@ -21,5 +21,4 @@ void main() async {
       sharedPreferences: sharedPrefs,
     ),
   );
-  
 }
