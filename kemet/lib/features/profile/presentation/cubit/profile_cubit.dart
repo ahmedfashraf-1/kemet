@@ -26,7 +26,7 @@ class ProfileCubit extends Cubit<ProfileState> {
   Future<void> loadProfile(String userId) async {
     emit(ProfileLoading());
 
-    // ── كل الـ calls بالتوازي زي ما بيعملها الـ LandmarksCubit
+    
     final results = await Future.wait([
       getProfile(userId),
       getRecentTrips(userId),
@@ -39,7 +39,7 @@ class ProfileCubit extends Cubit<ProfileState> {
     final reviewsResult       = results[2];
     final favoritesResult     = results[3];
 
-    // لو الـ profile فشل → error
+    
     profileResult.fold(
       (failure) => emit(ProfileError()),
       (profile) => emit(ProfileLoaded(

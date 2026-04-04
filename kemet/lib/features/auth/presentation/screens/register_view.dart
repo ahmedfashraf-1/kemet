@@ -202,7 +202,7 @@ class _RegisterViewState extends State<RegisterView> {
                               validator: (value) =>
                                   ValidationService.validateConfirmPassword(
                                 _passwordController.text,
-                                value ?? '',
+                                value,
                                 translate: (key, {args}) => context.tr(key, args: args),
                               ),
                               suffixIcon: _buildVisibilityIcon(

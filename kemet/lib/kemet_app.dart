@@ -22,6 +22,7 @@ class KemetApp extends StatelessWidget {
   final AppRouter appRouter;
   final SharedPreferences sharedPreferences;
   final GlobalKey<NavigatorState> navigatorKey;
+  
 
   const KemetApp({
     super.key,

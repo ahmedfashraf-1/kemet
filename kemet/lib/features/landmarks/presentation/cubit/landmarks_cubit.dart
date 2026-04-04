@@ -13,7 +13,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
 
   LandmarksCubit({required this.getAllLandmarksUsecase}) : super(LandmarksInitial());
 
-  Future<void> getLandmarks({int page = 1, String? city, String? kind, bool isPagination = false}) async {
+  Future<void> getLandmarks({int page = 1, String? city, String? kind, String? query, bool isPagination = false}) async {
     if (!isPagination) {
       emit(LandmarksLoading());
     }
@@ -69,9 +69,14 @@ class LandmarksCubit extends Cubit<LandmarksState> {
     }
   }
 
-  void applyFilter({String? city, String? kind}) {
-    getLandmarks(page: 1, city: city, kind: kind);
-  }
+  void applyFilter({String? city, String? kind, String? query}) {
+  getLandmarks(
+    page: 1,
+    city: city,
+    kind: kind,
+    query: query,
+  );
+}
 
   String _mapFailureToMessage(Failure failure) {
     return switch (failure) {

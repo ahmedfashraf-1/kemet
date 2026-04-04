@@ -1,5 +1,4 @@
-import '../entities/auth_session.dart';
-import '../entities/user.dart';
+import 'package:kemet/features/auth/domain/entities/user.dart';
 
 abstract class AuthRepository {
   User? get currentUser;
@@ -7,19 +6,12 @@ abstract class AuthRepository {
   String? get currentSessionId;
 
   Future<User> signInWithEmail(String email, String password);
-  Future<User> signUpWithEmail(
-    String email,
-    String password,
-    String firstName,
-    String lastName,
-  );
+  Future<User> signUpWithEmail(String email, String password, String firstName, String lastName);
   Future<User?> signInWithGoogle();
   Future<void> sendPasswordReset(String email);
   Future<void> sendVerificationEmail();
   Future<bool> checkEmailVerified();
   Future<void> signOut();
+  Future<void> deleteAccount(); // ← جديد
   Duration getRemainingVerificationCooldown();
-
-  Stream<List<AuthSession>> watchActiveSessions();
-  Future<void> clearOtherSessions();
 }

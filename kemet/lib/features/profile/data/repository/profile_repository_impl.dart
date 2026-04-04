@@ -18,9 +18,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   const ProfileRepositoryImpl({required this.remoteDataSource});
 
-  // ══════════════════════════════════════════
-  // 1. Get Profile
-  // ══════════════════════════════════════════
+
+  // 1 Get Profile
+
   @override
   Future<Either<Failure, ProfileEntity>> getProfile(String userId) async {
     try {
@@ -35,9 +35,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
     }
   }
 
-  // ══════════════════════════════════════════
-  // 2. Get Recent Places
-  // ══════════════════════════════════════════
+
+  // 2 Get Recent Places
+
   @override
   Future<Either<Failure, List<Landmark>>> getRecentTrips(String userId) async {
     try {
@@ -48,14 +48,13 @@ class ProfileRepositoryImpl implements ProfileRepository {
     } on FirebaseException catch (e) {
       return Left(ServerFailure());
     } catch (e) {
-      // لو فشل جيب الـ recent places مش هنوقف الصفحة كلها — بنرجع list فاضية
+      
       return const Right([]);
     }
   }
 
-  // ══════════════════════════════════════════
-  // 3. Get My Reviews
-  // ══════════════════════════════════════════
+  
+  // 3 Get My Reviews
   @override
   Future<Either<Failure, List<Review>>> getMyReviews(String userId) async {
     try {
@@ -70,9 +69,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
     }
   }
 
-  // ══════════════════════════════════════════
-  // 4. Get Favorite Places
-  // ══════════════════════════════════════════
+
+  // 4 Get Favorite Places
+
   @override
   Future<Either<Failure, List<Favorite>>> getFavoritePlaces(
       String userId) async {
@@ -88,9 +87,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
     }
   }
 
-  // ══════════════════════════════════════════
-  // 5. Logout
-  // ══════════════════════════════════════════
+
+  // 5 Logout
+  
   @override
   Future<Either<Failure, void>> logout() async {
     try {

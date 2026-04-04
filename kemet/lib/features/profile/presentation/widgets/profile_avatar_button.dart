@@ -1,8 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-/// الأيقونة الصغيرة في الـ AppBar مع الـ Glow Effect
-/// لما المستخدم يضغط عليها بيظهر الـ Popup Card
+
 class ProfileAvatarButton extends StatelessWidget {
   final String name;
   final String email;
@@ -147,9 +146,9 @@ class ProfileAvatarButton extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────
+
 // Popup Header (User info)
-// ─────────────────────────────────────────
+
 class _PopupHeader extends StatelessWidget {
   final String name;
   final String email;
@@ -226,9 +225,7 @@ class _PopupHeader extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────
 // Popup Action Row
-// ─────────────────────────────────────────
 class _PopupAction extends StatelessWidget {
   final IconData icon;
   final String label;

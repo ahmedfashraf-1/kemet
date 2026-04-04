@@ -1,9 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-// ─────────────────────────────────────────
 // Section Label
-// ─────────────────────────────────────────
 class ProfileSectionLabel extends StatelessWidget {
   final String label;
   const ProfileSectionLabel({super.key, required this.label});
@@ -24,9 +22,8 @@ class ProfileSectionLabel extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────
+
 // Trip Card (horizontal scroll)
-// ─────────────────────────────────────────
 class ProfileTripCard extends StatelessWidget {
   final String name;
   final String city;
@@ -79,9 +76,9 @@ class ProfileTripCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────
+
 // Review Item
-// ─────────────────────────────────────────
+
 class ProfileReviewItem extends StatelessWidget {
   final String? place;
   final double? rating;
@@ -148,9 +145,9 @@ class ProfileReviewItem extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────
+
 // Saved Item
-// ─────────────────────────────────────────
+
 class ProfileSavedItem extends StatelessWidget {
   final String icon;
   final String name;
@@ -220,9 +217,9 @@ class ProfileSavedItem extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────
+
 // Sign Out Button
-// ─────────────────────────────────────────
+
 class ProfileSignOutButton extends StatelessWidget {
   const ProfileSignOutButton({super.key});
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -14,6 +15,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
 import 'package:kemet/features/landmarks/presentation/screens/hero_slider.dart';
+import 'package:kemet/features/landmarks/presentation/screens/home_screen.dart';
+import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
+import 'package:kemet/features/notifications/presentation/widgets/notification_bell_button.dart';
+import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
+import 'package:kemet/features/profile/presentation/widgets/profile_avatar_button.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -215,27 +222,34 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            width: 40.w,
-            height: 40.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.03),
-              border: Border.all(color: _goldColor.withOpacity(0.75), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: _goldColor.withOpacity(0.12),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: const Icon(
-              Icons.person,
-              color: AppColors.textDarkOnGold,
-              size: 22,
-            ),
+          // Container(
+          //   width: 40.w,
+          //   height: 40.w,
+          //   decoration: BoxDecoration(
+          //     shape: BoxShape.circle,
+          //     color: Colors.white.withOpacity(0.03),
+          //     border: Border.all(color: _goldColor.withOpacity(0.75), width: 1.5),
+          //     boxShadow: [
+          //       BoxShadow(
+          //         color: _goldColor.withOpacity(0.12),
+          //         blurRadius: 20,
+          //         offset: const Offset(0, 8),
+          //       ),
+          //     ],
+          //   ),
+          //   clipBehavior: Clip.antiAlias,
+          //   child: const Icon(
+          //     Icons.person,
+          //     color: AppColors.textDarkOnGold,
+          //     size: 22,
+          //   ),
+          // ),
+          // في الـ Row بتاع الـ AppBar استبدلي الـ Container بـده:
+          ProfileAvatarButton(
+            name: FirebaseAuth.instance.currentUser?.displayName ?? 'Guest',
+            email: FirebaseAuth.instance.currentUser?.email ?? '',
+            onViewProfile: _openProfile,   // تأكدي إن الميثود دي موجودة تحت
+            onLogout: _logout,             // تأكدي إن الميثود دي موجودة تحت
           ),
           Text(
             'KEMET',
@@ -246,14 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
               letterSpacing: 5,
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: Icon(
-              Icons.notifications,
-              color: _goldColor,
-              size: 24,
-            ),
-          ),
+        const NotificationBellButton(),
         ],
       ),
     );
@@ -618,7 +625,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   SizedBox(height: 18.h),
                   GestureDetector(
-                    onTap: () {},
+                  onTap: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => LandmarkDetailsScreen(
+        landmark: landmark,
+      ),
+    ),
+  );
+},
                     behavior: HitTestBehavior.opaque,
                     child: Container(
                       width: double.infinity,
@@ -691,7 +707,35 @@ class _HomeScreenState extends State<HomeScreen> {
         return value;
     }
   }
+
+
+Future<void> _openProfile() async {
+    // ✅ بنجيب الـ userId من FirebaseAuth مباشرة — مش محتاجين AuthCubit هنا
+    final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+ 
+    if (!mounted) return;
+ 
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlocProvider(
+          create: (_) => getIt<ProfileCubit>(),
+          child: ProfileScreen(userId: userId),
+        ),
+      ),
+    );
+  }
+
+   Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    
+    Navigator.pushNamedAndRemoveUntil(context, '/onLoginScreen', (_) => false);
+  }
+
+
 }
 
 mixin LandmarksEmpty {
 }
+

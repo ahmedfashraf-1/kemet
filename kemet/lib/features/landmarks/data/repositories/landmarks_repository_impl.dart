@@ -24,6 +24,7 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
     required int limit,
     String? city,
     String? kind,
+    String? query
   }) async {
     try {
       // 1) Always try remote first.

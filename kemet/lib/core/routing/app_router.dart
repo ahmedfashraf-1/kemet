@@ -4,6 +4,7 @@ import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kemet/features/auth/domain/usecases/check_email_verified_use_case.dart';
+import 'package:kemet/features/auth/domain/usecases/delete_account_use_case.dart';
 import 'package:kemet/features/auth/domain/usecases/send_password_reset_use_case.dart';
 import 'package:kemet/features/auth/domain/usecases/send_verification_email_use_case.dart';
 import 'package:kemet/features/auth/domain/usecases/sign_in_use_case.dart';
@@ -67,7 +68,7 @@ class AppRouter {
           setting,
         );
 
-      case Routes.notificationDetails:
+      case Routes.notificationsScreen:
         final args = setting.arguments is Map<String, dynamic>
             ? setting.arguments as Map<String, dynamic>
             : const <String, dynamic>{};
@@ -158,17 +159,18 @@ class AppRouter {
   // --------------------- Fade Dominant Transitions ---------------------
 
   AuthCubit _buildAuthCubit(BuildContext context) {
-    final repository = context.read<AuthRepository>();
-    return AuthCubit(
-      signIn: SignInUseCase(repository),
-      signUp: SignUpUseCase(repository),
-      signInWithGoogle: SignInWithGoogleUseCase(repository),
-      sendPasswordReset: SendPasswordResetUseCase(repository),
-      sendVerificationEmail: SendVerificationEmailUseCase(repository),
-      checkEmailVerified: CheckEmailVerifiedUseCase(repository),
-      signOut: SignOutUseCase(repository),
-    );
-  }
+  final repository = context.read<AuthRepository>();
+  return AuthCubit(
+    signIn: SignInUseCase(repository),
+    signUp: SignUpUseCase(repository),
+    signInWithGoogle: SignInWithGoogleUseCase(repository),
+    sendPasswordReset: SendPasswordResetUseCase(repository),
+    sendVerificationEmail: SendVerificationEmailUseCase(repository),
+    checkEmailVerified: CheckEmailVerifiedUseCase(repository),
+    signOut: SignOutUseCase(repository),
+    deleteAccount: DeleteAccountUseCase(repository), // ← السطر الجديد
+  );
+}
 
   // Fade dominant + slight slide from right
   PageRouteBuilder _fadeDominantFromRight(Widget page, RouteSettings settings) {

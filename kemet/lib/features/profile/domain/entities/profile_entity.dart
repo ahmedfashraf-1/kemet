@@ -3,9 +3,9 @@ class ProfileEntity {
   final String fullName;   // Firebase field: fullName
   final String email;      // Firebase field: email
   final String createdAt;  // Firebase field: createdAt (string)
-  final int tripsCount;    // محسوب من عدد الـ recentTrips
-  final int savedCount;    // محسوب من عدد الـ favorites
-  final int reviewsCount;  // محسوب من عدد الـ reviews
+  final int tripsCount;    
+  final int savedCount;    
+  final int reviewsCount;  
   final String? avatarUrl;
 
 

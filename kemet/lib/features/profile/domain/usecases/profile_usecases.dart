@@ -7,9 +7,9 @@ import 'package:kemet/features/reviews/domain/entities/review.dart';
 import '../entities/profile_entity.dart';
 import '../repositories/profile_repository.dart';
 
-// ─────────────────────────────────────────
+
 // 1. Get Profile
-// ─────────────────────────────────────────
+
 class GetProfileUseCase {
   final ProfileRepository repository;
   const GetProfileUseCase(this.repository);
@@ -19,9 +19,9 @@ class GetProfileUseCase {
   }
 }
 
-// ─────────────────────────────────────────
+
 // 2. Get Recent Places
-// ─────────────────────────────────────────
+
 class GetRecentPlacesUseCase {
   final ProfileRepository repository;
   const GetRecentPlacesUseCase(this.repository);
@@ -31,9 +31,9 @@ class GetRecentPlacesUseCase {
   }
 }
 
-// ─────────────────────────────────────────
+
 // 3. Get My Reviews
-// ─────────────────────────────────────────
+
 class GetMyReviewsUseCase {
   final ProfileRepository repository;
   const GetMyReviewsUseCase(this.repository);
@@ -43,9 +43,9 @@ class GetMyReviewsUseCase {
   }
 }
 
-// ─────────────────────────────────────────
+
 // 4. Get Favorite Places
-// ─────────────────────────────────────────
+
 class GetFavoritePlacesUseCase {
   final ProfileRepository repository;
   const GetFavoritePlacesUseCase(this.repository);
@@ -55,9 +55,8 @@ class GetFavoritePlacesUseCase {
   }
 }
 
-// ─────────────────────────────────────────
 // 5. Logout
-// ─────────────────────────────────────────
+
 class LogoutUseCase {
   final ProfileRepository repository;
   const LogoutUseCase(this.repository);

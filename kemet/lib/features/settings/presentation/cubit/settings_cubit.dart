@@ -1,4 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,45 +61,87 @@ class SettingsState extends Equatable {
 
 class SettingsCubit extends Cubit<SettingsState> {
   static const String _pushNotificationsKey = 'settings_push_notifications';
-  static const String _emailUpdatesKey = 'settings_email_updates';
-  static const String _soundKey = 'settings_sound';
-  static const String _darkModeKey = 'settings_dark_mode';
-  static const String _localeKey = 'settings_locale_code';
-  static const String _locationAccessKey = 'settings_location_access';
+  static const String _emailUpdatesKey      = 'settings_email_updates';
+  static const String _soundKey             = 'settings_sound';
+  static const String _darkModeKey          = 'settings_dark_mode';
+  static const String _localeKey            = 'settings_locale_code';
+  static const String _locationAccessKey    = 'settings_location_access';
 
   final SharedPreferences sharedPreferences;
 
   SettingsCubit({required this.sharedPreferences})
-    : super(
-        SettingsState(
-          pushNotificationsEnabled:
-              sharedPreferences.getBool(_pushNotificationsKey) ?? true,
-          emailUpdatesEnabled:
-              sharedPreferences.getBool(_emailUpdatesKey) ?? false,
-          soundEnabled: sharedPreferences.getBool(_soundKey) ?? true,
-          darkModeEnabled: sharedPreferences.getBool(_darkModeKey) ?? true,
-          localeCode: _normalizeLocaleCode(
-            sharedPreferences.getString(_localeKey),
+      : super(
+          SettingsState(
+            pushNotificationsEnabled:
+                sharedPreferences.getBool(_pushNotificationsKey) ?? true,
+            emailUpdatesEnabled:
+                sharedPreferences.getBool(_emailUpdatesKey) ?? false,
+            soundEnabled: sharedPreferences.getBool(_soundKey) ?? true,
+            darkModeEnabled: sharedPreferences.getBool(_darkModeKey) ?? true,
+            localeCode: _normalizeLocaleCode(
+              sharedPreferences.getString(_localeKey),
+            ),
+            locationAccessEnabled:
+                sharedPreferences.getBool(_locationAccessKey) ?? true,
           ),
-          locationAccessEnabled:
-              sharedPreferences.getBool(_locationAccessKey) ?? true,
-        ),
-      );
+        );
 
   static String _normalizeLocaleCode(String? localeCode) {
     return localeCode == 'ar' ? 'ar' : 'en';
   }
 
+  // Push Notifications
+  
   Future<void> setPushNotifications(bool value) async {
     emit(state.copyWith(pushNotificationsEnabled: value));
     await sharedPreferences.setBool(_pushNotificationsKey, value);
+
+    if (value) {
+      
+      await FirebaseMessaging.instance.subscribeToTopic('all');
+      await _saveTokenToFirestore();
+    } else {
+      
+      await FirebaseMessaging.instance.unsubscribeFromTopic('all');
+      await _deleteTokenFromFirestore();
+      await FirebaseMessaging.instance.deleteToken();
+    }
   }
 
+  
+  Future<void> _saveTokenToFirestore() async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return;
+
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .set({'fcmToken': token}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  
+  Future<void> _deleteTokenFromFirestore() async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update({'fcmToken': FieldValue.delete()});
+    } catch (_) {}
+  }
+
+  
   Future<void> setEmailUpdates(bool value) async {
     emit(state.copyWith(emailUpdatesEnabled: value));
     await sharedPreferences.setBool(_emailUpdatesKey, value);
   }
-
 
   Future<void> setSoundEnabled(bool value) async {
     emit(state.copyWith(soundEnabled: value));
@@ -126,15 +171,12 @@ class SettingsCubit extends Cubit<SettingsState> {
     final status = await Permission.locationWhenInUse.request();
     final granted = status.isGranted || status.isLimited;
 
-    emit(
-      state.copyWith(
-        locationAccessEnabled: granted,
-        isRequestingLocation: false,
-      ),
-    );
+    emit(state.copyWith(
+      locationAccessEnabled: granted,
+      isRequestingLocation: false,
+    ));
     await sharedPreferences.setBool(_locationAccessKey, granted);
 
     return granted;
   }
 }
-

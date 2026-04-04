@@ -90,12 +90,12 @@ class _ProfileCoverWidgetState extends State<ProfileCoverWidget> {
           ),
         ),
 
-        // ── Edit cover button (القلم على اليمين)
+        // ── Edit cover button 
         Positioned(
           top: MediaQuery.of(context).padding.top + 12,
           right: 16,
           child: GestureDetector(
-            onTap: _pickImage, // ← نفس الفانكشن
+            onTap: _pickImage, 
             child: Container(
               width: 34,
               height: 34,
@@ -165,9 +165,9 @@ class _ProfileCoverWidgetState extends State<ProfileCoverWidget> {
                     : null,
               ),
 
-              // ── Edit avatar badge (القلم جوا الأفاتار)
+              // ── Edit avatar badge
               GestureDetector(
-                onTap: _pickImage, // ← نفس الفانكشن
+                onTap: _pickImage, 
                 child: Container(
                   width: 26,
                   height: 26,

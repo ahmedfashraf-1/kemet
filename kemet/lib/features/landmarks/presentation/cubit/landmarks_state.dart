@@ -17,6 +17,7 @@ class LandmarksLoaded extends LandmarksState {
   final String? city;
   final String? kind;
   final bool isLastPage;
+  final String? query;
 
   const LandmarksLoaded({
     required this.landmarks,
@@ -24,6 +25,7 @@ class LandmarksLoaded extends LandmarksState {
     this.city,
     this.kind,
     this.isLastPage = false,
+    this.query
   });
 
   @override
