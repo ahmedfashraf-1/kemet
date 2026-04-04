@@ -23,6 +23,12 @@ import 'package:kemet/features/main/presentation/screens/main_shell.dart';
 import 'package:kemet/features/landmarks/presentation/screens/home_screen.dart';
 import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
+import 'package:kemet/features/reviews/domain/repositories/reviews_repository.dart';
+import 'package:kemet/features/reviews/domain/usecases/add_review.dart';
+import 'package:kemet/features/reviews/domain/usecases/delete_review.dart';
+import 'package:kemet/features/reviews/domain/usecases/get_reviews_for_landmark.dart';
+import 'package:kemet/features/reviews/presentation/cubit/reviews_cubit.dart';
+import 'package:kemet/features/reviews/presentation/screens/reviews_screen.dart';
 
 //landmarks
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
@@ -79,6 +85,33 @@ class AppRouter {
         }
         return _fadeDominantFromRight(
           LandmarkDetailsScreen(landmark: landmarkArg),
+          setting,
+        );
+
+      case Routes.reviewsScreen:
+        final landmarkArg = setting.arguments;
+        if (landmarkArg is! Landmark) {
+          return MaterialPageRoute(
+            builder: (_) => const Scaffold(
+              body: Center(child: Text('Invalid landmark data')),
+            ),
+          );
+        }
+        return _fadeDominantFromRight(
+          BlocProvider(
+            create: (context) => ReviewsCubit(
+              getReviewsForLandmarkUseCase: GetReviewsForLandmarkUseCase(
+                context.read<ReviewsRepository>(),
+              ),
+              addReviewUseCase: AddReviewUseCase(
+                context.read<ReviewsRepository>(),
+              ),
+              deleteReviewUseCase: DeleteReviewUseCase(
+                context.read<ReviewsRepository>(),
+              ),
+            ),
+            child: ReviewsScreen(landmark: landmarkArg),
+          ),
           setting,
         );
 

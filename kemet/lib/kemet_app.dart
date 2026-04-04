@@ -13,6 +13,9 @@ import 'package:kemet/features/landmarks/data/datasources/landmark_local_data_so
 import 'package:kemet/features/landmarks/data/datasources/landmark_remote_data_source.dart';
 import 'package:kemet/features/landmarks/data/repositories/landmarks_repository_impl.dart';
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
+import 'package:kemet/features/reviews/data/datasources/reviews_remote_datasource.dart';
+import 'package:kemet/features/reviews/data/repositories/reviews_repository_impl.dart';
+import 'package:kemet/features/reviews/domain/repositories/reviews_repository.dart';
 import 'package:kemet/features/splash/presentation/screens/splash_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -34,6 +37,12 @@ class KemetApp extends StatelessWidget {
           create: (context) => LandmarksRepositoryImpl(
             remoteDataSource: LandmarkRemoteDataSourceImpl(client: http.Client()),
             localDataSource: LandmarkLocalDataSourceImpl(sharedPreferences: sharedPreferences),
+            networkInfo: NetworkInfoImpl(InternetConnectionChecker.instance),
+          ),
+        ),
+        RepositoryProvider<ReviewsRepository>(
+          create: (_) => ReviewsRepositoryImpl(
+            remoteDatasource: ReviewsRemoteDatasourceImpl(),
             networkInfo: NetworkInfoImpl(InternetConnectionChecker.instance),
           ),
         ),
