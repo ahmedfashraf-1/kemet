@@ -15,6 +15,7 @@ import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/presentation/screens/forgot_password_view.dart';
 import 'package:kemet/features/auth/presentation/screens/verify_email_otp_view.dart';
 import 'package:kemet/features/home/presentation/screens/home_screen.dart';
+import 'package:kemet/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen1_view.dart';
 import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen2_view.dart';
 import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen3_view.dart';
@@ -68,7 +69,9 @@ class AppRouter {
           setting,
         );
 
-      case Routes.notificationsScreen:
+// msh mst5dmenha pas ll zaman 
+      case Routes.notificationDetails:
+    //  return _fadeDominantFromRight(const NotificationsScreen(), setting);
         final args = setting.arguments is Map<String, dynamic>
             ? setting.arguments as Map<String, dynamic>
             : const <String, dynamic>{};
@@ -79,6 +82,13 @@ class AppRouter {
           ),
           setting,
         );
+
+  
+      // const mtgesh m3 statefulwidget
+      case Routes.notificationsScreen:
+        return _fadeDominantFromRight(NotificationsScreen(), setting);
+        // return _fadeDominantFromRight(const NotificationsScreen(), setting);
+           
 
       case Routes.mainShell:
         return _fadeDominantFromRight(

@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/features/auth/domain/usecases/delete_account_use_case.dart';
-import 'package:kemet/features/notifications/data/datasources/Local_notification.dart';
+import 'package:kemet/features/notifications/data/datasources/local_notification.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/usecases/sign_in_use_case.dart';
 import '../../domain/usecases/sign_up_use_case.dart';

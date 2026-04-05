@@ -12,7 +12,7 @@ import 'package:kemet/features/landmarks/presentation/widgets/landmark_bottom_na
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:kemet/features/notifications/data/datasources/Local_notification.dart';
+import 'package:kemet/features/notifications/data/datasources/local_notification.dart';
 
 class LandmarkDetailsScreen extends StatefulWidget {
   const LandmarkDetailsScreen({super.key, required this.landmark});

@@ -21,7 +21,7 @@ class ReviewsCubit extends Cubit<ReviewsState> {
   }) : super(ReviewsInitial());
 
 
-  Future<void> getReviewsForLandmark(String landmarkId, {bool showLoading = true}) async {
+  Future<void> getReviewsForLandmark(String? landmarkId, {bool showLoading = true}) async {
     if (showLoading) {
       emit(ReviewsLoading());
     }

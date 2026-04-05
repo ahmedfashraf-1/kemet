@@ -614,7 +614,7 @@ Future<void> _showDeleteAccountDialog(BuildContext context) async {
       // ✅ بنقفل الـ loading dialog
       Navigator.of(context).pop();
 
-      // ✅ بنروح لصفحة اللوجين ونمسح كل الـ routes
+      //  بنروح لصفحة اللوجين ونمسح كل الـ routes
       Navigator.of(context).pushNamedAndRemoveUntil(
         Routes.LoginView,
         (route) => false,

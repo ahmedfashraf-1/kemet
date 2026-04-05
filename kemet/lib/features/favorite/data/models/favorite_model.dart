@@ -1,30 +1,27 @@
+import 'dart:convert';
+
 import '../../domain/entities/favorite.dart';
 
 class FavoriteModel extends Favorite {
   FavoriteModel({
     required super.id,
-    required super.userId,
-    required super.productIds,
-    required super.createdAt, 
+    required super.location,
+    required super.name 
   });
 
   factory FavoriteModel.fromJson(Map<String, dynamic> json) {
     return FavoriteModel(
       id: json['id'],
-      userId: json['user_id'],
-      productIds: json['products'] != null
-          ? List<String>.from(json['products'])
-          : [],
-      createdAt: DateTime.parse(json['created_at']), 
+      location: json['location'],
+      name: json['name']
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'user_id': userId,
-      'products': productIds,
-      'created_at': createdAt.toIso8601String(), 
-    };
-  }
+// msh m7tgenhaaa kefyaa slok katee3 p2a
+  // Map<String, dynamic> toJson() {
+  //   return {
+  //     'id': id,
+  //     'location': location
+  //   };
+  // }
 }

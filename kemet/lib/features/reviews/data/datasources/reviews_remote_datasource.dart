@@ -3,7 +3,7 @@ import 'package:kemet/core/errors/exceptions.dart';
 import 'package:kemet/features/reviews/data/models/review_model.dart';
 
 abstract class ReviewsRemoteDatasource {
-  Future<List<ReviewModel>> getReviewsForLandmark(String landmarkId);
+  Future<List<ReviewModel>> getReviewsForLandmark(String? landmarkId);
   Future<ReviewModel> addReview(ReviewModel review);
   Future<void> deleteReview(String reviewId);
 }
@@ -15,7 +15,7 @@ class ReviewsRemoteDatasourceImpl implements ReviewsRemoteDatasource {
   final FirebaseFirestore _firestore;
 
   @override
-  Future<List<ReviewModel>> getReviewsForLandmark(String landmarkId) async {
+  Future<List<ReviewModel>> getReviewsForLandmark(String? landmarkId) async {
     try {
       final snapshot = await _firestore
           .collection('reviews')

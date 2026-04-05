@@ -119,6 +119,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       ),
       Review(
         id: 'r2',
+        
         placeName: 'Pyramids of Giza',
         rating: 4.0,
         date: 'Jan 2025',
