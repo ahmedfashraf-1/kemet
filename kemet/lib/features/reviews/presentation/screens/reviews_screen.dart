@@ -18,6 +18,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   final TextEditingController _commentController = TextEditingController();
   int _selectedRating = 0;
   bool _isSubmitting = false;
+  bool _isDeleting = false;
   List<Review> _cachedReviews = const [];
 
   @override
@@ -75,9 +76,11 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
         body: BlocConsumer<ReviewsCubit, ReviewsState>(
           listener: (context, state) {
             if (state is ReviewsError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message)),
-              );
+              if (_isSubmitting || _isDeleting) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(state.message)));
+              }
             }
           },
           builder: (context, state) {
@@ -85,8 +88,14 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
             final isLoading = state is ReviewsLoading;
             final hasCached = _cachedReviews.isNotEmpty;
             final isBlockingLoading = isLoading && !hasCached;
-            final errorMessage = state is ReviewsError && !hasCached ? state.message : null;
+            final errorMessage = state is ReviewsError && !hasCached
+                ? state.message
+                : null;
             final isBusy = isBlockingLoading || _isSubmitting;
+            final currentUserId = context
+                .read<AuthRepository>()
+                .currentUser
+                ?.id;
 
             return SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -109,6 +118,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                             reviews: reviews,
                             isLoading: isBlockingLoading,
                             errorMessage: errorMessage,
+                            currentUserId: currentUserId,
                           ),
                           const SizedBox(height: 40),
                           //_buildLoadMoreButton(isLoading || _isSubmitting),
@@ -242,7 +252,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                   ],
                 ),
               ),
-              if (isWide) const SizedBox(width: 32) else const SizedBox(height: 24),
+              if (isWide)
+                const SizedBox(width: 32)
+              else
+                const SizedBox(height: 24),
               Expanded(
                 flex: isWide ? 1 : 0,
                 child: Column(
@@ -429,14 +442,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
         // crossAxisAlignment.start تجعل العناصر تبدأ من جهة اليسار
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // السطر الأول: العنوان الأيسر
           const Text(
             'Visitor Experiences',
-            style: TextStyle(
-              fontSize: 26,
-              color: ReviewsPalette.textMain,
-            ),
+            style: TextStyle(fontSize: 26, color: ReviewsPalette.textMain),
           ),
 
           // مسافة عمودية صغيرة ومناسبة (4 بكسل) لجعل السطرين متقاربين
@@ -456,7 +465,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               ),
             ),
           ),
-
         ],
       ),
     );
@@ -466,6 +474,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     required List<Review> reviews,
     required bool isLoading,
     required String? errorMessage,
+    required String? currentUserId,
   }) {
     if (isLoading && reviews.isEmpty) {
       return const Padding(
@@ -476,7 +485,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       );
     }
 
-    if (errorMessage != null) {
+    if (errorMessage != null && reviews.isNotEmpty) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
@@ -487,10 +496,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
         ),
         child: Text(
           errorMessage,
-          style: const TextStyle(
-            color: Colors.redAccent,
-            fontSize: 14,
-          ),
+          style: const TextStyle(color: Colors.redAccent, fontSize: 14),
         ),
       );
     }
@@ -514,21 +520,21 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     return Column(
       children: [
         for (int i = 0; i < reviews.length; i++) ...[
-          _buildReviewCard(review: reviews[i]),
+          _buildReviewCard(review: reviews[i], currentUserId: currentUserId),
           if (i != reviews.length - 1) const SizedBox(height: 24),
         ],
       ],
     );
   }
 
-  Widget _buildReviewCard({required Review review}) {
-    final displayName = _displayName(
-      review.userId,
-      review.username,
-    );
+  Widget _buildReviewCard({
+    required Review review,
+    required String? currentUserId,
+  }) {
+    final displayName = _displayName(review.userId, review.username);
     final timeAgo = _formatTimeAgo(review.createdAt);
     final roundedRating = review.rating.round().clamp(1, 5);
-    final avatarUrl = _avatarUrl(review.userId);
+    final isOwner = currentUserId != null && review.userId == currentUserId;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -549,14 +555,11 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 color: ReviewsPalette.darkGold.withOpacity(0.3),
                 width: 2,
               ),
-              image: DecorationImage(
-                image: NetworkImage(avatarUrl),
-                fit: BoxFit.cover,
-                colorFilter: const ColorFilter.mode(
-                  Colors.grey,
-                  BlendMode.saturation,
-                ),
-              ),
+            ),
+            child: const Icon(
+              Icons.person,
+              color: ReviewsPalette.textMuted,
+              size: 28,
             ),
           ),
           const SizedBox(width: 20),
@@ -579,13 +582,31 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      timeAgo,
-                      style: TextStyle(
-                        fontSize: 10,
-                        letterSpacing: 0.5,
-                        color: ReviewsPalette.textMuted.withOpacity(0.5),
-                      ),
+                    Row(
+                      children: [
+                        if (isOwner)
+                          IconButton(
+                            onPressed: _isDeleting
+                                ? null
+                                : () => _deleteReview(review),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: ReviewsPalette.textMuted,
+                              size: 18,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        const SizedBox(width: 6),
+                        Text(
+                          timeAgo,
+                          style: TextStyle(
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                            color: ReviewsPalette.textMuted.withOpacity(0.5),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -619,7 +640,61 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       ),
     );
   }
-/*
+
+  Future<void> _deleteReview(Review review) async {
+    final currentUser = context.read<AuthRepository>().currentUser;
+    if (currentUser == null || currentUser.id != review.userId) {
+      return;
+    }
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: ReviewsPalette.surfaceContainer,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Delete review?',
+          style: TextStyle(
+            color: ReviewsPalette.textMain,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: const Text(
+          'This action cannot be undone.',
+          style: TextStyle(color: ReviewsPalette.textMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            style: TextButton.styleFrom(
+              foregroundColor: ReviewsPalette.textMuted,
+            ),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: ReviewsPalette.primaryGold,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete != true) {
+      return;
+    }
+    setState(() => _isDeleting = true);
+    await context.read<ReviewsCubit>().deleteReview(
+      reviewId: review.id,
+      landmarkId: review.landmarkId,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isDeleting = false);
+  }
+
+  /*
   Widget _buildLoadMoreButton(bool isLoading) {
     return Center(
       child: TextButton(
@@ -647,9 +722,19 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     final currentUser = context.read<AuthRepository>().currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please sign in to add a review.'),
-        ),
+        const SnackBar(content: Text('Please sign in to add a review.')),
+      );
+      return;
+    }
+
+    final hasExistingReview = _cachedReviews.any(
+      (review) =>
+          review.userId == currentUser.id &&
+          review.landmarkId == widget.landmark.id,
+    );
+    if (hasExistingReview) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You already reviewed this landmark.')),
       );
       return;
     }
@@ -694,15 +779,12 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
   }
 
-  String _displayName(
-    String userId,
-    String reviewUsername,
-  ) {
+  String _displayName(String userId, String reviewUsername) {
     if (reviewUsername.trim().isNotEmpty) {
       return reviewUsername.trim();
     }
-    
-    return 'Registered User'; 
+
+    return 'Registered User';
   }
 
   String _formatTimeAgo(DateTime createdAt) {
@@ -721,11 +803,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     }
     final weeks = (diff.inDays / 7).floor();
     return '$weeks WEEKS AGO';
-  }
-
-  String _avatarUrl(String userId) {
-    final safeId = userId.isEmpty ? 'guest' : userId;
-    return 'https://i.pravatar.cc/150?u=$safeId';
   }
 }
 

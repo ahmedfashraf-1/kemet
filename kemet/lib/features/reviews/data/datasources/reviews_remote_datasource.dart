@@ -10,7 +10,7 @@ abstract class ReviewsRemoteDatasource {
 
 class ReviewsRemoteDatasourceImpl implements ReviewsRemoteDatasource {
   ReviewsRemoteDatasourceImpl({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -35,9 +35,18 @@ class ReviewsRemoteDatasourceImpl implements ReviewsRemoteDatasource {
   @override
   Future<ReviewModel> addReview(ReviewModel review) async {
     try {
-      final String id = review.id.isEmpty
-          ? _firestore.collection('reviews').doc().id
-          : review.id;
+      final existingSnapshot = await _firestore
+          .collection('reviews')
+          .where('landmarkId', isEqualTo: review.landmarkId)
+          .where('userId', isEqualTo: review.userId)
+          .limit(1)
+          .get();
+
+      final String id = existingSnapshot.docs.isNotEmpty
+          ? existingSnapshot.docs.first.id
+          : (review.id.isEmpty
+                ? _firestore.collection('reviews').doc().id
+                : review.id);
 
       final ReviewModel model = review.id == id
           ? review
