@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // Section Label
 class ProfileSectionLabel extends StatelessWidget {
@@ -10,13 +11,32 @@ class ProfileSectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 20, bottom: 10),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Color(0xFFC9A84C),
-          fontSize: 10,
-          letterSpacing: 2.5,
-        ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(
+              color: const Color(0xFFD4AF37).withOpacity(0.18),
+              thickness: 0.5,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFFC9A84C),
+                fontSize: 10,
+                letterSpacing: 2.5,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Divider(
+              color: const Color(0xFFD4AF37).withOpacity(0.18),
+              thickness: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -88,56 +108,54 @@ class ProfileReviewItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stars = List.generate(5, (i) => i < rating! ? '★' : '☆').join();
+    final safePlace = place ?? '';
+    final safeDate = date ?? '';
+    final safeRating = rating ?? 0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF141108),
+        color: const Color(0xFF0F0C06),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2E2810), width: 0.5),
+        border: Border.all(
+          color: const Color(0xFFD4AF37).withOpacity(0.10),
+        ),
       ),
       child: Row(
         children: [
-          // icon box
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1A0A),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF3A3010), width: 0.5),
-            ),
-            //child: Center(
-            //child: Text(icon, style: const TextStyle(fontSize: 16)),
-            //),
-          ),
-          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  place!,
-                  style: const TextStyle(
-                    color: Color(0xFFDDDDDD),
-                    fontSize: 12,
+                  safePlace,
+                  style: GoogleFonts.cormorant(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  stars,
-                  style: const TextStyle(
-                    color: Color(0xFFC9A84C),
-                    fontSize: 11,
+                const SizedBox(height: 4),
+                Row(
+                  children: List.generate(
+                    5,
+                    (i) => Icon(
+                      i < safeRating.floor() ? Icons.star : Icons.star_border,
+                      color: const Color(0xFFD4AF37),
+                      size: 13,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
           Text(
-            date!,
-            style: const TextStyle(color: Color(0xFF555555), fontSize: 10),
+            safeDate,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.3),
+              fontSize: 10,
+              letterSpacing: 0.5,
+            ),
           ),
         ],
       ),
@@ -163,11 +181,13 @@ class ProfileSavedItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF141108),
+        color: const Color(0xFF0F0C06),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2E2810), width: 0.5),
+        border: Border.all(
+          color: Colors.redAccent.withOpacity(0.12),
+        ),
       ),
       child: Row(
         children: [
@@ -175,41 +195,34 @@ class ProfileSavedItem extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1A0A),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF3A3010), width: 0.5),
+              shape: BoxShape.circle,
+              color: Colors.red.withOpacity(0.08),
+              border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
             ),
-            child: Center(
-              child: Text(icon, style: const TextStyle(fontSize: 16)),
-            ),
+            child: const Icon(Icons.favorite, color: Colors.redAccent, size: 16),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
-                    color: Color(0xFFDDDDDD),
-                    fontSize: 12,
+                  style: GoogleFonts.cormorant(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
                   location,
-                  style: const TextStyle(
-                    color: Color(0xFF666666),
-                    fontSize: 9,
-                    letterSpacing: 1.5,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.35),
+                    fontSize: 11,
                   ),
                 ),
               ],
             ),
-          ),
-          const Text(
-            '♥',
-            style: TextStyle(color: Color(0xFFC04040), fontSize: 16),
           ),
         ],
       ),

@@ -1,6 +1,7 @@
- import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:kemet/core/routing/app_router.dart';
 import 'package:kemet/core/utils/services/notification_service.dart';
 import 'package:kemet/features/notifications/data/datasources/Local_notification.dart';
@@ -22,14 +23,13 @@ Future<void> main() async {
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
+  await AndroidAlarmManager.initialize();
 
   setupProfileDi();
-  final navigatorKey = GlobalKey<NavigatorState>();
   // initialize  FCM
   await NotificationService.instance.initialize(navigatorKey: navigatorKey);
-   // ✅ Local notifications
-  await LocalNotificationService.instance.initialize();
- 
+  // ✅ Local notifications
+  await LocalNotificationService.instance.initialize(navigatorKey: navigatorKey);
   
 
   final sharedPrefs = await SharedPreferences.getInstance();

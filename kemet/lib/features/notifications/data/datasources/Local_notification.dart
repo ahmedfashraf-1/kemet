@@ -1,8 +1,13 @@
 import 'dart:ui';
+import 'dart:typed_data';
 
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/core/utils/services/alarm_callback.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalNotificationService {
@@ -14,15 +19,23 @@ class LocalNotificationService {
 
   static const int _welcomeId  = 1;
   static const int _landmarkId = 2;
-
+  static const int _reEngagementAlarmId = 42;
 
   static const String _pushKey = 'settings_push_notifications';
 
-  Future<void> initialize() async {
+  GlobalKey<NavigatorState>? _navigatorKey;
+
+  Future<void> initialize({GlobalKey<NavigatorState>? navigatorKey}) async {
+    _navigatorKey = navigatorKey;
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidSettings);
-    await _plugin.initialize(initSettings);
+    await _plugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (response) {
+        _navigatorKey?.currentState?.pushNamed(Routes.notificationsScreen);
+      },
+    );
     await _createChannel();
   }
 
@@ -34,10 +47,18 @@ class LocalNotificationService {
       importance: Importance.high,
       playSound: true,
     );
-    await _plugin
+    const welcomeChannel = AndroidNotificationChannel(
+      'kemet_welcome',
+      'Kemet Welcome',
+      description: 'Welcome and important notifications from Kemet',
+      importance: Importance.high,
+      playSound: true,
+    );
+    final androidImplementation = _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidImplementation?.createNotificationChannel(channel);
+    await androidImplementation?.createNotificationChannel(welcomeChannel);
   }
 
   // in setting
@@ -64,18 +85,24 @@ class LocalNotificationService {
 
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'kemet_channel',
-        'Kemet Notifications',
-        channelDescription: 'Notifications from Kemet app',
-        importance: Importance.high,
+        'kemet_welcome',
+        'Kemet Welcome',
+        channelDescription: 'Welcome and important notifications from Kemet',
+        importance: Importance.max,
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
         color: const Color(0xFFD4AF37),
         largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+        playSound: true,
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 500, 200, 500]),
         styleInformation: BigTextStyleInformation(
-          'Discover Egypt\'s timeless landmarks, hidden gems, and ancient wonders. 🏛',
-          contentTitle: '✦ Welcome to KEMET, $userName!',
-          summaryText: 'Start exploring',
+          'Welcome back, $userName 𓂀\nYour Egyptian journey continues...',
+          htmlFormatBigText: false,
+          contentTitle: '✦ Welcome to KEMET',
+          htmlFormatContentTitle: false,
+          summaryText: 'Kemet',
+          htmlFormatSummaryText: false,
         ),
       ),
     );
@@ -149,5 +176,22 @@ class LocalNotificationService {
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (_) {}
+  }
+
+  Future<void> scheduleReEngagementNotification() async {
+    await AndroidAlarmManager.initialize();
+
+    await AndroidAlarmManager.periodic(
+      const Duration(minutes: 1),
+      _reEngagementAlarmId,
+      fireReEngagementNotification,
+      exact: true,
+      wakeup: true,
+      rescheduleOnReboot: true,
+    );
+  }
+
+  Future<void> cancelReEngagementNotification() async {
+    await AndroidAlarmManager.cancel(_reEngagementAlarmId);
   }
 }

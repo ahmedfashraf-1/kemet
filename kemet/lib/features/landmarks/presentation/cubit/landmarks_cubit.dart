@@ -23,6 +23,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
       limit: pageSize,
       city: city,
       kind: kind,
+      query: query,
     );
 
     failureOrLandmarks.fold(
@@ -35,6 +36,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
               currentPage: page,
               city: city,
               kind: kind,
+              query: query,
               isLastPage: isLastPage,
             ));
           },
@@ -49,6 +51,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
           page: currentState.currentPage + 1,
           city: currentState.city,
           kind: currentState.kind,
+          query: currentState.query,
           isPagination: true,
         );
       }
@@ -63,6 +66,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
           page: currentState.currentPage - 1,
           city: currentState.city,
           kind: currentState.kind,
+          query: currentState.query,
           isPagination: true,
         );
       }
@@ -70,13 +74,8 @@ class LandmarksCubit extends Cubit<LandmarksState> {
   }
 
   void applyFilter({String? city, String? kind, String? query}) {
-  getLandmarks(
-    page: 1,
-    city: city,
-    kind: kind,
-    query: query,
-  );
-}
+    getLandmarks(page: 1, city: city, kind: kind, query: query);
+  }
 
   String _mapFailureToMessage(Failure failure) {
     return switch (failure) {

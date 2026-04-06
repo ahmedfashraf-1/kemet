@@ -1,19 +1,27 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+import 'dart:io';
 
+import 'package:flutter/material.dart';
 
 class ProfileAvatarButton extends StatelessWidget {
   final String name;
   final String email;
+  final String? avatarLocalPath;
+  final String? avatarRemoteUrl;
+  final int avatarCacheBuster;
   final VoidCallback onViewProfile;
   final VoidCallback onLogout;
+  final bool isGuest;
 
   const ProfileAvatarButton({
     super.key,
     required this.name,
     required this.email,
+    this.avatarLocalPath,
+    this.avatarRemoteUrl,
+    this.avatarCacheBuster = 0,
     required this.onViewProfile,
     required this.onLogout,
+    this.isGuest = false,
   });
 
   void _showPopup(BuildContext context) {
@@ -40,14 +48,18 @@ class ProfileAvatarButton extends StatelessWidget {
         0,
       ),
       items: [
-        // ── User info header
         PopupMenuItem(
           enabled: false,
           padding: EdgeInsets.zero,
-          child: _PopupHeader(name: name, email: email),
+          child: _PopupHeader(
+            name: name,
+            email: email,
+            avatarLocalPath: avatarLocalPath,
+            avatarRemoteUrl: avatarRemoteUrl,
+            avatarCacheBuster: avatarCacheBuster,
+            isGuest: isGuest,
+          ),
         ),
-
-        // ── View Profile
         PopupMenuItem(
           padding: EdgeInsets.zero,
           onTap: onViewProfile,
@@ -57,19 +69,15 @@ class ProfileAvatarButton extends StatelessWidget {
             color: Color(0xFFCCCCCC),
           ),
         ),
-
-        // ── Divider
         const PopupMenuItem(
           enabled: false,
           height: 1,
           padding: EdgeInsets.symmetric(horizontal: 14),
           child: Divider(color: Color(0xFF2A2A2A), height: 1),
         ),
-
-        // ── Logout
         PopupMenuItem(
           padding: EdgeInsets.zero,
-          onTap: () => _logout(context),
+          onTap: onLogout,
           child: const _PopupAction(
             icon: Icons.logout,
             label: 'LOGOUT',
@@ -87,10 +95,10 @@ class ProfileAvatarButton extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // ── Glow avatar circle
           Container(
             width: 38,
             height: 38,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: const Color(0xFF1E1A0A),
@@ -111,19 +119,16 @@ class ProfileAvatarButton extends StatelessWidget {
                 ),
               ],
             ),
-            child: Center(
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : 'A',
-                style: const TextStyle(
-                  color: Color(0xFFC9A84C),
-                  fontSize: 16,
-                  fontFamily: 'Georgia',
-                ),
-              ),
+            child: _AvatarCircle(
+              name: name,
+              avatarLocalPath: avatarLocalPath,
+              avatarRemoteUrl: avatarRemoteUrl,
+              avatarCacheBuster: avatarCacheBuster,
+              size: 38,
+              fontSize: 16,
+              isGuest: isGuest,
             ),
           ),
-
-          // ── Online dot
           Positioned(
             bottom: 1,
             right: 1,
@@ -146,14 +151,22 @@ class ProfileAvatarButton extends StatelessWidget {
   }
 }
 
-
-// Popup Header (User info)
-
 class _PopupHeader extends StatelessWidget {
   final String name;
   final String email;
+  final String? avatarLocalPath;
+  final String? avatarRemoteUrl;
+  final int avatarCacheBuster;
+  final bool isGuest;
 
-  const _PopupHeader({required this.name, required this.email});
+  const _PopupHeader({
+    required this.name,
+    required this.email,
+    this.avatarLocalPath,
+    this.avatarRemoteUrl,
+    this.avatarCacheBuster = 0,
+    this.isGuest = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -166,10 +179,10 @@ class _PopupHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // mini avatar
           Container(
             width: 44,
             height: 44,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: const Color(0xFF1E1A0A),
@@ -182,15 +195,14 @@ class _PopupHeader extends StatelessWidget {
                 ),
               ],
             ),
-            child: Center(
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : 'A',
-                style: const TextStyle(
-                  color: Color(0xFFC9A84C),
-                  fontSize: 20,
-                  fontFamily: 'Georgia',
-                ),
-              ),
+            child: _AvatarCircle(
+              name: name,
+              avatarLocalPath: avatarLocalPath,
+              avatarRemoteUrl: avatarRemoteUrl,
+              avatarCacheBuster: avatarCacheBuster,
+              size: 44,
+              fontSize: 20,
+              isGuest: isGuest,
             ),
           ),
           const SizedBox(width: 10),
@@ -225,7 +237,93 @@ class _PopupHeader extends StatelessWidget {
   }
 }
 
-// Popup Action Row
+class _AvatarCircle extends StatelessWidget {
+  final String name;
+  final String? avatarLocalPath;
+  final String? avatarRemoteUrl;
+  final int avatarCacheBuster;
+  final double size;
+  final double fontSize;
+  final bool isGuest;
+
+  const _AvatarCircle({
+    required this.name,
+    required this.avatarLocalPath,
+    required this.avatarRemoteUrl,
+    required this.avatarCacheBuster,
+    required this.size,
+    required this.fontSize,
+    required this.isGuest,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isGuest) {
+      return const Center(
+        child: Icon(
+          Icons.person,
+          color: Color(0xFFD4AF37),
+          size: 20,
+        ),
+      );
+    }
+
+    final hasLocal = avatarLocalPath != null &&
+        avatarLocalPath!.isNotEmpty &&
+        File(avatarLocalPath!).existsSync();
+
+    if (hasLocal) {
+      return ClipOval(
+        child: Image.file(
+          File(avatarLocalPath!),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+        ),
+      );
+    }
+
+    final hasRemote = avatarRemoteUrl != null && avatarRemoteUrl!.isNotEmpty;
+    if (hasRemote) {
+      final cacheBustedUrl = _cacheBustUrl(avatarRemoteUrl!, avatarCacheBuster);
+      return ClipOval(
+        child: Image.network(
+          cacheBustedUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          errorBuilder: (_, __, ___) => _fallbackInitial(),
+        ),
+      );
+    }
+
+    return _fallbackInitial();
+  }
+
+  Widget _fallbackInitial() {
+    return Center(
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : 'A',
+        style: TextStyle(
+          color: const Color(0xFFC9A84C),
+          fontSize: fontSize,
+          fontFamily: 'Georgia',
+        ),
+      ),
+    );
+  }
+
+  String _cacheBustUrl(String url, int cacheBuster) {
+    if (cacheBuster <= 0) {
+      return url;
+    }
+    final separator = url.contains('?') ? '&' : '?';
+    return '$url${separator}t=$cacheBuster';
+  }
+}
+
 class _PopupAction extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -259,12 +357,3 @@ class _PopupAction extends StatelessWidget {
   }
 }
 
-Future<void> _logout(BuildContext context) async {
-  await FirebaseAuth.instance.signOut();
-
-  Navigator.pushNamedAndRemoveUntil(
-    context,
-    '/onLoginScreen',
-    (route) => false,
-  );
-}

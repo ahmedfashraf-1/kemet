@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ProfileStatsWidget extends StatelessWidget {
   final int trips;
@@ -15,61 +16,60 @@ class ProfileStatsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF141108),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2E2810), width: 0.5),
+        color: const Color(0xFF111008),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFD4AF37).withOpacity(0.15),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD4AF37).withOpacity(0.04),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _StatItem(value: trips, label: 'EXPLORED'),
-          _Divider(),
-          _StatItem(value: saved, label: 'FAVORITE'),
-          _Divider(),
-          _StatItem(value: reviews, label: 'REVIEWS'),
+          _buildStat(trips, 'EXPLORED'),
+          _buildDivider(),
+          _buildStat(saved, 'FAVORITE'),
+          _buildDivider(),
+          _buildStat(reviews, 'REVIEWS'),
         ],
       ),
     );
   }
-}
 
-class _StatItem extends StatelessWidget {
-  final int value;
-  final String label;
+  Widget _buildDivider() => Container(
+        width: 0.5,
+        height: 32,
+        color: const Color(0xFFD4AF37).withOpacity(0.2),
+      );
 
-  const _StatItem({required this.value, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          '$value',
-          style: const TextStyle(
-            color: Color(0xFFC9A84C),
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+  Widget _buildStat(int count, String label) => Expanded(
+        child: Column(
+          children: [
+            Text(
+              '$count',
+              style: GoogleFonts.cinzel(
+                color: const Color(0xFFD4AF37),
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.4),
+                fontSize: 9,
+                letterSpacing: 1.8,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF555555),
-            fontSize: 9,
-            letterSpacing: 1.5,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Divider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(width: 0.5, height: 32, color: const Color(0xFF2A2A2A));
-  }
+      );
 }
