@@ -3,7 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:kemet/core/routing/app_router.dart';
 import 'package:kemet/core/utils/services/notification_service.dart';
-import 'package:kemet/features/notifications/data/datasources/local_notification.dart';
+import 'package:kemet/features/notifications/data/datasources/Local_notification.dart';
 import 'package:kemet/features/profile/presentation/di/profile_di.dart';
 import 'package:kemet/kemet_app.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,11 +27,8 @@ Future<void> main() async {
   final navigatorKey = GlobalKey<NavigatorState>();
   // initialize  FCM
   await NotificationService.instance.initialize(navigatorKey: navigatorKey);
-  
-// ysma7lii a3mel navi. mn para el app 
-await LocalNotificationService.instance.initialize(key: navigatorKey);
-   //Local notifications
-  //await LocalNotificationService.instance.initialize();
+   // ✅ Local notifications
+  await LocalNotificationService.instance.initialize();
  
   
 

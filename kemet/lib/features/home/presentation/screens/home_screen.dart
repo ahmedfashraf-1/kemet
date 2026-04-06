@@ -21,6 +21,7 @@ import 'package:kemet/features/notifications/presentation/widgets/notification_b
 import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:kemet/features/profile/presentation/widgets/profile_avatar_button.dart';
+import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -80,6 +81,98 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchDebounce = Timer(const Duration(milliseconds: 350), _applyFilters);
   }
 
+  void _showGuestPrompt(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.75),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F0C06),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFFD4AF37).withOpacity(0.3),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFD4AF37).withOpacity(0.08),
+                blurRadius: 30,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '𓂀',
+                style: TextStyle(fontSize: 42, color: Color(0xFFD4AF37)),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'JOIN KEMET',
+                style: GoogleFonts.cinzel(
+                  color: const Color(0xFFD4AF37),
+                  fontSize: 18,
+                  letterSpacing: 3,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Create an account to unlock your profile, save favorite places, and track your Egyptian journey.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.55),
+                  fontSize: 13,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD4AF37),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pushNamed('/onLoginScreen');
+                  },
+                  child: Text(
+                    'SIGN IN / REGISTER',
+                    style: GoogleFonts.cinzel(
+                      fontSize: 13,
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Continue as Guest',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.35),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,132 +182,142 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: _bgColor,
-      body: Column(
-        children: [
-          _buildTopAppBar(),
-          Expanded(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 18.h),
-                      const HeroSlider(),
-                      SizedBox(height: 24.h),
-                      _buildHeroTitle(),
-                      SizedBox(height: 24.h),
-                      _buildSearchBar(),
-                      SizedBox(height: 18.h),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _buildTopAppBar(),
+            Expanded(
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: 18.h),
+                        const HeroSlider(),
+                        SizedBox(height: 24.h),
+                        _buildHeroTitle(),
+                        SizedBox(height: 24.h),
+                        _buildSearchBar(),
+                        SizedBox(height: 18.h),
 
-                      _buildFilterList(
-                        items: _egyptCities,
-                        selectedValue: _selectedCity,
-                        onSelected: (val) {
-                          setState(() => _selectedCity = val == 'All' ? '' : val);
-                          _applyFilters();
-                        },
-                      ),
-                      SizedBox(height: 16.h),
+                        _buildFilterList(
+                          items: _egyptCities,
+                          selectedValue: _selectedCity,
+                          onSelected: (val) {
+                            setState(() => _selectedCity = val == 'All' ? '' : val);
+                            _applyFilters();
+                          },
+                        ),
+                        SizedBox(height: 16.h),
 
-                      _buildFilterList(
-                        items: _categories,
-                        selectedValue: _selectedCategory,
-                        onSelected: (val) {
-                          setState(() => _selectedCategory = val == 'All' ? '' : val);
-                          _applyFilters();
-                        },
-                      ),
-                      SizedBox(height: 24.h),
-                    ],
+                        _buildFilterList(
+                          items: _categories,
+                          selectedValue: _selectedCategory,
+                          onSelected: (val) {
+                            setState(() => _selectedCategory = val == 'All' ? '' : val);
+                            _applyFilters();
+                          },
+                        ),
+                        SizedBox(height: 24.h),
+                      ],
+                    ),
                   ),
-                ),
 
-                BlocBuilder<LandmarksCubit, LandmarksState>(
-                  builder: (context, state) {
-                    if (state is LandmarksLoading) {
-                      return const SliverFillRemaining(
-                        child: Center(child: CircularProgressIndicator(color: _goldColor)),
-                      );
-                    } else if (state is LandmarksEmpty) {
-                      return SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: Text(
-                            context.tr('no_data'),
-                            style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 16.sp),
+                  BlocBuilder<LandmarksCubit, LandmarksState>(
+                    builder: (context, state) {
+                      if (state is LandmarksLoading) {
+                        return const SliverFillRemaining(
+                          child: Center(child: CircularProgressIndicator(color: _goldColor)),
+                        );
+                      } else if (state is LandmarksEmpty) {
+                        return SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(
+                            child: Text(
+                              context.tr('no_data'),
+                              style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 16.sp),
+                            ),
                           ),
-                        ),
-                      );
-                    } else if (state is LandmarksError) {
-                      return SliverFillRemaining(
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(state.message, style: const TextStyle(color: Colors.redAccent)),
-                              SizedBox(height: 12.h),
-                              SizedBox(
-                                width: 170.w,
-                                child: AnimatedGoldButton(
-                                  text: context.tr('retry'),
-                                  onTap: _applyFilters,
+                        );
+                      } else if (state is LandmarksError) {
+                        return SliverFillRemaining(
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(state.message, style: const TextStyle(color: Colors.redAccent)),
+                                SizedBox(height: 12.h),
+                                SizedBox(
+                                  width: 170.w,
+                                  child: AnimatedGoldButton(
+                                    text: context.tr('retry'),
+                                    onTap: _applyFilters,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    } else if (state is LandmarksLoaded) {
-                      return SliverPadding(
-                        padding: EdgeInsets.only(bottom: shellOverlayClearance),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                              if (index == state.landmarks.length) {
-                                return _buildPagination(
-                                  currentPage: state.currentPage,
-                                  isLastPage: state.isLastPage,
-                                  onPageSelected: (page) {
-                                    context.read<LandmarksCubit>().getLandmarks(
-                                      page: page,
-                                      city: state.city,
-                                      kind: state.kind,
-                                      query: state.query,
-                                      isPagination: true,
-                                    );
-                                  },
-                                );
-                              }
+                        );
+                      } else if (state is LandmarksLoaded) {
+                        return SliverPadding(
+                          padding: EdgeInsets.only(bottom: shellOverlayClearance),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                                  (context, index) {
+                                if (index == state.landmarks.length) {
+                                  return _buildPagination(
+                                    currentPage: state.currentPage,
+                                    isLastPage: state.isLastPage,
+                                    onPageSelected: (page) {
+                                      context.read<LandmarksCubit>().getLandmarks(
+                                        page: page,
+                                        city: state.city,
+                                        kind: state.kind,
+                                        query: state.query,
+                                        isPagination: true,
+                                      );
+                                    },
+                                  );
+                                }
 
-                              final landmark = state.landmarks[index];
-                              return Padding(
-                                padding: EdgeInsets.only(bottom: 28.h),
-                                child: _buildLandmarkCard(landmark),
-                              );
-                            },
-                            childCount: state.landmarks.length + 1,
+                                final landmark = state.landmarks[index];
+                                return Padding(
+                                  padding: EdgeInsets.only(bottom: 28.h),
+                                  child: _buildLandmarkCard(landmark),
+                                );
+                              },
+                              childCount: state.landmarks.length + 1,
+                            ),
                           ),
-                        ),
-                      );
-                    }
-                    return const SliverToBoxAdapter(child: SizedBox.shrink());
-                  },
-                ),
-              ],
+                        );
+                      }
+                      return const SliverToBoxAdapter(child: SizedBox.shrink());
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildTopAppBar() {
+    final avatarLocalPath =
+        context.select((SettingsCubit cubit) => cubit.state.avatarLocalPath);
+    final avatarRemoteUrl =
+        context.select((SettingsCubit cubit) => cubit.state.avatarRemoteUrl);
+    final avatarCacheBuster =
+        context.select((SettingsCubit cubit) => cubit.state.avatarCacheBuster);
+
     return Container(
       color: _bgColor,
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 8.h,
+        top: 8.h,
         left: 24.w,
         right: 24.w,
         bottom: 12.h,
@@ -222,34 +325,22 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Container(
-          //   width: 40.w,
-          //   height: 40.w,
-          //   decoration: BoxDecoration(
-          //     shape: BoxShape.circle,
-          //     color: Colors.white.withOpacity(0.03),
-          //     border: Border.all(color: _goldColor.withOpacity(0.75), width: 1.5),
-          //     boxShadow: [
-          //       BoxShadow(
-          //         color: _goldColor.withOpacity(0.12),
-          //         blurRadius: 20,
-          //         offset: const Offset(0, 8),
-          //       ),
-          //     ],
-          //   ),
-          //   clipBehavior: Clip.antiAlias,
-          //   child: const Icon(
-          //     Icons.person,
-          //     color: AppColors.textDarkOnGold,
-          //     size: 22,
-          //   ),
-          // ),
-          // في الـ Row بتاع الـ AppBar استبدلي الـ Container بـده:
-          ProfileAvatarButton(
-            name: FirebaseAuth.instance.currentUser?.displayName ?? 'Guest',
-            email: FirebaseAuth.instance.currentUser?.email ?? '',
-            onViewProfile: _openProfile,   // تأكدي إن الميثود دي موجودة تحت
-            onLogout: _logout,             // تأكدي إن الميثود دي موجودة تحت
+          StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.userChanges(),
+            builder: (context, snapshot) {
+              final user = snapshot.data ?? FirebaseAuth.instance.currentUser;
+              final isGuest = user == null || user.isAnonymous;
+              return ProfileAvatarButton(
+                name: user?.displayName ?? 'Guest',
+                email: user?.email ?? '',
+                avatarLocalPath: avatarLocalPath,
+                avatarRemoteUrl: avatarRemoteUrl,
+                avatarCacheBuster: avatarCacheBuster,
+                isGuest: isGuest,
+                onViewProfile: _openProfile,
+                onLogout: _logout,
+              );
+            },
           ),
           Text(
             'KEMET',
@@ -710,11 +801,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
 Future<void> _openProfile() async {
-    // ✅ بنجيب الـ userId من FirebaseAuth مباشرة — مش محتاجين AuthCubit هنا
-    final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
- 
+    final user = FirebaseAuth.instance.currentUser;
+    final isGuest = user == null || user.isAnonymous;
+
+    if (isGuest) {
+      _showGuestPrompt(context);
+      return;
+    }
+
+    final userId = user.uid;
+
     if (!mounted) return;
- 
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -727,6 +825,7 @@ Future<void> _openProfile() async {
   }
 
    Future<void> _logout() async {
+    await context.read<SettingsCubit>().clearProfileAvatar();
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
     

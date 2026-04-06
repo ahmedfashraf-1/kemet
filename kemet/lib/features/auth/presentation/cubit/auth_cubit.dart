@@ -44,19 +44,21 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> signIn(String email, String password) async {
     emit(const AuthLoading());
     try {
-      
       final user = await _signIn(email, password);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_logged_in', true);
       final verified = await _checkEmailVerified();
       if (verified) {
-  await LocalNotificationService.instance.showWelcomeNotification(
-    userName: user.username,
-    userId: user.id,
-  );
+        await LocalNotificationService.instance.showWelcomeNotification(
+          userName: user.username,
+          userId: user.id,
+        );
 
-  emit(AuthAuthenticated(user));
-} else {
+        emit(AuthAuthenticated(user));
+        await prefs.setString('current_user_id', user.id);
+        await LocalNotificationService.instance
+            .scheduleReEngagementNotification();
+      } else {
         emit(const AuthNeedsEmailVerification());
       }
     } catch (e) {
@@ -88,15 +90,18 @@ class AuthCubit extends Cubit<AuthState> {
     emit(const AuthLoading());
     try {
       final user = await _signInWithGoogle();
-      
+
       if (user != null) {
         await LocalNotificationService.instance.showWelcomeNotification(
-  userName: user.username,
-  userId: user.id,
-);
+          userName: user.username,
+          userId: user.id,
+        );
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('is_logged_in', true);
         emit(AuthAuthenticated(user));
+        await prefs.setString('current_user_id', user.id);
+        await LocalNotificationService.instance
+            .scheduleReEngagementNotification();
       } else {
         emit(const AuthInitial());
       }
@@ -154,9 +159,12 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_logged_in', false);
+      await prefs.remove('current_user_id');
     } catch (_) {
       // Ignore local storage failures and still reset UI state.
     }
+
+    await LocalNotificationService.instance.cancelReEngagementNotification();
 
     emit(const AuthInitial());
   }

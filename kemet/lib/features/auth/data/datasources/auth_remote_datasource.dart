@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:kemet/core/utils/services/device_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -80,6 +81,18 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
       final uid = credential.user?.uid;
       if (uid != null) {
         await createUserSession(uid);
+
+        try {
+          final fcmToken = await FirebaseMessaging.instance.getToken();
+          if (fcmToken != null) {
+            await _firestore
+                .collection(_usersCollection)
+                .doc(uid)
+                .update({'fcmToken': fcmToken});
+          }
+        } catch (e) {
+          developer.log('Failed to refresh FCM token: $e', name: 'AuthRemoteDatasource');
+        }
       }
 
       return credential;
@@ -115,6 +128,19 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
       );
 
       await saveUserToFirestore(userModel);
+
+      try {
+        final fcmToken = await FirebaseMessaging.instance.getToken();
+        if (fcmToken != null) {
+          await _firestore
+              .collection(_usersCollection)
+              .doc(createdUser.uid)
+              .update({'fcmToken': fcmToken});
+        }
+      } catch (e) {
+        developer.log('Failed to save FCM token: $e', name: 'AuthRemoteDatasource');
+      }
+
       await createUserSession(createdUser.uid);
       return credential;
     } on fb.FirebaseAuthException catch (e) {
@@ -155,6 +181,18 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
         }
 
         await createUserSession(user.uid);
+
+        try {
+          final fcmToken = await FirebaseMessaging.instance.getToken();
+          if (fcmToken != null) {
+            await _firestore
+                .collection(_usersCollection)
+                .doc(user.uid)
+                .update({'fcmToken': fcmToken});
+          }
+        } catch (e) {
+          developer.log('Failed to refresh FCM token: $e', name: 'AuthRemoteDatasource');
+        }
       }
 
       return userCredential;

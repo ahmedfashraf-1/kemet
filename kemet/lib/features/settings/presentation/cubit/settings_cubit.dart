@@ -14,6 +14,9 @@ class SettingsState extends Equatable {
   final String localeCode;
   final bool locationAccessEnabled;
   final bool isRequestingLocation;
+  final String? avatarLocalPath;
+  final String? avatarRemoteUrl;
+  final int avatarCacheBuster;
 
   const SettingsState({
     required this.pushNotificationsEnabled,
@@ -23,6 +26,9 @@ class SettingsState extends Equatable {
     required this.localeCode,
     required this.locationAccessEnabled,
     this.isRequestingLocation = false,
+    this.avatarLocalPath,
+    this.avatarRemoteUrl,
+    this.avatarCacheBuster = 0,
   });
 
   SettingsState copyWith({
@@ -33,6 +39,11 @@ class SettingsState extends Equatable {
     String? localeCode,
     bool? locationAccessEnabled,
     bool? isRequestingLocation,
+    String? avatarLocalPath,
+    String? avatarRemoteUrl,
+    int? avatarCacheBuster,
+    bool clearAvatarLocalPath = false,
+    bool clearAvatarRemoteUrl = false,
   }) {
     return SettingsState(
       pushNotificationsEnabled:
@@ -44,11 +55,18 @@ class SettingsState extends Equatable {
       locationAccessEnabled:
           locationAccessEnabled ?? this.locationAccessEnabled,
       isRequestingLocation: isRequestingLocation ?? this.isRequestingLocation,
+      avatarLocalPath: clearAvatarLocalPath
+          ? null
+          : (avatarLocalPath ?? this.avatarLocalPath),
+      avatarRemoteUrl: clearAvatarRemoteUrl
+          ? null
+          : (avatarRemoteUrl ?? this.avatarRemoteUrl),
+      avatarCacheBuster: avatarCacheBuster ?? this.avatarCacheBuster,
     );
   }
 
   @override
-  List<Object> get props => [
+  List<Object?> get props => [
     pushNotificationsEnabled,
     emailUpdatesEnabled,
     soundEnabled,
@@ -56,6 +74,9 @@ class SettingsState extends Equatable {
     localeCode,
     locationAccessEnabled,
     isRequestingLocation,
+    avatarLocalPath,
+    avatarRemoteUrl,
+    avatarCacheBuster,
   ];
 }
 
@@ -66,6 +87,9 @@ class SettingsCubit extends Cubit<SettingsState> {
   static const String _darkModeKey          = 'settings_dark_mode';
   static const String _localeKey            = 'settings_locale_code';
   static const String _locationAccessKey    = 'settings_location_access';
+  static const String _avatarLocalPathPrefix = 'settings_avatar_local_path_';
+  static const String _avatarRemoteUrlPrefix = 'settings_avatar_remote_url_';
+  static const String _avatarCacheBusterPrefix = 'settings_avatar_cache_buster_';
 
   final SharedPreferences sharedPreferences;
 
@@ -83,8 +107,30 @@ class SettingsCubit extends Cubit<SettingsState> {
             ),
             locationAccessEnabled:
                 sharedPreferences.getBool(_locationAccessKey) ?? true,
+            avatarLocalPath: sharedPreferences.getString(
+              _avatarLocalPathKey(_activeUserKey),
+            ),
+            avatarRemoteUrl: sharedPreferences.getString(
+              _avatarRemoteUrlKey(_activeUserKey),
+            ),
+            avatarCacheBuster: sharedPreferences.getInt(
+              _avatarCacheBusterKey(_activeUserKey),
+            ) ??
+                0,
           ),
         );
+
+  static String get _activeUserKey =>
+      FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+
+  static String _avatarLocalPathKey(String userKey) =>
+      '$_avatarLocalPathPrefix$userKey';
+
+  static String _avatarRemoteUrlKey(String userKey) =>
+      '$_avatarRemoteUrlPrefix$userKey';
+
+  static String _avatarCacheBusterKey(String userKey) =>
+      '$_avatarCacheBusterPrefix$userKey';
 
   static String _normalizeLocaleCode(String? localeCode) {
     return localeCode == 'ar' ? 'ar' : 'en';
@@ -178,5 +224,52 @@ class SettingsCubit extends Cubit<SettingsState> {
     await sharedPreferences.setBool(_locationAccessKey, granted);
 
     return granted;
+  }
+
+  Future<void> setProfileAvatar({
+    String? localPath,
+    String? remoteUrl,
+  }) async {
+    final userKey = _activeUserKey;
+    final cacheBuster = DateTime.now().millisecondsSinceEpoch;
+
+    emit(
+      state.copyWith(
+        avatarLocalPath: localPath,
+        avatarRemoteUrl: remoteUrl,
+        clearAvatarLocalPath: localPath == null,
+        clearAvatarRemoteUrl: remoteUrl == null,
+        avatarCacheBuster: cacheBuster,
+      ),
+    );
+
+    if (localPath == null || localPath.isEmpty) {
+      await sharedPreferences.remove(_avatarLocalPathKey(userKey));
+    } else {
+      await sharedPreferences.setString(_avatarLocalPathKey(userKey), localPath);
+    }
+
+    if (remoteUrl == null || remoteUrl.isEmpty) {
+      await sharedPreferences.remove(_avatarRemoteUrlKey(userKey));
+    } else {
+      await sharedPreferences.setString(_avatarRemoteUrlKey(userKey), remoteUrl);
+    }
+
+    await sharedPreferences.setInt(
+      _avatarCacheBusterKey(userKey),
+      cacheBuster,
+    );
+  }
+
+  Future<void> clearProfileAvatar() async {
+    final userKey = _activeUserKey;
+    emit(
+      state.copyWith(
+        clearAvatarLocalPath: true,
+        clearAvatarRemoteUrl: true,
+      ),
+    );
+    await sharedPreferences.remove(_avatarLocalPathKey(userKey));
+    await sharedPreferences.remove(_avatarRemoteUrlKey(userKey));
   }
 }

@@ -8,8 +8,6 @@ class LandmarkModel extends Landmark {
     required super.name,
     required super.description,
     required super.city,
-    super.latitude,
-    super.longitude,
     required super.category,
     required super.photos,
     required super.openingTime,
@@ -18,14 +16,11 @@ class LandmarkModel extends Landmark {
   });
 
   factory LandmarkModel.fromJson(Map<String, dynamic> json) {
-    final point = json['point'] as Map<String, dynamic>?;
     return LandmarkModel(
-      id: json['xid'] ?? json['id'] ?? '',
+      id: json['id'] ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       city: json['city'] ?? '',
-      latitude: toDouble(point?['lat']),
-      longitude: toDouble(point?['lon']),
       category: LandmarkCategory(
         id: json['category_id'] ?? '',
         name: json['category_name'] ?? '',
@@ -42,11 +37,9 @@ class LandmarkModel extends Landmark {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'xid': id,
       'name': name,
       'description': description,
       'city': city,
-      'point': {'lat': latitude, 'lon': longitude},
       'category_id': category.id,
       'category_name': category.name,
       'opening_time': openingTime,
@@ -54,15 +47,5 @@ class LandmarkModel extends Landmark {
       'audio_url': audioUrl,
       'photos': photos.map((e) => e.url).toList(),
     };
-  }
-
-  static double? toDouble(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-    if (value is num) {
-      return value.toDouble();
-    }
-    return double.tryParse(value.toString());
   }
 }
