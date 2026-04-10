@@ -39,7 +39,6 @@ class AuthRepositoryImpl implements AuthRepository {
     if (fbUser == null) {
       throw const AuthRemoteException('Sign-in succeeded without user data.');
     }
-    await _recordNewSession(fbUser.uid);
     return _mapUser(fbUser);
   }
 
@@ -74,7 +73,6 @@ class AuthRepositoryImpl implements AuthRepository {
         'Google sign-in succeeded without user data.',
       );
     }
-    await _recordNewSession(fbUser.uid);
     return _mapUser(fbUser);
   }
 
@@ -95,29 +93,14 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-Future<void> signOut() async {
-  try {
-  
-    final uid = _datasource.currentUser?.uid;
-    final sessionId = _datasource.currentSessionId;
-
-    if (uid != null && sessionId != null) {
-      
-      await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('sessions')
-          .doc(sessionId)
-          .update({'isActive': false});
-    }
-  } catch (e) {
-  
-    print("Firestore session update failed: $e");
+  Future<void> deleteOtherSessions(String userId) {
+    return _datasource.deleteOtherSessions(userId);
   }
-
-
-  await FirebaseAuth.instance.signOut();
-}
+  
+  @override
+  Future<void> signOut() async {
+    await _datasource.signOut();
+  }
 
   @override
   Duration getRemainingVerificationCooldown() {

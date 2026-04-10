@@ -11,6 +11,7 @@ abstract class AuthRepository {
   Future<void> sendPasswordReset(String email);
   Future<void> sendVerificationEmail();
   Future<bool> checkEmailVerified();
+  Future<void> deleteOtherSessions(String userId);
   Future<void> signOut();
   Future<void> deleteAccount(); // ← جديد
   Duration getRemainingVerificationCooldown();

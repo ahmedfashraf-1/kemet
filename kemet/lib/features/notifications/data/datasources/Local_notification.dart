@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 class LocalNotificationService {
   LocalNotificationService._();
@@ -12,6 +14,7 @@ class LocalNotificationService {
       LocalNotificationService._();
 
   final _plugin = FlutterLocalNotificationsPlugin();
+  bool _initialized = false;
 
   static const int _welcomeId  = 1;
   static const int _landmarkId = 2;
@@ -21,11 +24,19 @@ class LocalNotificationService {
   static const String _reengagementChannelId = 'kemet_reengagement';
 
   Future<void> initialize() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    tz.initializeTimeZones();
+
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidSettings);
+    const iosSettings = DarwinInitializationSettings();
+    const initSettings =
+        InitializationSettings(android: androidSettings, iOS: iosSettings);
     await _plugin.initialize(initSettings);
     await _createChannel();
+    await _requestPermissions();
   }
 
   Future<void> _createChannel() async {
@@ -48,6 +59,22 @@ class LocalNotificationService {
             AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.createNotificationChannel(channel);
     await androidPlugin?.createNotificationChannel(reengagementChannel);
+  }
+
+  Future<void> _requestPermissions() async {
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.requestNotificationsPermission();
+
+    final iosPlugin = _plugin
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
+    await iosPlugin?.requestPermissions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
   }
 
   // in setting
@@ -145,7 +172,11 @@ class LocalNotificationService {
     );
   }
 
-  Future<void> scheduleReEngagementNotification() async {
+  Future<void> scheduleReEngagementNotification({
+    Duration delay = const Duration(hours: 24),
+  }) async {
+    await initialize();
+
     if (!await _isPushEnabled()) return;
 
     final prefs = await SharedPreferences.getInstance();
@@ -178,15 +209,22 @@ class LocalNotificationService {
           summaryText: 'Tap to continue your journey',
         ),
       ),
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentSound: true,
+      ),
     );
 
     await _plugin.cancel(_reengagementId);
-    await _plugin.periodicallyShow(
+    await _plugin.zonedSchedule(
       _reengagementId,
       '𓂀 Kemet Awaits',
       message,
-      RepeatInterval.daily,
+      tz.TZDateTime.now(tz.local).add(delay),
       details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       androidAllowWhileIdle: true,
     );
   }

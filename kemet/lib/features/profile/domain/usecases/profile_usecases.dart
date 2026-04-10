@@ -26,8 +26,9 @@ class GetRecentPlacesUseCase {
   final ProfileRepository repository;
   const GetRecentPlacesUseCase(this.repository);
 
-  Future<Either<Failure, List<Landmark>>> call(String userId) {
-    return repository.getRecentTrips(userId);
+  Future<Either<Failure, List<Landmark>>> call(String userId) async {
+    final result = await repository.getRecentTrips(userId);
+    return result.map((places) => places.take(5).toList());
   }
 }
 

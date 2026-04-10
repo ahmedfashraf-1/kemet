@@ -1,5 +1,5 @@
-import 'package:dartz/dartz.dart';
 import 'package:kemet/core/errors/failures.dart';
+import 'package:dartz/dartz.dart';
 import '../entities/profile_entity.dart';
 
 

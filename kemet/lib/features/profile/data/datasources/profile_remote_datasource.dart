@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:kemet/core/errors/exceptions.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
@@ -30,8 +31,13 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   final FirebaseFirestore firestore;
   final http.Client client;
 
-  static const String _apiKey =
-      '5ae2e3f221c38a28845f05b686f69838eab47a77852ceed62a3dfec3';
+  static String get _apiKey {
+    final key = dotenv.env['API_KEY'];
+    if (key == null || key.isEmpty) {
+      throw StateError('API_KEY is not set');
+    }
+    return key;
+  }
   static const String _xidBase =
       'https://api.opentripmap.com/0.1/en/places/xid';
 
@@ -74,10 +80,8 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
  
       if (allXids.isEmpty) return [];
  
-      
-      final recentXids = allXids.reversed.take(5).toList();
+        final recentXids = allXids.reversed.toList();
  
-    
       final futures = recentXids.map((xid) async {
         try {
           final response = await client.get(
