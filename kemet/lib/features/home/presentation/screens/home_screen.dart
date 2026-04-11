@@ -181,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       page: page,
                                       city: state.city,
                                       kind: state.kind,
-                                      query: state.query,
+            
                                       isPagination: true,
                                     );
                                   },

@@ -13,7 +13,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
 
   LandmarksCubit({required this.getAllLandmarksUsecase}) : super(LandmarksInitial());
 
-  Future<void> getLandmarks({int page = 1, String? city, String? kind, String? query, bool isPagination = false}) async {
+  Future<void> getLandmarks({int page = 1, String? city, String? kind, bool isPagination = false}) async {
     if (!isPagination) {
       emit(LandmarksLoading());
     }
@@ -73,8 +73,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
   getLandmarks(
     page: 1,
     city: city,
-    kind: kind,
-    query: query,
+    kind: kind
   );
 }
 

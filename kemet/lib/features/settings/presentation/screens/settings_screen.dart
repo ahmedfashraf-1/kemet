@@ -29,7 +29,7 @@ class SettingsScreen extends StatelessWidget {
   static const Color _dangerColor = Color(0xFFD34B4B);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context){
     return BlocBuilder<SettingsCubit, SettingsState>(
       builder: (context, settingsState) {
         return Scaffold(
