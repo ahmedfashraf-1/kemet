@@ -42,29 +42,27 @@ class AuthCubit extends Cubit<AuthState> {
   final DeleteAccountUseCase _deleteAccount;
 
   Future<void> signIn(String email, String password) async {
-    emit(const AuthLoading());
-    try {
-      final user = await _signIn(email, password);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('is_logged_in', true);
-      final verified = await _checkEmailVerified();
-      if (verified) {
-        await LocalNotificationService.instance.showWelcomeNotification(
-          userName: user.username,
-          userId: user.id,
-        );
+      emit(const AuthLoading());
+      try {
+        
+        final user = await _signIn(email, password);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_logged_in', true);
+        final verified = await _checkEmailVerified();
+        if (verified) {
+    await LocalNotificationService.instance.showWelcomeNotification(
+      userName: user.username,
+      userId: user.id,
+    );
 
-        emit(AuthAuthenticated(user));
-        await prefs.setString('current_user_id', user.id);
-        await LocalNotificationService.instance
-            .scheduleReEngagementNotification();
-      } else {
-        emit(const AuthNeedsEmailVerification());
+    emit(AuthAuthenticated(user));
+  } else {
+          emit(const AuthNeedsEmailVerification());
+        }
+      } catch (e) {
+        emit(AuthError(e.toString()));
       }
-    } catch (e) {
-      emit(AuthError(e.toString()));
     }
-  }
 
   Future<void> signUp(
     String email,
@@ -90,18 +88,15 @@ class AuthCubit extends Cubit<AuthState> {
     emit(const AuthLoading());
     try {
       final user = await _signInWithGoogle();
-
+      
       if (user != null) {
         await LocalNotificationService.instance.showWelcomeNotification(
-          userName: user.username,
-          userId: user.id,
-        );
+        userName: user.username,
+        userId: user.id,
+      );
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('is_logged_in', true);
         emit(AuthAuthenticated(user));
-        await prefs.setString('current_user_id', user.id);
-        await LocalNotificationService.instance
-            .scheduleReEngagementNotification();
       } else {
         emit(const AuthInitial());
       }
@@ -164,10 +159,9 @@ class AuthCubit extends Cubit<AuthState> {
       // Ignore local storage failures and still reset UI state.
     }
 
-    await LocalNotificationService.instance.cancelReEngagementNotification();
-
     emit(const AuthInitial());
   }
+  
 
 Future<void> deleteAccount() async {
   emit(const AuthLoading());

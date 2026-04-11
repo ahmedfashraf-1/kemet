@@ -18,3 +18,4 @@ class Routes {
   static const String verifyEmailOtp = '/verify-email-otp';
   static const String forgotPassword = '/forgot-password';
 }
+
