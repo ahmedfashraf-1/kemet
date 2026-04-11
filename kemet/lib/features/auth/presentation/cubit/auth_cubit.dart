@@ -1,4 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kemet/features/auth/domain/usecases/delete_account_use_case.dart';
+import 'package:kemet/features/notifications/data/datasources/local_notification.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/usecases/sign_in_use_case.dart';
 import '../../domain/usecases/sign_up_use_case.dart';
@@ -18,6 +20,7 @@ class AuthCubit extends Cubit<AuthState> {
     required SendVerificationEmailUseCase sendVerificationEmail,
     required CheckEmailVerifiedUseCase checkEmailVerified,
     required SignOutUseCase signOut,
+    required DeleteAccountUseCase deleteAccount,
   }) : _signIn = signIn,
        _signUp = signUp,
        _signInWithGoogle = signInWithGoogle,
@@ -25,6 +28,8 @@ class AuthCubit extends Cubit<AuthState> {
        _sendVerificationEmail = sendVerificationEmail,
        _checkEmailVerified = checkEmailVerified,
        _signOut = signOut,
+       _deleteAccount = deleteAccount,
+       
        super(const AuthInitial());
 
   final SignInUseCase _signIn;
@@ -34,6 +39,7 @@ class AuthCubit extends Cubit<AuthState> {
   final SendVerificationEmailUseCase _sendVerificationEmail;
   final CheckEmailVerifiedUseCase _checkEmailVerified;
   final SignOutUseCase _signOut;
+  final DeleteAccountUseCase _deleteAccount;
 
   Future<void> signIn(String email, String password) async {
     emit(const AuthLoading());
@@ -43,7 +49,15 @@ class AuthCubit extends Cubit<AuthState> {
       await prefs.setBool('is_logged_in', true);
       final verified = await _checkEmailVerified();
       if (verified) {
+        await LocalNotificationService.instance.showWelcomeNotification(
+          userName: user.username,
+          userId: user.id,
+        );
+
         emit(AuthAuthenticated(user));
+        await prefs.setString('current_user_id', user.id);
+        await LocalNotificationService.instance
+            .scheduleReEngagementNotification();
       } else {
         emit(const AuthNeedsEmailVerification());
       }
@@ -62,6 +76,7 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       await _signUp(email, password, firstName, lastName);
       // Keep the user session active and send verification immediately.
+  
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_logged_in', true);
       await _sendVerificationEmail();
@@ -75,10 +90,18 @@ class AuthCubit extends Cubit<AuthState> {
     emit(const AuthLoading());
     try {
       final user = await _signInWithGoogle();
+
       if (user != null) {
+        await LocalNotificationService.instance.showWelcomeNotification(
+          userName: user.username,
+          userId: user.id,
+        );
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('is_logged_in', true);
         emit(AuthAuthenticated(user));
+        await prefs.setString('current_user_id', user.id);
+        await LocalNotificationService.instance
+            .scheduleReEngagementNotification();
       } else {
         emit(const AuthInitial());
       }
@@ -114,6 +137,7 @@ class AuthCubit extends Cubit<AuthState> {
       } else {
         emit(
           const AuthError(
+
             'Please verify your email first before continuing.',
           ),
         );
@@ -124,6 +148,8 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> signOut() async {
+
+    emit(const AuthLoading());
     try {
       await _signOut();
     } catch (_) {
@@ -133,10 +159,29 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_logged_in', false);
+      await prefs.remove('current_user_id');
     } catch (_) {
       // Ignore local storage failures and still reset UI state.
     }
 
+    await LocalNotificationService.instance.cancelReEngagementNotification();
+
     emit(const AuthInitial());
   }
+
+Future<void> deleteAccount() async {
+  emit(const AuthLoading());
+  try {
+    await _deleteAccount();
+    
+    // clear local storage
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    
+    emit(const AuthInitial());
+  } catch (e) {
+    emit(AuthError(e.toString()));
+  }
+}
+  
 }

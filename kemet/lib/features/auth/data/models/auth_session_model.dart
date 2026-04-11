@@ -9,19 +9,31 @@ class AuthSessionModel extends AuthSession {
     required super.location,
     required super.lastActive,
     required super.isActive,
+    super.deviceToken,
+    super.loginAt,
+    super.lastActiveAt,
+    super.isCurrentSession,
   });
 
   factory AuthSessionModel.fromFirestore(
     QueryDocumentSnapshot<Map<String, dynamic>> doc,
   ) {
     final data = doc.data();
+    final lastActiveAt = _readDateTime(data['lastActiveAt']);
+    final lastActiveLegacy = _readDateTime(data['last_active']);
+    final lastActiveValue =
+        lastActiveAt.year == 1970 ? lastActiveLegacy : lastActiveAt;
 
     return AuthSessionModel(
-      id: doc.id,
-      device: (data['device'] as String?) ?? 'Unknown device',
+      id: (data['sessionId'] as String?) ?? doc.id,
+      device: (data['deviceName'] as String?) ?? (data['device'] as String?) ?? 'Unknown device',
       location: (data['location'] as String?) ?? 'Unknown location',
-      lastActive: _readDateTime(data['last_active']),
-      isActive: (data['is_active'] as bool?) ?? false,
+      lastActive: lastActiveValue,
+      isActive: (data['isActive'] as bool?) ?? (data['is_active'] as bool?) ?? false,
+      deviceToken: data['deviceToken'] as String?,
+      loginAt: _readDateTime(data['loginAt']),
+      lastActiveAt: lastActiveValue,
+      isCurrentSession: data['isCurrentSession'] as bool?,
     );
   }
 
@@ -35,4 +47,3 @@ class AuthSessionModel extends AuthSession {
     return DateTime.fromMillisecondsSinceEpoch(0);
   }
 }
-

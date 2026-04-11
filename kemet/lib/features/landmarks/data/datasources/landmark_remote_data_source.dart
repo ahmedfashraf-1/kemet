@@ -12,6 +12,7 @@ abstract class LandmarkRemoteDataSource {
     required int limit,
     String? city,
     String? kind,
+    String? query,
   });
 }
 
@@ -27,7 +28,7 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
   LandmarkRemoteDataSourceImpl({required this.client});
 
   @override
-  Future<List<LandmarkModel>> getAllLandmarks({required int page, required int limit, String? city, String? kind}) async {
+  Future<List<LandmarkModel>> getAllLandmarks({required int page, required int limit, String? city, String? kind, String? query}) async {
 
     final int offset = (page - 1) * limit;
     final String kindsParam = kind ?? 'interesting_places';

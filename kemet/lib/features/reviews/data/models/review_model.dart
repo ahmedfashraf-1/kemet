@@ -3,11 +3,13 @@ import '../../domain/entities/review.dart';
 class ReviewModel extends Review {
   ReviewModel({
     required super.id,
-    required super.userId,
-    required super.landmarkId,
-    required super.comment,
-    required super.rating,
-    required super.createdAt,
+    super.userId,
+    super.landmarkId,
+    super.comment,
+    super.rating,
+    super.placeName,
+    super.date,
+    super.createdAt
   });
 
   /// 🔹 from JSON (Firebase)
@@ -18,6 +20,8 @@ class ReviewModel extends Review {
       landmarkId: json['landmarkId'],
       comment: json['comment'],
       rating: (json['rating'] as num).toDouble(),
+      placeName: (json['placename']),
+      date:  (json['date']),
       createdAt: DateTime.parse(json['createdAt']),
     );
   }
@@ -25,11 +29,11 @@ class ReviewModel extends Review {
   /// 🔹 to JSON (Firebase)
   Map<String, dynamic> toJson() {
     return {
-      'userId': userId,
-      'landmarkId': landmarkId,
-      'comment': comment,
-      'rating': rating,
-      'createdAt': createdAt.toIso8601String(),
+    'userId': userId,
+    'landmarkId': landmarkId,
+    'comment': comment,
+    'rating': rating,
+    'createdAt': createdAt?.toIso8601String(),
     };
   }
 
@@ -37,6 +41,8 @@ class ReviewModel extends Review {
   Review toEntity() {
     return Review(
       id: id,
+      placeName: placeName,
+      date: date,
       userId: userId,
       landmarkId: landmarkId,
       comment: comment,
@@ -49,11 +55,13 @@ class ReviewModel extends Review {
   factory ReviewModel.fromEntity(Review review) {
     return ReviewModel(
       id: review.id,
+      placeName: review.placeName,
+      date: review.date,
       userId: review.userId,
       landmarkId: review.landmarkId,
-      comment: review.comment,
+  //    comment: review.comment,
       rating: review.rating,
-      createdAt: review.createdAt,
+  //    createdAt: review.createdAt,
     );
   }
 }

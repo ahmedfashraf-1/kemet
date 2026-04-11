@@ -6,6 +6,8 @@ class Landmark {
   final String name;
   final String description;
   final String city;
+  final double? latitude;
+  final double? longitude;
   final LandmarkCategory category;
   final List<LandmarkPhoto> photos;
   final String openingTime;
@@ -17,6 +19,8 @@ class Landmark {
     required this.name,
     required this.description,
     required this.city,
+    this.latitude,
+    this.longitude,
     required this.category,
     required this.photos,
     required this.openingTime,

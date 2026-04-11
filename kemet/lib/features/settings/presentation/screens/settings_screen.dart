@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -7,6 +8,9 @@ import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
+import 'package:kemet/features/landmarks/presentation/screens/home_screen.dart';
+import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:kemet/features/settings/presentation/cubit/payment_methods_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/security_cubit.dart';
@@ -59,6 +63,18 @@ class SettingsScreen extends StatelessWidget {
                         icon: Icons.person_outline,
                         title: context.tr('profile'),
                         subtitle: context.tr('profile_subtitle'),
+                        onTap: () {
+                            final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BlocProvider(
+                                  create: (_) => getIt<ProfileCubit>(),
+                                  child: ProfileScreen(userId: userId),
+                                ),
+                              ),
+                            );
+                          },
                       ),
                       _divider(),
                       _navigableRow(
@@ -84,9 +100,7 @@ class SettingsScreen extends StatelessWidget {
                         onTap: () => pushPremiumPage(
                           context,
                           BlocProvider(
-                            create: (context) => SecurityCubit(
-                              authRepository: context.read<AuthRepository>(),
-                            ),
+                          create: (context) => SecurityCubit(),
                             child: const SecurityScreen(),
                           ),
                         ),
@@ -575,13 +589,50 @@ class SettingsScreen extends StatelessWidget {
       onTap: () => pushPremiumPage(context, const AboutScreen()),
     );
   }
-
-  Future<void> _showDeleteAccountDialog(BuildContext context) async {
+Future<void> _showDeleteAccountDialog(BuildContext context) async {
     final shouldDelete = await showPremiumDeleteAccountDialog(context);
-    if (shouldDelete && context.mounted) {
+
+    if (!shouldDelete || !context.mounted) return;
+
+    // ✅ بنعمل loading indicator عشان الـ user يعرف إن في حاجة بتحصل
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFFC9A34E)),
+      ),
+    );
+
+    try {
+      // ✅ بنستدعي الـ deleteAccount من الـ AuthRepository مباشرة
+      // (مش محتاجين AuthCubit عشان مش فيه delete account use case فيه)
+      final repository = context.read<AuthRepository>();
+      await repository.deleteAccount();
+
+      if (!context.mounted) return;
+
+      // ✅ بنقفل الـ loading dialog
+      Navigator.of(context).pop();
+
+      //  بنروح لصفحة اللوجين ونمسح كل الـ routes
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        Routes.LoginView,
+        (route) => false,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+
+      // ✅ بنقفل الـ loading dialog
+      Navigator.of(context).pop();
+
+      // ✅ بنعرض الـ error
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(context.tr('delete_account_confirmation_received')),
+          backgroundColor: const Color(0xFF1A0E0E),
+          content: Text(
+            'Failed to delete account. Please try again.',
+            style: const TextStyle(color: Color(0xFFC04040)),
+          ),
         ),
       );
     }
