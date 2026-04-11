@@ -18,7 +18,7 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
 
   @override
   Future<Either<Failure, List<Review>>> getReviewsForLandmark(
-    String? landmarkId,
+    String landmarkId,
   ) async {
     if (!await networkInfo.isConnected) {
       return Left(OfflineFailure());

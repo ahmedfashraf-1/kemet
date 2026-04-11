@@ -8,7 +8,7 @@ import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
-import 'package:kemet/features/landmarks/presentation/screens/home_screen.dart';
+import 'package:kemet/features/home/presentation/screens/home_screen.dart';
 import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:kemet/features/settings/presentation/cubit/payment_methods_cubit.dart';

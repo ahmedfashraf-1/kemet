@@ -286,15 +286,15 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   _buildEmptyHint('No reviews yet.')
                 else
                   ...state.reviews.map(
-                    (r) => Padding(
-                      padding: EdgeInsets.only(bottom: 6.h),
-                      child: ProfileReviewItem(
-                        place: r.placeName,
-                        rating: r.rating,
-                        date: r.date,
+                      (r) => Padding(
+                        padding: EdgeInsets.only(bottom: 6.h),
+                        child: ProfileReviewItem(
+                          place: r.landmarkId, // مؤقت لحد ما تجيبي الاسم الحقيقي
+                          rating: r.rating,
+                          date: formatDate(r.createdAt),
+                        ),
                       ),
                     ),
-                  ),
 
                 const ProfileSectionLabel(label: 'FAVORITE PLACES'),
 
@@ -658,3 +658,6 @@ class _EditDisplayNameDialogState extends State<_EditDisplayNameDialog> {
   }
 }
 
+String formatDate(DateTime date) {
+  return "${date.month}/${date.year}";
+}

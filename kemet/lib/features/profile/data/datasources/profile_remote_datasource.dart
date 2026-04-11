@@ -111,25 +111,31 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     }
   }
 // Duummy
-  @override
-  Future<List<Review>> getMyReviews(String userId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return [
-      Review(
-        id: 'r1',
-        placeName: 'Karnak Temple',
-        rating: 5.0,
-        date: 'Mar 2025',
-      ),
-      Review(
-        id: 'r2',
-        
-        placeName: 'Pyramids of Giza',
-        rating: 4.0,
-        date: 'Jan 2025',
-      ),
-    ];
-  }
+ @override
+Future<List<Review>> getMyReviews(String userId) async {
+  await Future.delayed(const Duration(milliseconds: 300));
+
+  return [
+    Review(
+      id: 'r1',
+      userId: userId,
+      username: 'Nour',
+      landmarkId: 'karnak_temple',
+      comment: 'Amazing place!',
+      rating: 5.0,
+      createdAt: DateTime(2025, 3),
+    ),
+    Review(
+      id: 'r2',
+      userId: userId,
+      username: 'Nour',
+      landmarkId: 'pyramids_giza',
+      comment: 'Great experience',
+      rating: 4.0,
+      createdAt: DateTime(2025, 1),
+    ),
+  ];
+}
  
 
  // Dummy
