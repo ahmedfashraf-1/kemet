@@ -4,7 +4,7 @@ import 'package:kemet/features/reviews/domain/entities/review.dart';
 
 abstract class ReviewsRepository {
   Future<Either<Failure, List<Review>>> getReviewsForLandmark(
-    String landmarkId,
+    String? landmarkId,
   );
 
   Future<Either<Failure, Review>> addReview(Review review);

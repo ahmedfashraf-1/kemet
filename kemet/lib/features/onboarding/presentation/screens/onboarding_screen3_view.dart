@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../../core/routing/routes.dart';
 
@@ -59,7 +60,7 @@ class OnboardingScreen3 extends StatelessWidget {
                   SizedBox(height: 0.h),
 
                   Text(
-                    "CHAT WITH",
+                    context.tr('onboarding3_title_1'),
                     style: GoogleFonts.cormorant(
                       textStyle: TextStyle(
                         color: AppColors.mainGold,
@@ -72,7 +73,7 @@ class OnboardingScreen3 extends StatelessWidget {
                   Transform.translate(
                     offset: Offset(0, -10.h),
                     child: Text(
-                      "KEMET AI",
+                      context.tr('onboarding3_title_2'),
                       style: GoogleFonts.cormorant(
                         textStyle: TextStyle(
                           color: AppColors.mainGold,
@@ -87,7 +88,7 @@ class OnboardingScreen3 extends StatelessWidget {
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20.w),
                     child: Text(
-                      "Deep, instant answers in your language. Discover secrets and hidden stories.",
+                      context.tr('onboarding3_subtitle'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppColors.lightGold.withOpacity(0.8),
@@ -127,7 +128,7 @@ class OnboardingScreen3 extends StatelessWidget {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        "NEXT",
+                        context.tr('next_caps'),
                         style: TextStyle(
                           color: const Color(0xFFE3B06C),
                           fontSize: 16.sp,
@@ -145,7 +146,7 @@ class OnboardingScreen3 extends StatelessWidget {
                       context.pushNamed(Routes.onBoardingScreen4);
                     },
                     child: Text(
-                      "skip",
+                      context.tr('skip'),
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.5),
                         fontSize: 14.sp,

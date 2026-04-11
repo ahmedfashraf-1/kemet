@@ -12,12 +12,12 @@ abstract class LandmarkRemoteDataSource {
     required int limit,
     String? city,
     String? kind,
+    String? query,
   });
 }
 
 const BASE_URL = "https://api.opentripmap.com/0.1/en/places/bbox";
-const String API_KEY =
-    "5ae2e3f221c38a28845f05b686f69838eab47a77852ceed62a3dfec3";
+const String API_KEY = "5ae2e3f221c38a28845f05b686f69838eab47a77852ceed62a3dfec3";
 const double lonMin = 24.7;
 const double latMin = 22.0;
 const double lonMax = 36.9;
@@ -28,21 +28,15 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
   LandmarkRemoteDataSourceImpl({required this.client});
 
   @override
-  Future<List<LandmarkModel>> getAllLandmarks({
-    required int page,
-    required int limit,
-    String? city,
-    String? kind,
-  }) async {
+  Future<List<LandmarkModel>> getAllLandmarks({required int page, required int limit, String? city, String? kind, String? query}) async {
+
     final int offset = (page - 1) * limit;
     final String kindsParam = kind ?? 'interesting_places';
 
     http.Response response;
     if (city != null && city.isNotEmpty) {
       final geoResponse = await client.get(
-        Uri.parse(
-          'https://api.opentripmap.com/0.1/en/places/geoname?name=$city&apikey=$API_KEY',
-        ),
+        Uri.parse('https://api.opentripmap.com/0.1/en/places/geoname?name=$city&apikey=$API_KEY'),
       );
 
       if (geoResponse.statusCode == 200) {
@@ -51,8 +45,7 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
           final lat = geoData['lat'];
           final lon = geoData['lon'];
 
-          final radiusUrl =
-              "https://api.opentripmap.com/0.1/en/places/radius?radius=10000&lon=$lon&lat=$lat&kinds=$kindsParam&format=json&limit=$limit&offset=$offset&apikey=$API_KEY";
+          final radiusUrl = "https://api.opentripmap.com/0.1/en/places/radius?radius=10000&lon=$lon&lat=$lat&kinds=$kindsParam&format=json&limit=$limit&offset=$offset&apikey=$API_KEY";
           response = await client.get(Uri.parse(radiusUrl));
         } else {
           throw ServerException();
@@ -61,8 +54,7 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
         throw ServerException();
       }
     } else {
-      final boxUrl =
-          "https://api.opentripmap.com/0.1/en/places/bbox?lon_min=$lonMin&lat_min=$latMin&lon_max=$lonMax&lat_max=$latMax&kinds=$kindsParam&format=json&limit=$limit&offset=$offset&apikey=$API_KEY";
+      final boxUrl = "https://api.opentripmap.com/0.1/en/places/bbox?lon_min=$lonMin&lat_min=$latMin&lon_max=$lonMax&lat_max=$latMax&kinds=$kindsParam&format=json&limit=$limit&offset=$offset&apikey=$API_KEY";
       response = await client.get(Uri.parse(boxUrl));
     }
 
@@ -71,6 +63,7 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
 
       final futures = decodedJson.map((item) async {
         final xid = item['xid'];
+
         if (xid == null || xid.toString().isEmpty) {
           return _mapListItemToModel(item);
         }
@@ -84,9 +77,13 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
 
           if (detailsResponse.statusCode == 200) {
             final jsonDetails = json.decode(detailsResponse.body);
-            return _mapJsonToModel(jsonDetails);
-          }
-        } catch (_) {
+
+            if (jsonDetails['name'] != null &&
+                jsonDetails['name'].toString().isNotEmpty) {
+              return _mapJsonToModel(jsonDetails);
+            }
+      }
+    } catch (_) {
           // Fall back to the list item when details fail.
         }
 
@@ -101,23 +98,18 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
   }
 
   LandmarkModel _mapJsonToModel(Map<String, dynamic> json) {
-    final point = json['point'] as Map<String, dynamic>?;
     return LandmarkModel(
-      id: json['xid'] ?? json['id'] ?? '',
+      id: json['xid'] ?? '',
 
       name: json['name'] ?? 'Unknown',
 
       description:
-          json['wikipedia_extracts']?['text'] ?? 'No description available',
+      json['wikipedia_extracts']?['text'] ?? 'No description available',
 
-      city:
-          json['address']?['state'] ??
+      city: json['address']?['state'] ??
           json['address']?['village'] ??
           json['address']?['locality'] ??
           'Unknown',
-
-      latitude: LandmarkModel.toDouble(point?['lat']),
-      longitude: LandmarkModel.toDouble(point?['lon']),
 
       category: _mapKinds(json['kinds']),
 
@@ -184,9 +176,17 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
     List<LandmarkPhoto> photos = [];
 
     if (json['preview'] != null) {
-      photos.add(LandmarkPhoto(url: json['preview']['source']));
+      photos.add(
+        LandmarkPhoto(
+          url: json['preview']['source'],
+        ),
+      );
     } else if (json['image'] != null) {
-      photos.add(LandmarkPhoto(url: json['image']));
+      photos.add(
+        LandmarkPhoto(
+          url: json['image'],
+        ),
+      );
     }
 
     return photos;

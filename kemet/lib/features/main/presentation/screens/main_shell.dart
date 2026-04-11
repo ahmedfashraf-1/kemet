@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
+import 'package:kemet/core/routing/routes.dart';
 
 class MainShell extends StatefulWidget {
   final Widget child;
@@ -15,10 +17,18 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
   final List<Map<String, dynamic>> _items = const [
-    {'icon': Icons.home_rounded, 'label': 'Home'},
-    {'icon': Icons.explore_outlined, 'label': 'Maps'},
-    {'icon': Icons.settings_outlined, 'label': 'Settings'},
+    {'icon': Icons.home_rounded, 'label': 'home'},
+    {'icon': Icons.explore_outlined, 'label': 'maps'},
+    {'icon': Icons.settings_outlined, 'label': 'settings'},
   ];
+
+  void _onItemTap(int index) {
+    setState(() => _currentIndex = index);
+
+    if (index == 2) {
+      Navigator.of(context).pushNamed(Routes.settingsScreen);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,8 +37,10 @@ class _MainShellState extends State<MainShell> {
       body: widget.child,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: SafeArea(
-        minimum: EdgeInsets.only(right: 16.w, bottom: 8.h),
-        child: Container(
+        minimum: EdgeInsets.zero,
+        child: Padding(
+          padding: EdgeInsetsDirectional.only(end: 16.w, bottom: 8.h),
+          child: Container(
           height: 48.h,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(9999),
@@ -55,7 +67,7 @@ class _MainShellState extends State<MainShell> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Kemet AI',
+                  context.tr('kemet_ai'),
                   style: GoogleFonts.cinzel(
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w700,
@@ -71,6 +83,7 @@ class _MainShellState extends State<MainShell> {
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),
@@ -94,7 +107,7 @@ class _MainShellState extends State<MainShell> {
           children: List.generate(_items.length, (index) {
             final isActive = _currentIndex == index;
             return GestureDetector(
-              onTap: () => setState(() => _currentIndex = index),
+              onTap: () => _onItemTap(index),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -107,7 +120,7 @@ class _MainShellState extends State<MainShell> {
                   ),
                   SizedBox(height: 4.h),
                   Text(
-                    _items[index]['label'] as String,
+                    context.tr(_items[index]['label'] as String),
                     style: GoogleFonts.cinzel(
                       fontSize: 9.sp,
                       fontWeight: FontWeight.w700,

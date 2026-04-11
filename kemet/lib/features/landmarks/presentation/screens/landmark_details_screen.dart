@@ -11,13 +11,51 @@ import 'package:kemet/features/landmarks/presentation/widgets/landmark_info_card
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_map_button.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_bottom_nav_bar.dart';
 
-class LandmarkDetailsScreen extends StatelessWidget {
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kemet/features/notifications/data/datasources/local_notification.dart';
+
+class LandmarkDetailsScreen extends StatefulWidget {
   const LandmarkDetailsScreen({super.key, required this.landmark});
 
   final Landmark landmark;
 
   @override
+  State<LandmarkDetailsScreen> createState() => _LandmarkDetailsScreenState();
+}
+
+class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen> {
+  // 3. هنا بنحط الـ initState اللي بتشتغل "مرة واحدة بس" أول ما الصفحة تفتح
+  @override
+  void initState() {
+    super.initState();
+    _saveToRecentTrips(); // بننادي الفانكشن اللي بتسجل الرحلة
+  }
+
+  // 4. talk with Firebase
+  Future<void> _saveToRecentTrips() async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return;
+
+      final xid = widget.landmark.id;
+      if (xid.isEmpty) return;
+
+      await FirebaseFirestore.instance.collection('users').doc(userId).set({
+        'recentTrips': FieldValue.arrayUnion([xid]),
+      }, SetOptions(merge: true));
+      LocalNotificationService.instance.showLandmarkViewedNotification(
+        landmarkName: widget.landmark.name,
+        city: widget.landmark.city,
+      );
+    } catch (e) {
+      debugPrint("Error: $e");
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final landmark = widget.landmark;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     const barHeight = 64.0;
 
