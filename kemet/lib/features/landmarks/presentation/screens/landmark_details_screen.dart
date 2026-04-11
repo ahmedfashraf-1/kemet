@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/utils/share_service.dart';
+import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/discover_more_section.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_description_section.dart';
@@ -79,12 +80,12 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen> {
                 slivers: [
                   // Hero section (image + overlay + top actions).
                   SliverToBoxAdapter(
-                    child: LandmarkHeroSection(
-                      landmark: landmark,
-                      onBack: () => Navigator.of(context).pop(),
-                      onShare: (context) => shareLandmark(context, landmark),
+                      child: LandmarkHeroSection(
+                        landmark: landmark,
+                        onBack: () => Navigator.of(context).pop(),
+                        onShare: (context) => shareLandmark(context, landmark),
+                      ),
                     ),
-                  ),
 
                   // Description section with narrative and audio button (UI only).
                   SliverToBoxAdapter(
@@ -120,7 +121,6 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen> {
                   SliverToBoxAdapter(
                     child: DiscoverMoreSection(
                       landmark: landmark,
-                      photos: landmark.photos,
                     ),
                   ),
 
@@ -137,6 +137,10 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen> {
               child: LandmarkBottomNavBar(
                 activeIndex: 1,
                 bottomInset: bottomInset,
+                onReviews: () => Navigator.of(context).pushNamed(
+                  Routes.reviewsScreen,
+                  arguments: landmark,
+                ),
               ),
             ),
           ],

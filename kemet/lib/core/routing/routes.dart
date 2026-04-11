@@ -10,6 +10,7 @@ class Routes {
   static const String notificationDetails = '/notificationDetails';
   static const String mainShell = '/mainShell';
   static const String landmarkDetails = '/landmarkDetails';
+  static const String reviewsScreen = '/reviews';
   static const String settingsScreen = '/settingsScreen';
   static const String notificationsScreen = '/notifications';
 

@@ -10,7 +10,7 @@ abstract class ReviewsRemoteDatasource {
 
 class ReviewsRemoteDatasourceImpl implements ReviewsRemoteDatasource {
   ReviewsRemoteDatasourceImpl({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -20,12 +20,13 @@ class ReviewsRemoteDatasourceImpl implements ReviewsRemoteDatasource {
       final snapshot = await _firestore
           .collection('reviews')
           .where('landmarkId', isEqualTo: landmarkId)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs
+      final reviews = snapshot.docs
           .map((doc) => ReviewModel.fromJson(doc.data(), doc.id))
           .toList();
+      reviews.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return reviews;
     } catch (_) {
       throw ServerException();
     }
@@ -34,15 +35,25 @@ class ReviewsRemoteDatasourceImpl implements ReviewsRemoteDatasource {
   @override
   Future<ReviewModel> addReview(ReviewModel review) async {
     try {
-      final String id = review.id.isEmpty
-          ? _firestore.collection('reviews').doc().id
-          : review.id;
+      final existingSnapshot = await _firestore
+          .collection('reviews')
+          .where('landmarkId', isEqualTo: review.landmarkId)
+          .where('userId', isEqualTo: review.userId)
+          .limit(1)
+          .get();
+
+      final String id = existingSnapshot.docs.isNotEmpty
+          ? existingSnapshot.docs.first.id
+          : (review.id.isEmpty
+                ? _firestore.collection('reviews').doc().id
+                : review.id);
 
       final ReviewModel model = review.id == id
           ? review
           : ReviewModel(
               id: id,
               userId: review.userId,
+              username: review.username,
               landmarkId: review.landmarkId,
               comment: review.comment,
               rating: review.rating,

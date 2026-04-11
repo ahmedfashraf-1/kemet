@@ -1,49 +1,51 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../domain/entities/review.dart';
 
 class ReviewModel extends Review {
   ReviewModel({
     required super.id,
-    super.userId,
-    super.landmarkId,
-    super.comment,
-    super.rating,
-    super.placeName,
-    super.date,
-    super.createdAt
+    required super.userId,
+    required super.username,
+    required super.landmarkId,
+    required super.comment,
+    required super.rating,
+    required super.createdAt,
   });
 
-  /// 🔹 from JSON (Firebase)
   factory ReviewModel.fromJson(Map<String, dynamic> json, String id) {
+    final rawCreatedAt = json['createdAt'];
+
+    final Username = (json['username'] as String?)?.trim();
+
     return ReviewModel(
       id: id,
-      userId: json['userId'],
-      landmarkId: json['landmarkId'],
-      comment: json['comment'],
-      rating: (json['rating'] as num).toDouble(),
-      placeName: (json['placename']),
-      date:  (json['date']),
-      createdAt: DateTime.parse(json['createdAt']),
+      userId: json['userId'] as String? ?? '',
+      username: Username ?? '',
+      landmarkId: json['landmarkId'] as String? ?? '',
+      comment: json['comment'] as String? ?? '',
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      createdAt: _parseCreatedAt(rawCreatedAt),
     );
   }
 
-  /// 🔹 to JSON (Firebase)
   Map<String, dynamic> toJson() {
     return {
-    'userId': userId,
-    'landmarkId': landmarkId,
-    'comment': comment,
-    'rating': rating,
-    'createdAt': createdAt?.toIso8601String(),
+      'userId': userId,
+      'username': username,
+      'landmarkId': landmarkId,
+      'comment': comment,
+      'rating': rating,
+      // Keep Firestore field type consistent to avoid mixed-type query issues.
+      'createdAt': Timestamp.fromDate(createdAt),
     };
   }
 
-  /// 🔹 convert to Entity
   Review toEntity() {
     return Review(
       id: id,
-      placeName: placeName,
-      date: date,
       userId: userId,
+      username: username,
       landmarkId: landmarkId,
       comment: comment,
       rating: rating,
@@ -51,17 +53,31 @@ class ReviewModel extends Review {
     );
   }
 
-  /// 🔹 convert from Entity
   factory ReviewModel.fromEntity(Review review) {
     return ReviewModel(
       id: review.id,
-      placeName: review.placeName,
-      date: review.date,
       userId: review.userId,
+      username: review.username,
       landmarkId: review.landmarkId,
-  //    comment: review.comment,
+      comment: review.comment,
       rating: review.rating,
-  //    createdAt: review.createdAt,
+      createdAt: review.createdAt,
     );
+  }
+
+  static DateTime _parseCreatedAt(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+    if (value is DateTime) {
+      return value;
+    }
+    return DateTime.now();
   }
 }

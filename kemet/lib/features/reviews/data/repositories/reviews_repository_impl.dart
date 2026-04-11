@@ -37,10 +37,6 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
 
   @override
   Future<Either<Failure, Review>> addReview(Review review) async {
-    if (!await networkInfo.isConnected) {
-      return Left(OfflineFailure());
-    }
-
     try {
       final model = ReviewModel.fromEntity(review);
       final saved = await remoteDatasource.addReview(model);
@@ -54,10 +50,6 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
 
   @override
   Future<Either<Failure, Unit>> deleteReview(String reviewId) async {
-    if (!await networkInfo.isConnected) {
-      return Left(OfflineFailure());
-    }
-
     try {
       await remoteDatasource.deleteReview(reviewId);
       return const Right(unit);

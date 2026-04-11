@@ -63,21 +63,35 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
 
       final futures = decodedJson.map((item) async {
         final xid = item['xid'];
-        final detailsResponse = await client.get(
-          Uri.parse('https://api.opentripmap.com/0.1/en/places/xid/$xid?apikey=$API_KEY'),
-        );
 
-        if (detailsResponse.statusCode == 200) {
-          final jsonDetails = json.decode(detailsResponse.body);
-          if (jsonDetails['name'] != null && jsonDetails['name'].toString().isNotEmpty) {
-            return _mapJsonToModel(jsonDetails);
-          }
+        if (xid == null || xid.toString().isEmpty) {
+          return _mapListItemToModel(item);
         }
-        return null;
+
+        try {
+          final detailsResponse = await client.get(
+            Uri.parse(
+              'https://api.opentripmap.com/0.1/en/places/xid/$xid?apikey=$API_KEY',
+            ),
+          );
+
+          if (detailsResponse.statusCode == 200) {
+            final jsonDetails = json.decode(detailsResponse.body);
+
+            if (jsonDetails['name'] != null &&
+                jsonDetails['name'].toString().isNotEmpty) {
+              return _mapJsonToModel(jsonDetails);
+            }
+      }
+    } catch (_) {
+          // Fall back to the list item when details fail.
+        }
+
+        return _mapListItemToModel(item);
       }).toList();
 
       final results = await Future.wait(futures);
-      return results.whereType<LandmarkModel>().toList();
+      return results;
     } else {
       throw ServerException();
     }
@@ -137,6 +151,25 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
     }
 
     return LandmarkCategory(id: "other", name: "Other");
+  }
+
+  LandmarkModel _mapListItemToModel(Map<String, dynamic> json) {
+    final point = json['point'] as Map<String, dynamic>?;
+    return LandmarkModel(
+      id: json['xid'] ?? json['id'] ?? '',
+      name: (json['name'] == null || json['name'].toString().isEmpty)
+          ? 'Unknown'
+          : json['name'],
+      description: 'No description available',
+      city: 'Unknown',
+      latitude: LandmarkModel.toDouble(point?['lat']),
+      longitude: LandmarkModel.toDouble(point?['lon']),
+      category: _mapKinds(json['kinds']),
+      photos: const <LandmarkPhoto>[],
+      openingTime: "",
+      closingTime: "",
+      audioUrl: null,
+    );
   }
 
   List<LandmarkPhoto> _extractPhotos(Map<String, dynamic> json) {

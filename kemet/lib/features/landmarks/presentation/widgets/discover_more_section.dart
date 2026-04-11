@@ -1,23 +1,40 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
-import 'package:kemet/features/landmarks/domain/entities/landmarkphotos.dart';
+import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
+import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 
-class DiscoverMoreSection extends StatelessWidget {
+class DiscoverMoreSection extends StatefulWidget {
   const DiscoverMoreSection({
     super.key,
     required this.landmark,
-    required this.photos,
   });
 
   final Landmark landmark;
-  final List<LandmarkPhoto> photos;
+
+  @override
+  State<DiscoverMoreSection> createState() => _DiscoverMoreSectionState();
+}
+
+class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
+  late Future<List<Landmark>> _suggestionsFuture;
+  bool _didLoad = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didLoad) {
+      _suggestionsFuture = _fetchSuggestions(context);
+      _didLoad = true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final displayPhotos = photos.isEmpty ? <LandmarkPhoto>[] : photos;
+    final cityLabel = _resolvedCityLabel(widget.landmark.city);
 
     return Padding(
       padding: const EdgeInsets.only(top: 32),
@@ -30,7 +47,9 @@ class DiscoverMoreSection extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  'Discover More in ${landmark.city}',
+                  cityLabel == null
+                      ? 'Discover More Nearby'
+                      : 'Discover More in $cityLabel',
                   style: GoogleFonts.notoSerif(
                     fontSize: 22,
                     fontStyle: FontStyle.italic,
@@ -58,28 +77,110 @@ class DiscoverMoreSection extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Horizontal cards.
-          SizedBox(
-            height: 230,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              scrollDirection: Axis.horizontal,
-              itemCount: displayPhotos.isEmpty ? 1 : displayPhotos.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 14),
-              itemBuilder: (context, index) {
-                if (displayPhotos.isEmpty) {
-                  return _discoverCard(null);
-                }
-                return _discoverCard(displayPhotos[index].url);
-              },
-            ),
+          FutureBuilder<List<Landmark>>(
+            future: _suggestionsFuture,
+            builder: (context, snapshot) {
+              final suggestions = snapshot.data ?? <Landmark>[];
+              final displayItems = _buildDisplayItems(suggestions);
+              return SizedBox(
+                height: 230,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: displayItems.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 14),
+                  itemBuilder: (context, index) {
+                    final card = _discoverCard(
+                      displayItems[index],
+                      isLoading: snapshot.connectionState ==
+                          ConnectionState.waiting,
+                    );
+                    return _wrapClickableCard(
+                      context,
+                      displayItems[index],
+                      card,
+                    );
+                  },
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _discoverCard(String? url) {
+  Future<List<Landmark>> _fetchSuggestions(BuildContext context) async {
+    final city = widget.landmark.city.trim();
+    if (city.isEmpty || city.toLowerCase() == 'unknown') {
+      return [];
+    }
+
+    final repository = context.read<LandmarksRepository>();
+    final firstBatch = await repository.getAllLandmarks(
+      page: 1,
+      limit: 12,
+      city: city,
+    );
+
+    final collected = <Landmark>[];
+    collected.addAll(_filterUnique(firstBatch, collected));
+
+    if (collected.length < 4) {
+      final secondBatch = await repository.getAllLandmarks(
+        page: 2,
+        limit: 12,
+        city: city,
+      );
+      collected.addAll(_filterUnique(secondBatch, collected));
+    }
+
+    return collected.take(4).toList();
+  }
+
+  List<Landmark> _filterUnique(
+    dynamic response,
+    List<Landmark> existing,
+  ) {
+    if (response == null) {
+      return [];
+    }
+
+    final existingIds = existing.map((item) => item.id).toSet();
+    final currentId = widget.landmark.id;
+
+    final List<Landmark> newItems = response.fold(
+      (_) => <Landmark>[],
+      (landmarks) => landmarks,
+    );
+
+    return newItems.where((landmark) {
+      return landmark.id != currentId && !existingIds.contains(landmark.id);
+    }).toList();
+  }
+
+  List<Landmark?> _buildDisplayItems(List<Landmark> suggestions) {
+    final items = suggestions.take(4).toList();
+    return items;
+  }
+
+  String? _resolvedCityLabel(String rawCity) {
+    final trimmed = rawCity.trim();
+    if (trimmed.isEmpty || trimmed.toLowerCase() == 'unknown') {
+      return null;
+    }
+    return trimmed;
+  }
+
+  Widget _discoverCard(
+    Landmark? suggestion, {
+    required bool isLoading,
+  }) {
+    final url = suggestion?.photos.isNotEmpty == true
+        ? suggestion!.photos.first.url
+        : null;
     final hasValidUrl = url != null && _isValidNetworkUrl(url);
+    final isPlaceholder = suggestion == null;
     return Container(
       width: 200,
       decoration: BoxDecoration(
@@ -109,7 +210,9 @@ class DiscoverMoreSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  landmark.category.name.toUpperCase(),
+                  isPlaceholder
+                      ? (isLoading ? 'LOADING' : 'SUGGESTION')
+                      : suggestion!.category.name.toUpperCase(),
                   style: GoogleFonts.notoSerif(
                     fontSize: 10,
                     letterSpacing: 2.0,
@@ -118,7 +221,9 @@ class DiscoverMoreSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  landmark.name,
+                  isPlaceholder
+                      ? (isLoading ? 'Loading...' : 'More to explore')
+                      : suggestion!.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.notoSerif(
@@ -132,6 +237,26 @@ class DiscoverMoreSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _wrapClickableCard(
+    BuildContext context,
+    Landmark? suggestion,
+    Widget card,
+  ) {
+    if (suggestion == null) {
+      return card;
+    }
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).pushNamed(
+          Routes.landmarkDetails,
+          arguments: suggestion,
+        );
+      },
+      child: card,
     );
   }
 
