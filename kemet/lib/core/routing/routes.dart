@@ -9,10 +9,11 @@ class Routes {
   static const String HomeScreen = '/homeScreen';
   static const String notificationDetails = '/notificationDetails';
   static const String mainShell = '/mainShell';
+  static const String landmarkDetails = '/landmarkDetails';
   static const String settingsScreen = '/settingsScreen';
+  static const String notificationsScreen = '/notifications';
 
 
   static const String verifyEmailOtp = '/verify-email-otp';
   static const String forgotPassword = '/forgot-password';
-  
 }

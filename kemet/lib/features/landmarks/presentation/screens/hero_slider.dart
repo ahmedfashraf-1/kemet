@@ -42,12 +42,13 @@ class _HeroSliderState extends State<HeroSlider>
       vsync: this,
       duration: const Duration(seconds: 4),
     );
-    _zoomAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(parent: _zoomController, curve: Curves.easeOut),
-    );
-   WidgetsBinding.instance.addPostFrameCallback((_) {
-  _zoomController.forward();
-});
+    _zoomAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.15,
+    ).animate(CurvedAnimation(parent: _zoomController, curve: Curves.easeOut));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _zoomController.forward();
+    });
   }
 
   @override
@@ -99,8 +100,11 @@ class _HeroSliderState extends State<HeroSlider>
                             errorBuilder: (_, __, ___) => Container(
                               color: AppColors.cardBackground,
                               child: const Center(
-                                child: Icon(Icons.landscape,
-                                    color: AppColors.mainGold, size: 60),
+                                child: Icon(
+                                  Icons.landscape,
+                                  color: AppColors.mainGold,
+                                  size: 60,
+                                ),
                               ),
                             ),
                           ),
@@ -145,9 +149,11 @@ class _HeroSliderState extends State<HeroSlider>
                               SizedBox(height: 4.h),
                               Row(
                                 children: [
-                                  Icon(Icons.location_on_outlined,
-                                      color: AppColors.textSecondary,
-                                      size: 12.sp),
+                                  Icon(
+                                    Icons.location_on_outlined,
+                                    color: AppColors.textSecondary,
+                                    size: 12.sp,
+                                  ),
                                   SizedBox(width: 3.w),
                                   Text(
                                     slide['subtitle']!,

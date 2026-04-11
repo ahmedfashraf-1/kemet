@@ -4,6 +4,7 @@ import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kemet/features/auth/domain/usecases/check_email_verified_use_case.dart';
+import 'package:kemet/features/auth/domain/usecases/delete_account_use_case.dart';
 import 'package:kemet/features/auth/domain/usecases/send_password_reset_use_case.dart';
 import 'package:kemet/features/auth/domain/usecases/send_verification_email_use_case.dart';
 import 'package:kemet/features/auth/domain/usecases/sign_in_use_case.dart';
@@ -13,6 +14,8 @@ import 'package:kemet/features/auth/domain/usecases/sign_up_use_case.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/presentation/screens/forgot_password_view.dart';
 import 'package:kemet/features/auth/presentation/screens/verify_email_otp_view.dart';
+import 'package:kemet/features/home/presentation/screens/home_screen.dart';
+import 'package:kemet/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen1_view.dart';
 import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen2_view.dart';
 import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen3_view.dart';
@@ -21,10 +24,12 @@ import 'package:kemet/features/splash/presentation/screens/splash_view.dart';
 import 'package:kemet/features/auth/presentation/screens/login_view.dart';
 import 'package:kemet/features/auth/presentation/screens/register_view.dart';
 import 'package:kemet/features/main/presentation/screens/main_shell.dart';
-import 'package:kemet/features/home/presentation/screens/home_screen.dart';
+//import 'package:kemet/features/landmarks/presentation/screens/home_screen.dart';
+import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
+import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
+// import 'package:kemet/features/home/presentation/screens/home_screen.dart';
 import 'package:kemet/features/settings/presentation/screens/settings_screen.dart';
 import 'package:kemet/features/notifications/presentation/screens/notification_details_screen.dart';
-
 
 //landmarks
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
@@ -64,7 +69,9 @@ class AppRouter {
           setting,
         );
 
+// msh mst5dmenha pas ll zaman 
       case Routes.notificationDetails:
+    //  return _fadeDominantFromRight(const NotificationsScreen(), setting);
         final args = setting.arguments is Map<String, dynamic>
             ? setting.arguments as Map<String, dynamic>
             : const <String, dynamic>{};
@@ -76,18 +83,35 @@ class AppRouter {
           setting,
         );
 
+  
+      // const mtgesh m3 statefulwidget
+      case Routes.notificationsScreen:
+        return _fadeDominantFromRight(NotificationsScreen(), setting);
+        // return _fadeDominantFromRight(const NotificationsScreen(), setting);
+           
+
       case Routes.mainShell:
         return _fadeDominantFromRight(
           const MainShell(child: HomeScreen()),
           setting,
         );
 
+      case Routes.landmarkDetails:
+        final landmarkArg = setting.arguments;
+        if (landmarkArg is! Landmark) {
+          return MaterialPageRoute(
+            builder: (_) => const Scaffold(
+              body: Center(child: Text('Invalid landmark data')),
+            ),
+          );
+        }
+        return _fadeDominantFromRight(
+          LandmarkDetailsScreen(landmark: landmarkArg),
+          setting,
+        );
       case Routes.settingsScreen:
         return _fadeDominantFromRight(
-          BlocProvider(
-            create: _buildAuthCubit,
-            child: const SettingsScreen(),
-          ),
+          BlocProvider(create: _buildAuthCubit, child: const SettingsScreen()),
           setting,
         );
 
@@ -114,19 +138,13 @@ class AppRouter {
 
       case Routes.LoginView:
         return _fadeDominantFromRight(
-          BlocProvider(
-            create: _buildAuthCubit,
-            child: const LoginView(),
-          ),
+          BlocProvider(create: _buildAuthCubit, child: const LoginView()),
           setting,
         );
 
       case Routes.RegisterView:
         return _fadeDominantFromRight(
-          BlocProvider(
-            create: _buildAuthCubit,
-            child: const RegisterView(),
-          ),
+          BlocProvider(create: _buildAuthCubit, child: const RegisterView()),
           setting,
         );
 
@@ -135,7 +153,12 @@ class AppRouter {
           builder: (_) => Scaffold(
             body: Builder(
               builder: (context) => Center(
-                child: Text(context.tr('no_route_defined', args: {'route': '${setting.name}'})),
+                child: Text(
+                  context.tr(
+                    'no_route_defined',
+                    args: {'route': '${setting.name}'},
+                  ),
+                ),
               ),
             ),
           ),
@@ -146,17 +169,18 @@ class AppRouter {
   // --------------------- Fade Dominant Transitions ---------------------
 
   AuthCubit _buildAuthCubit(BuildContext context) {
-    final repository = context.read<AuthRepository>();
-    return AuthCubit(
-      signIn: SignInUseCase(repository),
-      signUp: SignUpUseCase(repository),
-      signInWithGoogle: SignInWithGoogleUseCase(repository),
-      sendPasswordReset: SendPasswordResetUseCase(repository),
-      sendVerificationEmail: SendVerificationEmailUseCase(repository),
-      checkEmailVerified: CheckEmailVerifiedUseCase(repository),
-      signOut: SignOutUseCase(repository),
-    );
-  }
+  final repository = context.read<AuthRepository>();
+  return AuthCubit(
+    signIn: SignInUseCase(repository),
+    signUp: SignUpUseCase(repository),
+    signInWithGoogle: SignInWithGoogleUseCase(repository),
+    sendPasswordReset: SendPasswordResetUseCase(repository),
+    sendVerificationEmail: SendVerificationEmailUseCase(repository),
+    checkEmailVerified: CheckEmailVerifiedUseCase(repository),
+    signOut: SignOutUseCase(repository),
+    deleteAccount: DeleteAccountUseCase(repository), // ← السطر الجديد
+  );
+}
 
   // Fade dominant + slight slide from right
   PageRouteBuilder _fadeDominantFromRight(Widget page, RouteSettings settings) {

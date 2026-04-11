@@ -18,10 +18,10 @@ class LandmarksRepositoryImpl implements LandmarksRepository{
     required this.networkInfo});
 
   @override
-  Future<Either<Failure, List<Landmark>>> getAllLandmarks({required int page, required int limit, String? city, String? kind}) async {
+  Future<Either<Failure, List<Landmark>>> getAllLandmarks({required int page, required int limit, String? city, String? kind, String? query}) async {
     if (await networkInfo.isConnected) {
       try {
-        final remoteLandmarks = await remoteDataSource.getAllLandmarks(page:page, limit: limit, city: city, kind: kind);
+        final remoteLandmarks = await remoteDataSource.getAllLandmarks(page:page, limit: limit, city: city, kind: kind, query: query);
           await  localDataSource.cacheLandmarks(remoteLandmarks);
           return Right(remoteLandmarks);
       } on ServerException {

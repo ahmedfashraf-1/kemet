@@ -1,20 +1,38 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:kemet/core/routing/app_router.dart';
 import 'package:kemet/core/utils/services/notification_service.dart';
+import 'package:kemet/features/notifications/data/datasources/Local_notification.dart';
+import 'package:kemet/features/profile/presentation/di/profile_di.dart';
 import 'package:kemet/kemet_app.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+
+// دالة استقبال الرسائل في الخلفية
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('📩 Handling a background message: ${message.messageId}');
+}
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
 
+  await dotenv.load(fileName: '.env');
+  await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  final navigatorKey = GlobalKey<NavigatorState>();
-  await NotificationService.instance.initialize(navigatorKey: navigatorKey);
 
+  setupProfileDi();
+  final navigatorKey = GlobalKey<NavigatorState>();
+  // initialize  FCM
+  await NotificationService.instance.initialize(navigatorKey: navigatorKey);
+   // ✅ Local notifications
+  await LocalNotificationService.instance.initialize();
+ 
+  
 
   final sharedPrefs = await SharedPreferences.getInstance();
 

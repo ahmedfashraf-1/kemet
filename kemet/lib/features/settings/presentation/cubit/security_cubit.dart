@@ -1,15 +1,15 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:kemet/features/auth/domain/entities/auth_session.dart';
-import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 
 class SecuritySession extends Equatable {
   const SecuritySession({
     required this.id,
-    required this.device,
     required this.location,
+    required this.device,
     required this.lastActive,
     required this.isActive,
     required this.isCurrent,
@@ -17,13 +17,13 @@ class SecuritySession extends Equatable {
 
   final String id;
   final String device;
-  final String location;
+  final String location; 
   final DateTime lastActive;
   final bool isActive;
   final bool isCurrent;
 
   @override
-  List<Object> get props => [id, device, location, lastActive, isActive, isCurrent];
+  List<Object> get props => [id, device, lastActive, isActive, isCurrent];
 }
 
 class SecurityState extends Equatable {
@@ -50,44 +50,77 @@ class SecurityState extends Equatable {
 }
 
 class SecurityCubit extends Cubit<SecurityState> {
-  SecurityCubit({required AuthRepository authRepository})
-      : _authRepository = authRepository,
+  SecurityCubit()
+      : _firestore = FirebaseFirestore.instance,
+        _auth = FirebaseAuth.instance,
         super(const SecurityState(sessions: [])) {
     _subscribeToSessions();
   }
 
-  final AuthRepository _authRepository;
-  StreamSubscription<List<AuthSession>>? _sessionsSubscription;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
+  StreamSubscription<QuerySnapshot>? _sessionsSubscription;
+
+  // ── جيب الـ current session id من الـ auth datasource
+  String? get _currentUid => _auth.currentUser?.uid;
 
   Future<void> clearOtherSessions() async {
     emit(state.copyWith(isClearingSessions: true));
     try {
-      await _authRepository.clearOtherSessions();
+      final uid = _currentUid;
+      if (uid == null) return;
+
+      // جيب كل الـ sessions عدا الحالية
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('sessions')
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      // عدّل كلهم isActive = false
+      final batch = _firestore.batch();
+      for (final doc in snapshot.docs) {
+        batch.update(doc.reference, {'isActive': false});
+      }
+      await batch.commit();
     } finally {
       emit(state.copyWith(isClearingSessions: false));
     }
   }
 
   void _subscribeToSessions() {
-    final currentSessionId = _authRepository.currentSessionId;
-    _sessionsSubscription = _authRepository.watchActiveSessions().listen((sessions) {
-      emit(
-        state.copyWith(
-          sessions: sessions
-              .map(
-                (session) => SecuritySession(
-                  id: session.id,
-                  device: session.device,
-                  location: session.location,
-                  lastActive: session.lastActive,
-                  isActive: session.isActive,
-                  isCurrent: currentSessionId == session.id,
-                ),
-              )
-              .toList(),
-        ),
-      );
+    final uid = _currentUid;
+    if (uid == null) return;
+
+    _sessionsSubscription = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('sessions')
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .listen((snapshot) {
+      final sessions = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return SecuritySession(
+          id: doc.id,
+          location: data['location'] ?? '', 
+          device: data['device'] ?? 'Unknown Device',
+          lastActive: (data['lastActive'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          isActive: data['isActive'] ?? false,
+          isCurrent: doc.id == _getCurrentSessionId(uid),
+        );
+      }).toList();
+
+      emit(state.copyWith(sessions: sessions));
     });
+  }
+
+  
+  String _getCurrentSessionId(String uid) {
+    // بنرجع الـ device id اللي اتحفظ وقت الـ login
+    // في الوقت الحالي بنقارن بالـ sessions الموجودة
+    return uid; 
   }
 
   @override

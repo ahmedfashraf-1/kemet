@@ -1,4 +1,10 @@
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../domain/entities/auth_session.dart';
 import '../../domain/entities/user.dart' as domain;
@@ -7,8 +13,9 @@ import '../datasources/auth_remote_datasource.dart';
 import '../models/user_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
-  const AuthRepositoryImpl(this._datasource);
   final AuthRemoteDatasource _datasource;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  AuthRepositoryImpl(this._datasource);
 
   @override
   domain.User? get currentUser {
@@ -42,6 +49,7 @@ class AuthRepositoryImpl implements AuthRepository {
     String firstName,
     String lastName,
   ) async {
+    
     final credential = await _datasource.signUpWithEmail(
       email,
       password,
@@ -85,28 +93,21 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> signOut() => _datasource.signOut();
+  Future<void> deleteOtherSessions(String userId) {
+    return _datasource.deleteOtherSessions(userId);
+  }
+  
+  @override
+  Future<void> signOut() async {
+    await _datasource.signOut();
+  }
 
   @override
   Duration getRemainingVerificationCooldown() {
     final uid = _datasource.currentUser?.uid;
     if (uid == null) return Duration.zero;
     return _datasource.getRemainingVerificationCooldown(uid);
-  }
-
-  @override
-  Stream<List<AuthSession>> watchActiveSessions() {
-    final uid = _datasource.currentUser?.uid;
-    if (uid == null) return const Stream<List<AuthSession>>.empty();
-    return _datasource.watchUserSessions(uid);
-  }
-
-  @override
-  Future<void> clearOtherSessions() async {
-    final uid = _datasource.currentUser?.uid;
-    if (uid == null) return;
-    await _datasource.clearOtherSessions(uid);
-  }
+  }  
 
   domain.User _mapUser(fb.User fbUser) => UserModel(
     id: fbUser.uid,
@@ -122,4 +123,83 @@ class AuthRepositoryImpl implements AuthRepository {
     }
     return email;
   }
+
+
+  Future<void> _recordNewSession(String uid) async {
+    final deviceInfo = DeviceInfoPlugin();
+    String deviceName = "Unknown Device";
+    String? deviceId;
+
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      deviceName = "${androidInfo.manufacturer} ${androidInfo.model}";
+      deviceId = androidInfo.id; 
+    } else if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      deviceName = iosInfo.name;
+      deviceId = iosInfo.identifierForVendor;
+    }
+
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('sessions')
+        .doc(deviceId ?? DateTime.now().millisecondsSinceEpoch.toString())
+        .set({
+      'device': deviceName,
+      'lastActive': FieldValue.serverTimestamp(),
+      'isActive': true,
+      'platform': Platform.operatingSystem,
+    });
+  }
+
+@override
+Future<void> deleteAccount() async {
+  final user = _datasource.currentUser;
+  final uid = user?.uid;
+  
+  if (uid == null || user == null) {
+    throw const AuthRemoteException('No user logged in.');
+  }
+
+  try {
+    final providerData = user.providerData;
+    final isGoogle = providerData.any((p) => p.providerId == 'google.com');
+
+    if (isGoogle) {
+      final googleSignIn = GoogleSignIn();
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) throw const AuthRemoteException('Re-authentication cancelled.');
+      
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await user.reauthenticateWithCredential(credential);
+    } else {
+      
+      throw const AuthRemoteException('NEEDS_REAUTH');
+    }
+
+    final sessions = await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('sessions')
+        .get();
+    for (final doc in sessions.docs) {
+      await doc.reference.delete();
+    }
+
+    
+    await _firestore.collection('users').doc(uid).delete();
+
+    
+    await user.delete();
+    
+  } catch (e) {
+    print('🔴 ERROR in deleteAccount: $e');
+    rethrow;
+  }
+}
 }

@@ -2,6 +2,9 @@ import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:kemet/core/utils/services/device_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,7 +28,10 @@ abstract class AuthRemoteDatasource {
   Future<void> saveUserToFirestore(UserModel user);
   Future<void> sendPasswordReset(String email);
   Future<void> sendVerificationEmail(fb.User user);
+  Future<void> createSessionAfterLogin(String userId);
   Future<void> createUserSession(String userId);
+  Future<void> deleteCurrentSession(String userId);
+  Future<void> deleteOtherSessions(String userId);
   Future<void> signOut();
   Duration getRemainingVerificationCooldown(String uid);
 
@@ -51,7 +57,7 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
   static const _usersCollection = 'users';
   static const _sessionsCollection = 'sessions';
   static const _currentSessionKey = 'current_session_id';
-  static const _defaultLocation = 'Egypt';
+  static const _defaultLocation = 'Unknown';
   static final Map<String, DateTime> _lastSentAt = {};
 
   final fb.FirebaseAuth _auth;
@@ -79,7 +85,19 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
 
       final uid = credential.user?.uid;
       if (uid != null) {
-        await createUserSession(uid);
+        await createSessionAfterLogin(uid);
+
+        try {
+          final fcmToken = await FirebaseMessaging.instance.getToken();
+          if (fcmToken != null) {
+            await _firestore
+                .collection(_usersCollection)
+                .doc(uid)
+                .update({'fcmToken': fcmToken});
+          }
+        } catch (e) {
+          developer.log('Failed to refresh FCM token: $e', name: 'AuthRemoteDatasource');
+        }
       }
 
       return credential;
@@ -115,7 +133,20 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
       );
 
       await saveUserToFirestore(userModel);
-      await createUserSession(createdUser.uid);
+
+      try {
+        final fcmToken = await FirebaseMessaging.instance.getToken();
+        if (fcmToken != null) {
+          await _firestore
+              .collection(_usersCollection)
+              .doc(createdUser.uid)
+              .update({'fcmToken': fcmToken});
+        }
+      } catch (e) {
+        developer.log('Failed to save FCM token: $e', name: 'AuthRemoteDatasource');
+      }
+
+      await createSessionAfterLogin(createdUser.uid);
       return credential;
     } on fb.FirebaseAuthException catch (e) {
       throw _mapAuthError(e);
@@ -154,7 +185,19 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
           });
         }
 
-        await createUserSession(user.uid);
+        await createSessionAfterLogin(user.uid);
+
+        try {
+          final fcmToken = await FirebaseMessaging.instance.getToken();
+          if (fcmToken != null) {
+            await _firestore
+                .collection(_usersCollection)
+                .doc(user.uid)
+                .update({'fcmToken': fcmToken});
+          }
+        } catch (e) {
+          developer.log('Failed to refresh FCM token: $e', name: 'AuthRemoteDatasource');
+        }
       }
 
       return userCredential;
@@ -201,7 +244,7 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
   @override
   Future<void> signOut() async {
     final uid = _auth.currentUser?.uid;
-    await _markCurrentSessionInactive(uid);
+    await deleteCurrentSession(uid ?? '');
     await _googleSignIn.signOut();
     await _auth.signOut();
     if (uid != null) _lastSentAt.remove(uid);
@@ -236,31 +279,11 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
 
   @override
   Future<void> clearOtherSessions(String userId) async {
-    final current = currentSessionId;
-    if (current == null || current.isEmpty) return;
-
-    final sessionDocs = await _firestore
-        .collection(_usersCollection)
-        .doc(userId)
-        .collection(_sessionsCollection)
-        .where('is_active', isEqualTo: true)
-        .get();
-
-    if (sessionDocs.docs.isEmpty) return;
-
-    final batch = _firestore.batch();
-    for (final doc in sessionDocs.docs) {
-      if (doc.id == current) continue;
-      batch.update(doc.reference, {
-        'is_active': false,
-        'last_active': FieldValue.serverTimestamp(),
-      });
-    }
-    await batch.commit();
+    await deleteOtherSessions(userId);
   }
 
   @override
-  Future<void> createUserSession(String userId) async {
+  Future<void> createSessionAfterLogin(String userId) async {
     try {
       final sessionRef = _firestore
           .collection(_usersCollection)
@@ -269,16 +292,37 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
           .doc();
 
       final deviceName = await _deviceService.getDeviceName();
+      final timestamp = FieldValue.serverTimestamp();
+      final deviceToken = await FirebaseMessaging.instance.getToken();
+      final location = await _resolveLocation();
+      final previousSessionId = currentSessionId;
 
       await sessionRef.set({
+        'sessionId': sessionRef.id,
+        'deviceName': deviceName,
+        'deviceToken': deviceToken,
+        'loginAt': timestamp,
+        'lastActiveAt': timestamp,
+        'isCurrentSession': true,
         'device': deviceName,
-        'location': _defaultLocation,
-        'last_active': FieldValue.serverTimestamp(),
-        'created_at': FieldValue.serverTimestamp(),
+        'location': location,
+        'lastActive': timestamp,
+        'isActive': true,
+        'last_active': timestamp,
         'is_active': true,
+        'created_at': timestamp,
       });
 
       await _sharedPreferences.setString(_currentSessionKey, sessionRef.id);
+
+      if (previousSessionId != null && previousSessionId.isNotEmpty) {
+        await _firestore
+            .collection(_usersCollection)
+            .doc(userId)
+            .collection(_sessionsCollection)
+            .doc(previousSessionId)
+            .update({'isCurrentSession': false});
+      }
       developer.log(
         'Session created for user $userId with id ${sessionRef.id}',
         name: 'AuthRemoteDatasource',
@@ -302,8 +346,49 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
     }
   }
 
-  Future<void> _markCurrentSessionInactive(String? userId) async {
-    if (userId == null) return;
+  Future<String> _resolveLocation() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return _defaultLocation;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return _defaultLocation;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.low,
+      );
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+      if (placemarks.isEmpty) return _defaultLocation;
+
+      final placemark = placemarks.first;
+      final city = placemark.locality?.trim();
+      final country = placemark.country?.trim();
+      if ((city == null || city.isEmpty) && (country == null || country.isEmpty)) {
+        return _defaultLocation;
+      }
+      if (city == null || city.isEmpty) return country ?? _defaultLocation;
+      if (country == null || country.isEmpty) return city;
+      return '$city, $country';
+    } catch (_) {
+      return _defaultLocation;
+    }
+  }
+
+  @override
+  Future<void> createUserSession(String userId) => createSessionAfterLogin(userId);
+
+  @override
+  Future<void> deleteCurrentSession(String userId) async {
+    if (userId.isEmpty) return;
     final sessionId = currentSessionId;
     if (sessionId == null || sessionId.isEmpty) return;
 
@@ -315,11 +400,28 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
 
     final snapshot = await ref.get();
     if (!snapshot.exists) return;
+    await ref.delete();
+  }
 
-    await ref.update({
-      'is_active': false,
-      'last_active': FieldValue.serverTimestamp(),
-    });
+  @override
+  Future<void> deleteOtherSessions(String userId) async {
+    final current = currentSessionId;
+    if (current == null || current.isEmpty) return;
+
+    final sessionDocs = await _firestore
+        .collection(_usersCollection)
+        .doc(userId)
+        .collection(_sessionsCollection)
+        .get();
+
+    if (sessionDocs.docs.isEmpty) return;
+
+    final batch = _firestore.batch();
+    for (final doc in sessionDocs.docs) {
+      if (doc.id == current) continue;
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
   }
 
   AuthRemoteException _mapError(fb.FirebaseAuthException e) {
