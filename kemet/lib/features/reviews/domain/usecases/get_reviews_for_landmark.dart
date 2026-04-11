@@ -8,7 +8,7 @@ class GetReviewsForLandmarkUseCase {
 
   GetReviewsForLandmarkUseCase(this.repository);
 
-  Future<Either<Failure, List<Review>>> call(String? landmarkId) async {
+  Future<Either<Failure, List<Review>>> call(String landmarkId) async {
     return repository.getReviewsForLandmark(landmarkId);
   }
 }

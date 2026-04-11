@@ -20,8 +20,10 @@ class ReviewsCubit extends Cubit<ReviewsState> {
     required this.deleteReviewUseCase,
   }) : super(ReviewsInitial());
 
-
-  Future<void> getReviewsForLandmark(String? landmarkId, {bool showLoading = true}) async {
+  Future<void> getReviewsForLandmark(
+    String landmarkId, {
+    bool showLoading = true,
+  }) async {
     if (showLoading) {
       emit(ReviewsLoading());
     }
@@ -34,11 +36,15 @@ class ReviewsCubit extends Cubit<ReviewsState> {
   }
 
   Future<void> addReview(Review review) async {
-    emit(ReviewsLoading());
+    final currentReviews = state is ReviewsLoaded
+        ? (state as ReviewsLoaded).reviews
+        : const <Review>[];
     final failureOrReview = await addReviewUseCase(review);
     failureOrReview.fold(
       (failure) => emit(ReviewsError(message: _mapFailureToMessage(failure))),
-      (_) => getReviewsForLandmark(review.landmarkId, showLoading: false),
+      (savedReview) => emit(
+        ReviewsLoaded(reviews: _replaceUserReview(currentReviews, savedReview)),
+      ),
     );
   }
 
@@ -46,11 +52,14 @@ class ReviewsCubit extends Cubit<ReviewsState> {
     required String reviewId,
     required String landmarkId,
   }) async {
-    emit(ReviewsLoading());
+    final currentReviews = state is ReviewsLoaded
+        ? (state as ReviewsLoaded).reviews
+        : const <Review>[];
     final failureOrDelete = await deleteReviewUseCase(reviewId);
     failureOrDelete.fold(
       (failure) => emit(ReviewsError(message: _mapFailureToMessage(failure))),
-      (_) => getReviewsForLandmark(landmarkId, showLoading: false),
+      (_) =>
+          emit(ReviewsLoaded(reviews: _removeReview(currentReviews, reviewId))),
     );
   }
 
@@ -61,5 +70,22 @@ class ReviewsCubit extends Cubit<ReviewsState> {
       EmptyCacheFailure() => emptyCacheFailureMessage,
       _ => unknownFailureMessage,
     };
+  }
+
+  List<Review> _replaceUserReview(List<Review> reviews, Review saved) {
+    final updated = reviews
+        .where(
+          (review) =>
+              review.userId != saved.userId ||
+              review.landmarkId != saved.landmarkId,
+        )
+        .toList();
+    updated.add(saved);
+    updated.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return updated;
+  }
+
+  List<Review> _removeReview(List<Review> reviews, String reviewId) {
+    return reviews.where((review) => review.id != reviewId).toList();
   }
 }

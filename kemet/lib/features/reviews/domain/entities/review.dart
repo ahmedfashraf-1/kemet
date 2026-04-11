@@ -1,22 +1,19 @@
 class Review {
   final String id;
-  final String? userId;
-  final String? landmarkId;
-  final String? placeName;
-  final String? date;
-  final String? comment;
-  final double? rating;
-  final DateTime? createdAt;
+  final String userId;
+  final String username;
+  final String landmarkId;
+  final String comment;
+  final double rating;
+  final DateTime createdAt;
 
   Review({
     required this.id,
-    this.placeName,
-    this.date,
-    this.comment,
-    this.landmarkId,
-    this.rating,
-    this.userId,
-    this.createdAt
-    
+    required this.userId,
+    required this.username,
+    required this.landmarkId,
+    required this.comment,
+    required this.rating,
+    required this.createdAt,
   });
 }

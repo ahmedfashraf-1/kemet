@@ -8,10 +8,12 @@ class LandmarkBottomNavBar extends StatelessWidget {
     super.key,
     this.activeIndex = 1,
     this.bottomInset = 0,
+    this.onReviews,
   });
 
   final int activeIndex;
   final double bottomInset;
+  final VoidCallback? onReviews;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +54,7 @@ class LandmarkBottomNavBar extends StatelessWidget {
                   _navIcon(
                     icon: Icons.rate_review_outlined,
                     isActive: activeIndex == 3,
+                    onTap: onReviews,
                   ),
                 ],
               ),
@@ -62,31 +65,38 @@ class LandmarkBottomNavBar extends StatelessWidget {
     );
   }
 
-  Widget _navIcon({required IconData icon, required bool isActive}) {
-    return AnimatedScale(
-      scale: isActive ? 1.08 : 1.0,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-      child: Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.transparent,
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: AppColors.mainGold.withOpacity(0.25),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ]
-              : [],
-        ),
-        child: Icon(
-          icon,
-          color: isActive ? AppColors.mainGold : AppColors.darkGold,
-          size: 22,
+  Widget _navIcon({
+    required IconData icon,
+    required bool isActive,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedScale(
+        scale: isActive ? 1.08 : 1.0,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.transparent,
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: AppColors.mainGold.withOpacity(0.25),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Icon(
+            icon,
+            color: isActive ? AppColors.mainGold : AppColors.darkGold,
+            size: 22,
+          ),
         ),
       ),
     );

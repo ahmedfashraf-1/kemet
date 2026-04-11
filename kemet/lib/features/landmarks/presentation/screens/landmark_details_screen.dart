@@ -1,6 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/utils/share_service.dart';
+import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/discover_more_section.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_description_section.dart';
@@ -9,9 +12,6 @@ import 'package:kemet/features/landmarks/presentation/widgets/landmark_hero_sect
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_info_card.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_map_button.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_bottom_nav_bar.dart';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kemet/features/notifications/data/datasources/local_notification.dart';
 
 class LandmarkDetailsScreen extends StatefulWidget {
@@ -24,14 +24,12 @@ class LandmarkDetailsScreen extends StatefulWidget {
 }
 
 class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen> {
-  // 3. هنا بنحط الـ initState اللي بتشتغل "مرة واحدة بس" أول ما الصفحة تفتح
   @override
   void initState() {
     super.initState();
-    _saveToRecentTrips(); // بننادي الفانكشن اللي بتسجل الرحلة
+    _saveToRecentTrips();
   }
 
-  // 4. talk with Firebase
   Future<void> _saveToRecentTrips() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -51,6 +49,7 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen> {
       debugPrint("Error: $e");
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -79,12 +78,12 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen> {
                 slivers: [
                   // Hero section (image + overlay + top actions).
                   SliverToBoxAdapter(
-                    child: LandmarkHeroSection(
-                      landmark: landmark,
-                      onBack: () => Navigator.of(context).pop(),
-                      onShare: (context) => shareLandmark(context, landmark),
+                      child: LandmarkHeroSection(
+                        landmark: landmark,
+                        onBack: () => Navigator.of(context).pop(),
+                        onShare: (context) => shareLandmark(context, landmark),
+                      ),
                     ),
-                  ),
 
                   // Description section with narrative and audio button (UI only).
                   SliverToBoxAdapter(
@@ -120,7 +119,6 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen> {
                   SliverToBoxAdapter(
                     child: DiscoverMoreSection(
                       landmark: landmark,
-                      photos: landmark.photos,
                     ),
                   ),
 
@@ -137,6 +135,10 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen> {
               child: LandmarkBottomNavBar(
                 activeIndex: 1,
                 bottomInset: bottomInset,
+                onReviews: () => Navigator.of(context).pushNamed(
+                  Routes.reviewsScreen,
+                  arguments: landmark,
+                ),
               ),
             ),
           ],
