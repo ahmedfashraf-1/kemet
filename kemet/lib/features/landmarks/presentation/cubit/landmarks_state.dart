@@ -29,7 +29,16 @@ class LandmarksLoaded extends LandmarksState {
   @override
   List<Object?> get props => [landmarks, currentPage, city, kind, isLastPage];
 }
+class LandmarksEmpty extends LandmarksState {
+  final String? city;
+  final String? kind;
+  final String? query;
 
+  const LandmarksEmpty({this.city, this.kind, this.query});
+
+  @override
+  List<Object?> get props => [city, kind, query];
+}
 class LandmarksError extends LandmarksState {
   final String message;
   const LandmarksError({required this.message});

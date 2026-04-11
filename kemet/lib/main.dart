@@ -10,10 +10,9 @@ import 'package:kemet/kemet_app.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
-// دالة استقبال الرسائل في الخلفية
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print('📩 Handling a background message: ${message.messageId}');
+  print(' Handling a background message: ${message.messageId}');
 }
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -29,9 +28,8 @@ Future<void> main() async {
   final navigatorKey = GlobalKey<NavigatorState>();
   // initialize  FCM
   await NotificationService.instance.initialize(navigatorKey: navigatorKey);
-   // ✅ Local notifications
-  await LocalNotificationService.instance.initialize();
- 
+   // Local notifications
+  await LocalNotificationService.instance.initialize(key: navigatorKey); 
   
 
   final sharedPrefs = await SharedPreferences.getInstance();

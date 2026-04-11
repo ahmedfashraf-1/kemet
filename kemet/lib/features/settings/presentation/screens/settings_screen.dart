@@ -10,6 +10,7 @@ import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kemet/features/home/presentation/screens/home_screen.dart';
 import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:kemet/features/profile/presentation/di/profile_di.dart';
 import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:kemet/features/settings/presentation/cubit/payment_methods_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';

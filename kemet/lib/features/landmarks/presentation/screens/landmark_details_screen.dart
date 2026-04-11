@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/utils/share_service.dart';
@@ -10,14 +12,48 @@ import 'package:kemet/features/landmarks/presentation/widgets/landmark_hero_sect
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_info_card.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_map_button.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_bottom_nav_bar.dart';
+import 'package:kemet/features/notifications/data/datasources/local_notification.dart';
 
-class LandmarkDetailsScreen extends StatelessWidget {
+class LandmarkDetailsScreen extends StatefulWidget {
   const LandmarkDetailsScreen({super.key, required this.landmark});
 
   final Landmark landmark;
 
   @override
+  State<LandmarkDetailsScreen> createState() => _LandmarkDetailsScreenState();
+}
+
+class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _saveToRecentTrips();
+  }
+
+  Future<void> _saveToRecentTrips() async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return;
+
+      final xid = widget.landmark.id;
+      if (xid.isEmpty) return;
+
+      await FirebaseFirestore.instance.collection('users').doc(userId).set({
+        'recentTrips': FieldValue.arrayUnion([xid]),
+      }, SetOptions(merge: true));
+      LocalNotificationService.instance.showLandmarkViewedNotification(
+        landmarkName: widget.landmark.name,
+        city: widget.landmark.city,
+      );
+    } catch (e) {
+      debugPrint("Error: $e");
+    }
+  }
+
+
+  @override
   Widget build(BuildContext context) {
+    final landmark = widget.landmark;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     const barHeight = 64.0;
 

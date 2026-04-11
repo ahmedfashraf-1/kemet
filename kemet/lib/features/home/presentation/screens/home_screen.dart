@@ -1,14 +1,25 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
+import 'package:kemet/core/widgets/animated_gold_button.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
+import 'package:kemet/features/notifications/presentation/widgets/notification_bell_button.dart';
+import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:kemet/features/profile/presentation/di/profile_di.dart';
+import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
+import 'package:kemet/features/profile/presentation/widgets/profile_avatar_button.dart';
+import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Color _goldColor = Color(0xFFD4AF37);
 
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   String _selectedCategory = '';
   String _selectedCity = '';
@@ -56,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -67,6 +80,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), _applyFilters);
+  }
+
   void _openLandmarkDetails(Landmark landmark) {
     Navigator.push(
       context,
@@ -74,6 +92,129 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (_) => LandmarkDetailsScreen(landmark: landmark),
       ),
     );
+  }
+
+  void _showGuestPrompt(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.75),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F0C06),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFFD4AF37).withOpacity(0.3),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFD4AF37).withOpacity(0.08),
+                blurRadius: 30,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '𓂀',
+                style: TextStyle(fontSize: 42, color: Color(0xFFD4AF37)),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'JOIN KEMET',
+                style: GoogleFonts.cinzel(
+                  color: const Color(0xFFD4AF37),
+                  fontSize: 18,
+                  letterSpacing: 3,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Create an account to unlock your profile, save favorite places, and track your Egyptian journey.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.55),
+                  fontSize: 13,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD4AF37),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pushNamed('/onLoginScreen');
+                  },
+                  child: Text(
+                    'SIGN IN / REGISTER',
+                    style: GoogleFonts.cinzel(
+                      fontSize: 13,
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Continue as Guest',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.35),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final isGuest = user == null || user.isAnonymous;
+
+    if (isGuest) {
+      _showGuestPrompt(context);
+      return;
+    }
+
+    final userId = user.uid;
+    if (!mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlocProvider(
+          create: (_) => getIt<ProfileCubit>(),
+          child: ProfileScreen(userId: userId),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _logout() async {
+    await context.read<SettingsCubit>().clearProfileAvatar();
+    await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, '/onLoginScreen', (_) => false);
   }
 
   @override
@@ -99,7 +240,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       SizedBox(height: 24.h),
                       _buildHeroTitle(),
                       SizedBox(height: 24.h),
-
+                      _buildSearchBar(),
+                      SizedBox(height: 18.h),
                       _buildFilterList(
                         items: _egyptCities,
                         selectedValue: _selectedCity,
@@ -111,7 +253,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                       SizedBox(height: 16.h),
-
                       _buildFilterList(
                         items: _categories,
                         selectedValue: _selectedCategory,
@@ -135,12 +276,40 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: CircularProgressIndicator(color: _goldColor),
                         ),
                       );
+                    } else if (state is LandmarksEmpty) {
+                      return SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: Text(
+                            context.tr('no_data'),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.65),
+                              fontSize: 16.sp,
+                            ),
+                          ),
+                        ),
+                      );
                     } else if (state is LandmarksError) {
                       return SliverFillRemaining(
                         child: Center(
-                          child: Text(
-                            state.message,
-                            style: const TextStyle(color: Colors.redAccent),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                state.message,
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                              SizedBox(height: 12.h),
+                              SizedBox(
+                                width: 170.w,
+                                child: AnimatedGoldButton(
+                                  text: context.tr('retry'),
+                                  onTap: _applyFilters,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       );
@@ -159,31 +328,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       return SliverPadding(
                         padding: EdgeInsets.only(bottom: shellOverlayClearance),
                         sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            if (index == state.landmarks.length) {
-                              return _buildPagination(
-                                currentPage: state.currentPage,
-                                isLastPage: state.isLastPage,
-                                onPageSelected: (page) {
-                                  context.read<LandmarksCubit>().getLandmarks(
-                                    page: page,
-                                    city: state.city,
-                                    kind: state.kind,
-                                    isPagination: true,
-                                  );
-                                },
-                              );
-                            }
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              if (index == state.landmarks.length) {
+                                return _buildPagination(
+                                  currentPage: state.currentPage,
+                                  isLastPage: state.isLastPage,
+                                  onPageSelected: (page) {
+                                    context
+                                        .read<LandmarksCubit>()
+                                        .getLandmarks(
+                                          page: page,
+                                          city: state.city,
+                                          kind: state.kind,
+                                          isPagination: true,
+                                        );
+                                  },
+                                );
+                              }
 
-                            final landmark = state.landmarks[index];
-                            return Padding(
-                              padding: EdgeInsets.only(bottom: 28.h),
-                              child: _buildLandmarkCard(landmark),
-                            );
-                          }, childCount: state.landmarks.length + 1),
+                              final landmark = state.landmarks[index];
+                              return Padding(
+                                padding: EdgeInsets.only(bottom: 28.h),
+                                child: _buildLandmarkCard(landmark),
+                              );
+                            },
+                            childCount: state.landmarks.length + 1,
+                          ),
                         ),
                       );
                     }
@@ -199,6 +370,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTopAppBar() {
+    final avatarLocalPath =
+        context.select((SettingsCubit cubit) => cubit.state.avatarLocalPath);
+    final avatarRemoteUrl =
+        context.select((SettingsCubit cubit) => cubit.state.avatarRemoteUrl);
+    final avatarCacheBuster =
+        context.select((SettingsCubit cubit) => cubit.state.avatarCacheBuster);
+
     return Container(
       color: _bgColor,
       padding: EdgeInsets.only(
@@ -210,30 +388,23 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            width: 40.w,
-            height: 40.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.03),
-              border: Border.all(
-                color: _goldColor.withOpacity(0.75),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: _goldColor.withOpacity(0.12),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: const Icon(
-              Icons.person,
-              color: AppColors.textDarkOnGold,
-              size: 22,
-            ),
+          StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.userChanges(),
+            builder: (context, snapshot) {
+              final user =
+                  snapshot.data ?? FirebaseAuth.instance.currentUser;
+              final isGuest = user == null || user.isAnonymous;
+              return ProfileAvatarButton(
+                name: user?.displayName ?? 'Guest',
+                email: user?.email ?? '',
+                avatarLocalPath: avatarLocalPath,
+                avatarRemoteUrl: avatarRemoteUrl,
+                avatarCacheBuster: avatarCacheBuster,
+                isGuest: isGuest,
+                onViewProfile: _openProfile,
+                onLogout: _logout,
+              );
+            },
           ),
           Text(
             'KEMET',
@@ -244,11 +415,56 @@ class _HomeScreenState extends State<HomeScreen> {
               letterSpacing: 5,
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.notifications, color: _goldColor, size: 24),
-          ),
+          const NotificationBellButton(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 24.w),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(9999),
+          border: Border.all(color: _goldColor.withOpacity(0.22)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.25),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            SizedBox(width: 16.w),
+            Icon(
+              Icons.search,
+              color: _goldColor.withOpacity(0.75),
+              size: 21.sp,
+            ),
+            SizedBox(width: 8.w),
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                decoration: InputDecoration(
+                  hintText: context.tr('search_hint'),
+                  hintStyle: TextStyle(
+                    color: Colors.white.withOpacity(0.45),
+                    fontSize: 13.sp,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 14.h),
+                ),
+              ),
+            ),
+            SizedBox(width: 16.w),
+          ],
+        ),
       ),
     );
   }
@@ -268,14 +484,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               children: [
                 TextSpan(
-                  text: 'Iconic\n',
-                  style: TextStyle(
+                  text: '${context.tr('iconic')}\n',
+                  style: const TextStyle(
                     fontWeight: FontWeight.w400,
                     color: Colors.white,
                   ),
                 ),
                 TextSpan(
-                  text: 'Landmarks',
+                  text: context.tr('landmarks'),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: _goldColor,
@@ -286,7 +502,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           SizedBox(height: 10.h),
           Text(
-            'Curated destinations with timeless history and elegance.',
+            context.tr('hero_subtitle'),
             style: TextStyle(
               color: Colors.white.withOpacity(0.62),
               fontSize: 12.5.sp,
@@ -325,7 +541,9 @@ class _HomeScreenState extends State<HomeScreen> {
               duration: const Duration(milliseconds: 250),
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               decoration: BoxDecoration(
-                color: isActive ? AppColors.mainGold : AppColors.cardBackground,
+                color: isActive
+                    ? AppColors.mainGold
+                    : AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(9999),
                 border: Border.all(
                   color: isActive
@@ -335,7 +553,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Center(
                 child: Text(
-                  item.toUpperCase(),
+                  _filterLabel(context, item).toUpperCase(),
                   style: GoogleFonts.cinzel(
                     fontSize: 10.sp,
                     fontWeight: FontWeight.w700,
@@ -353,6 +571,39 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  String _filterLabel(BuildContext context, String value) {
+    switch (value) {
+      case 'All':
+        return context.tr('all');
+      case 'Cairo':
+        return context.tr('city_cairo');
+      case 'Luxor':
+        return context.tr('city_luxor');
+      case 'Aswan':
+        return context.tr('city_aswan');
+      case 'Giza':
+        return context.tr('city_giza');
+      case 'Alexandria':
+        return context.tr('city_alexandria');
+      case 'Red Sea':
+        return context.tr('city_red_sea');
+      case 'South Sinai':
+        return context.tr('city_south_sinai');
+      case 'historic':
+        return context.tr('category_historic');
+      case 'temple':
+        return context.tr('category_temple');
+      case 'museum':
+        return context.tr('category_museum');
+      case 'nature':
+        return context.tr('category_nature');
+      case 'island':
+        return context.tr('category_island');
+      default:
+        return value;
+    }
+  }
+
   Widget _buildPagination({
     required int currentPage,
     required bool isLastPage,
@@ -368,7 +619,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? () => onPageSelected(currentPage - 1)
                 : null,
             child: Text(
-              'BACK',
+              context.tr('back').toUpperCase(),
               style: GoogleFonts.cinzel(
                 color: currentPage > 1 ? _goldColor : Colors.white24,
                 fontWeight: FontWeight.bold,
@@ -404,7 +655,7 @@ class _HomeScreenState extends State<HomeScreen> {
           GestureDetector(
             onTap: !isLastPage ? () => onPageSelected(currentPage + 1) : null,
             child: Text(
-              'NEXT',
+              context.tr('next_caps').toUpperCase(),
               style: GoogleFonts.cinzel(
                 color: !isLastPage ? _goldColor : Colors.white24,
                 fontWeight: FontWeight.bold,
@@ -446,9 +697,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildLandmarkCard(Landmark landmark) {
     final isFav = _favourites[landmark.id] ?? false;
 
-    final imageUrl = landmark.photos.isNotEmpty
-        ? landmark.photos.first.url
-        : '';
+    final imageUrl =
+        landmark.photos.isNotEmpty ? landmark.photos.first.url : '';
     final parsedUri = Uri.tryParse(imageUrl);
     final hasValidNetworkUrl =
         imageUrl.isNotEmpty &&
@@ -485,7 +735,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   AspectRatio(
                     aspectRatio: 16 / 10,
-
                     child: Hero(
                       tag: _heroTag(landmark.id),
                       child: hasValidNetworkUrl
@@ -533,9 +782,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         color: _goldColor.withOpacity(0.18),
                         borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: _goldColor.withOpacity(0.35)),
+                        border: Border.all(
+                          color: _goldColor.withOpacity(0.35),
+                        ),
                       ),
-
                       child: Text(
                         landmark.category.name.toUpperCase(),
                         style: TextStyle(
@@ -662,7 +912,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                         child: Text(
-                          'VIEW DETAILS',
+                          context.tr('view_details'),
                           style: GoogleFonts.inter(
                             color: AppColors.textDarkOnGold,
                             fontSize: 18.sp,
@@ -684,7 +934,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPlaceholderImage() {
     return Container(
       color: const Color(0xFF1A1A1A),
-      child: Center(child: Icon(Icons.landscape, color: _goldColor, size: 60)),
+      child: Center(
+        child: Icon(Icons.landscape, color: _goldColor, size: 60),
+      ),
     );
   }
 

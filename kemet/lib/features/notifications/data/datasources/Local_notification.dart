@@ -1,83 +1,102 @@
-import 'dart:math';
+// 2 Goals
+// 1- display not. on phone
+// 2- save not. on firestore
+
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 
+// Singleton ---> only one instance on app
 class LocalNotificationService {
   LocalNotificationService._();
   static final LocalNotificationService instance =
       LocalNotificationService._();
 
-  final _plugin = FlutterLocalNotificationsPlugin();
-  bool _initialized = false;
 
+  // package ---> display mess. on phone
+  final _plugin = FlutterLocalNotificationsPlugin();
+
+
+  // Id for each not. ++
+  // ++ ---> y3nii lama had ydef not. yzwed hna
   static const int _welcomeId  = 1;
   static const int _landmarkId = 2;
-  static const int _reengagementId = 42;
 
+
+   // user pressed on  not. "without ui"
+   GlobalKey<NavigatorState>? navigatorKey;
+
+  // prefs.setBool(_pushKey, true); // zay map keda n3rf peha ps howa m48al not. wla laa
+  // prefs.getBool(_pushKey); 
   static const String _pushKey = 'settings_push_notifications';
-  static const String _reengagementChannelId = 'kemet_reengagement';
 
-  Future<void> initialize() async {
-    if (_initialized) return;
-    _initialized = true;
 
-    tz.initializeTimeZones();
 
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings();
-    const initSettings =
-        InitializationSettings(android: androidSettings, iOS: iosSettings);
-    await _plugin.initialize(initSettings);
+  // initialization :-
+  // 1- notification system
+  // 2- create channel
+  Future<void> initialize({
+    required GlobalKey<NavigatorState> key,
+  }) async {
+
+    navigatorKey = key;
+    // icon in not.
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    // all setting in obj. to send plugin
+    const initSettings = InitializationSettings(android: androidSettings);
+   await _plugin.initialize(initSettings);
+       await _plugin.initialize(
+       initSettings,
+       onDidReceiveNotificationResponse: _onNotificationTap,
+     );
+
+    // android need channel for each not.
     await _createChannel();
-    await _requestPermissions();
   }
+
+  
+void _onNotificationTap(NotificationResponse response) {
+  final parts = (response.payload ?? '').split('||');
+  final title = parts.isNotEmpty ? parts[0] : '';
+  final body  = parts.length > 1 ? parts[1] : '';
+
+  Future.delayed(const Duration(milliseconds: 300), () {
+
+    navigatorKey?.currentState?.push(
+    MaterialPageRoute(
+        builder: (_) => const NotificationsScreen(),
+      ),
+    );
+    navigatorKey?.currentState?.pushNamed(
+      Routes.notificationDetails,
+      arguments: {'title': title, 'body': body},
+    );
+  });
+}
 
   Future<void> _createChannel() async {
     const channel = AndroidNotificationChannel(
       'kemet_channel',
       'Kemet Notifications',
       description: 'Notifications from Kemet app',
+      // popup + sound
       importance: Importance.high,
       playSound: true,
     );
-    const reengagementChannel = AndroidNotificationChannel(
-      _reengagementChannelId,
-      'Kemet Reminders',
-      description: 'Periodic reminders to explore Egypt',
-      importance: Importance.high,
-      playSound: true,
-    );
-    final androidPlugin = _plugin
+    await _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.createNotificationChannel(channel);
-    await androidPlugin?.createNotificationChannel(reengagementChannel);
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
   }
 
-  Future<void> _requestPermissions() async {
-    final androidPlugin = _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.requestNotificationsPermission();
-
-    final iosPlugin = _plugin
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>();
-    await iosPlugin?.requestPermissions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-  }
-
-  // in setting
+  // in setting ---> push_not. !!
   Future<bool> _isPushEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_pushKey) ?? true;
@@ -85,7 +104,6 @@ class LocalNotificationService {
 
 
   // 1. Welcome Notification
-  
   Future<void> showWelcomeNotification({
     required String userName,
     required String userId,
@@ -93,12 +111,17 @@ class LocalNotificationService {
     
     if (!await _isPushEnabled()) return;
 
+    const title = 'eh eldoniaa , excited ?!! 🤩🔥🔥';
+    const body  = 'ya pasha garp w htd3elii 😉';
+
+  //  firebase to display---> page not.
     await _saveToFirestore(
       userId: userId,
-      title: '✦ Welcome to KEMET!',
-      body: 'Discover Egypt\'s timeless landmarks. Your journey starts now. 🏛',
+      title: 'eh eldoniaa , excited ?!! 🤩🔥🔥',
+      body: 'ya pasha garp w htd3elii 😉',
     );
 
+    // ui
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
         'kemet_channel',
@@ -110,40 +133,47 @@ class LocalNotificationService {
         color: const Color(0xFFD4AF37),
         largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
         styleInformation: BigTextStyleInformation(
-          'Discover Egypt\'s timeless landmarks, hidden gems, and ancient wonders. 🏛',
-          contentTitle: '✦ Welcome to KEMET, $userName!',
-          summaryText: 'Start exploring',
+          'masr mestanyak... !🔥',
+          //🏛
+          contentTitle: '🤩 wl33 eldoniaaa , $userName!',
+          summaryText: 'Let’s unlock secrets 😉',
         ),
       ),
     );
 
-    await _plugin.show(
+     await _plugin.show(
       _welcomeId,
       '✦ Welcome to KEMET!',
       'Discover Egypt\'s timeless landmarks. 🏛',
       details,
+      payload: '$title||$body',
     );
   }
 
 
   // 2. Landmark Viewed Notification
-
   Future<void> showLandmarkViewedNotification({
     required String landmarkName,
     required String city,
   }) async {
+
+    if (!await _isPushEnabled()) return;
+
+    
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    final title  = 'el $landmarkName kanet helwa?🤩';
+    const body   = 'akal haga 3ndna 😎';
+ 
+
     await Future.delayed(const Duration(seconds: 30));
 
   
-    if (!await _isPushEnabled()) return;
-
-    final userId = FirebaseAuth.instance.currentUser?.uid;
 
     if (userId != null) {
       await _saveToFirestore(
         userId: userId,
-        title: 'How was $landmarkName? ⭐',
-        body: 'Leave a review and help other explorers!',
+        title: 'el $landmarkName 3gabtk ?🤩',
+        body: ' a2al haga 3ndna 5li palk 😎',
       );
     }
 
@@ -157,83 +187,25 @@ class LocalNotificationService {
         icon: '@mipmap/ic_launcher',
         color: const Color(0xFFD4AF37),
         styleInformation: BigTextStyleInformation(
-          'Share your experience with other explorers and help them discover this amazing place.',
-          contentTitle: 'How was $landmarkName?',
+          'mtp5alsh 3lena p r2yak tyep 😜🔥',
+          contentTitle: 'shofnak shoft el $landmarkName?',
           summaryText: city,
         ),
       ),
     );
 
-    await _plugin.show(
+  await _plugin.show(
       _landmarkId,
       'How was $landmarkName? ⭐',
       'Leave a review and help other explorers!',
       details,
+      payload: '$title||$body',
     );
   }
 
-  Future<void> scheduleReEngagementNotification({
-    Duration delay = const Duration(hours: 24),
-  }) async {
-    await initialize();
+  
 
-    if (!await _isPushEnabled()) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
-    if (!isLoggedIn) return;
-
-    const messages = [
-      '𓂀 The pharaohs are waiting... Come explore Egypt\'s wonders',
-      '✦ New hidden gems discovered in Luxor. Don\'t miss out',
-      '𓂀 Your Egyptian journey awaits — pick up where you left off',
-      '✦ Kemet misses you. Come discover ancient secrets',
-      '𓂀 The Nile is calling... Your next adventure is waiting',
-      '✦ Ancient mysteries await you in Kemet',
-    ];
-    final message = messages[Random().nextInt(messages.length)];
-
-    final details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        _reengagementChannelId,
-        'Kemet Reminders',
-        channelDescription: 'Periodic reminders to explore Egypt',
-        importance: Importance.high,
-        priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
-        color: const Color(0xFFD4AF37),
-        largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-        styleInformation: BigTextStyleInformation(
-          message,
-          contentTitle: '𓂀 Kemet Awaits',
-          summaryText: 'Tap to continue your journey',
-        ),
-      ),
-      iOS: const DarwinNotificationDetails(
-        presentAlert: true,
-        presentSound: true,
-      ),
-    );
-
-    await _plugin.cancel(_reengagementId);
-    await _plugin.zonedSchedule(
-      _reengagementId,
-      '𓂀 Kemet Awaits',
-      message,
-      tz.TZDateTime.now(tz.local).add(delay),
-      details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      androidAllowWhileIdle: true,
-    );
-  }
-
-  Future<void> cancelReEngagementNotification() async {
-    await _plugin.cancel(_reengagementId);
-  }
-
-  Future<void> _saveToFirestore({
+Future<void> _saveToFirestore({
     required String userId,
     required String title,
     required String body,
@@ -246,6 +218,10 @@ class LocalNotificationService {
         'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-    } catch (_) {}
+      debugPrint('✅ Notification saved');
+    } catch (e) {
+      debugPrint('❌ Failed: $e');
+    }
   }
+  
 }
