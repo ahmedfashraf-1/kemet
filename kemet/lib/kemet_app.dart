@@ -20,6 +20,12 @@ import 'package:kemet/features/reviews/domain/repositories/reviews_repository.da
 import 'package:kemet/features/splash/presentation/screens/splash_view.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kemet/features/favorite/data/datasources/favorites_local_data_source.dart';
+import 'package:kemet/features/favorite/data/repositories/favorites_repository_impl.dart';
+import 'package:kemet/features/favorite/domain/repositories/favorites_repository.dart';
+import 'package:kemet/features/favorite/domain/usecases/get_favorites_usecase.dart';
+import 'package:kemet/features/favorite/domain/usecases/toggle_favorite_usecase.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
 
 class KemetApp extends StatelessWidget {
   final AppRouter appRouter;
@@ -78,9 +84,28 @@ class KemetApp extends StatelessWidget {
             networkInfo: NetworkInfoImpl(InternetConnectionChecker.instance),
           ),
         ),
+        RepositoryProvider<FavoritesRepository>(
+          create: (context) => FavoritesRepositoryImpl(
+          localDataSource: FavoritesLocalDataSourceImpl(
+            sharedPreferences: sharedPreferences,
+          ),
+          landmarksRepository: context.read<LandmarksRepository>(),
+        ),
+      ),
       ],
-      child: BlocProvider(
-        create: (_) => SettingsCubit(sharedPreferences: sharedPreferences),
+      child: MultiBlocProvider(
+        providers: [
+        BlocProvider(
+          create: (_) => SettingsCubit(sharedPreferences: sharedPreferences),
+        ),
+
+        BlocProvider<FavoritesCubit>(
+          create: (context) => FavoritesCubit(
+            getFavorites: GetFavoritesUsecase(context.read<FavoritesRepository>()),
+            toggleFavorite: ToggleFavoriteUsecase(context.read<FavoritesRepository>()),
+          )..loadFavorites(),
+        ),
+      ],
         child: ScreenUtilInit(
           designSize: const Size(375, 812),
           minTextAdapt: true,

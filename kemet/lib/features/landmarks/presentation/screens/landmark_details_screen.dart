@@ -13,7 +13,9 @@ import 'package:kemet/features/landmarks/presentation/widgets/landmark_info_card
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_map_button.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_bottom_nav_bar.dart';
 import 'package:kemet/features/notifications/data/datasources/local_notification.dart';
-
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
 class LandmarkDetailsScreen extends StatefulWidget {
   const LandmarkDetailsScreen({super.key, required this.landmark});
 
@@ -78,12 +80,23 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen> {
                 slivers: [
                   // Hero section (image + overlay + top actions).
                   SliverToBoxAdapter(
-                      child: LandmarkHeroSection(
-                        landmark: landmark,
-                        onBack: () => Navigator.of(context).pop(),
-                        onShare: (context) => shareLandmark(context, landmark),
-                      ),
+                    child: BlocBuilder<FavoritesCubit, FavoritesState>(
+                      builder: (context, favState) {
+                        final isFav = favState is FavoritesLoaded
+                            ? favState.favoriteIds.contains(landmark.id)
+                            : false;
+
+                        return LandmarkHeroSection(
+                          landmark: landmark,
+                          isFavorite: isFav,
+                          onBack: () => Navigator.of(context).pop(),
+                          onShare: (context) => shareLandmark(context, landmark),
+                          onFavorite: () =>
+                              context.read<FavoritesCubit>().toggle(landmark.id),
+                        );
+                      },
                     ),
+                  ),
 
                   // Description section with narrative and audio button (UI only).
                   SliverToBoxAdapter(

@@ -8,6 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
 
@@ -798,33 +800,42 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                  // 
                   Positioned(
-                    top: 12.h,
-                    right: 12.w,
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _favourites[landmark.id] = !isFav;
-                        });
-                      },
-                      child: Container(
-                        width: 48.w,
-                        height: 48.w,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _bgColor.withOpacity(0.62),
-                          border: Border.all(
-                            color: _goldColor.withOpacity(0.24),
-                          ),
-                        ),
-                        child: Icon(
-                          isFav ? Icons.favorite : Icons.favorite_border,
-                          color: _goldColor,
-                          size: 21,
-                        ),
+                      top: 12.h,
+                      right: 12.w,
+                      child: BlocBuilder<FavoritesCubit, FavoritesState>(
+                        builder: (context, favState) {
+                          final isFav = favState is FavoritesLoaded
+                              ? favState.isFavorite(landmark.id)
+                              : false;
+
+                          return GestureDetector(
+                            onTap: () => context.read<FavoritesCubit>().toggle(landmark.id),
+                            child: Container(
+                              width: 48.w,
+                              height: 48.w,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _bgColor.withOpacity(0.62),
+                                border: Border.all(color: _goldColor.withOpacity(0.24)),
+                              ),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 250),
+                                transitionBuilder: (child, anim) =>
+                                    ScaleTransition(scale: anim, child: child),
+                                child: Icon(
+                                  isFav ? Icons.favorite : Icons.favorite_border,
+                                  key: ValueKey(isFav),
+                                  color: _goldColor,
+                                  size: 21,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  ),
                   Positioned(
                     bottom: 18.h,
                     left: 18.w,

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -5,7 +6,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/utils/extensions.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
+import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 
 import '../cubit/profile_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
@@ -296,26 +301,53 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                       ),
                     ),
 
+                // ── Favorite Places Section ──────────────────────────────────
                 const ProfileSectionLabel(label: 'FAVORITE PLACES'),
 
-                if (state.favoritePlaces.isEmpty)
-                  _buildEmptyHint('No favorites yet.')
-                else
-                  ...state.favoritePlaces.map(
-                    (f) => Padding(
-                      padding: EdgeInsets.only(bottom: 6.h),
-                      child: ProfileSavedItem(
-                        //icon: f.icon,
-                        name: f.name,
-                        location: f.location,
-                        icon: '',
-                      ),
-                    ),
-                  ),
+                BlocBuilder<FavoritesCubit, FavoritesState>(
+                  builder: (context, favState) {
+                    if (favState is! FavoritesLoaded || favState.favorites.isEmpty) {
+                      return _buildEmptyHint('No favorites yet.');
+                    }
 
-                SizedBox(height: 16.h),
-                const ProfileSignOutButton(),
-                SizedBox(height: 24.h),
+                    // أول 3 فقط
+                    final preview = favState.favorites.take(3).toList();
+
+                    return Column(
+                      children: [
+                        ...preview.map(
+                          (landmark) => Padding(
+                            padding: EdgeInsets.only(bottom: 8.h),
+                            child: _buildFavoritePreviewItem(context, landmark),
+                          ),
+                        ),
+
+                        // سهم "See All" لو عنده أكتر من 3
+                        if (favState.favorites.length > 3)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () =>
+                                  Navigator.pushNamed(context, Routes.favoritesScreen),
+                              icon: Text(
+                                'See all ${favState.favorites.length}',
+                                style: TextStyle(
+                                  color: _goldColor,
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              label: Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: _goldColor,
+                                size: 14.sp,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -324,8 +356,95 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     );
   }
 
-  // Name Section
+  Widget _buildFavoritePreviewItem(BuildContext context, Landmark landmark) {
+    final imageUrl = landmark.photos.isNotEmpty
+        ? landmark.photos.first.url
+        : '';
+    final hasValidUrl = imageUrl.isNotEmpty &&
+        (Uri.tryParse(imageUrl)?.hasScheme ?? false);
 
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(
+        context,
+        Routes.landmarkDetails,
+        arguments: landmark,
+      ),
+      child: Container(
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(color: _goldColor.withOpacity(0.18)),
+        ),
+        child: Row(
+          children: [
+            // Thumbnail
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10.r),
+              child: SizedBox(
+                width: 58.w,
+                height: 58.w,
+                child: hasValidUrl
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: const Color(0xFF1A1A1A),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: const Color(0xFF1A1A1A),
+                          child: const Icon(Icons.image_not_supported,
+                              color: Colors.grey),
+                        ),
+                      )
+                    : Container(color: const Color(0xFF1A1A1A)),
+              ),
+            ),
+
+            SizedBox(width: 14.w),
+
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    landmark.name,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 4.h),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_outlined,
+                          color: _goldColor.withOpacity(0.8), size: 13.sp),
+                      SizedBox(width: 4.w),
+                      Text(
+                        landmark.city,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 11.sp,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Arrow
+            Icon(Icons.arrow_forward_ios_rounded,
+                color: _goldColor.withOpacity(0.6), size: 14.sp),
+          ],
+        ),
+      ),
+    );
+  }
   Widget _buildNameSection(String fullName, String email) {
     return Center(
       child: Column(

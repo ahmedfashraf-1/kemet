@@ -42,6 +42,12 @@ import 'package:kemet/features/landmarks/domain/repositories/landmarks_repositor
 import 'package:kemet/features/landmarks/domain/usecases/get_all_landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
 
+//fav
+import 'package:kemet/features/favorite/domain/usecases/get_favorites_usecase.dart';
+import 'package:kemet/features/favorite/domain/usecases/toggle_favorite_usecase.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
+import 'package:kemet/features/favorite/presentation/screens/favorites_page.dart';
+import 'package:kemet/features/favorite/domain/repositories/favorites_repository.dart';
 class AppRouter {
   Route generateRoute(RouteSettings setting) {
     switch (setting.name) {
@@ -118,6 +124,11 @@ class AppRouter {
       case Routes.settingsScreen:
         return _fadeDominantFromRight(
           BlocProvider(create: _buildAuthCubit, child: const SettingsScreen()),
+          setting,
+        );
+      case Routes.favoritesScreen:
+        return _fadeDominantFromRight(
+          const FavoritesPage(),
           setting,
         );
 

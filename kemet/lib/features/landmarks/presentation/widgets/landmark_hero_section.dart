@@ -9,14 +9,15 @@ class LandmarkHeroSection extends StatelessWidget {
     super.key,
     required this.landmark,
     required this.onBack,
+    required this.isFavorite,
     this.onFavorite,
     this.onShare,
   });
 
   final Landmark landmark;
   final VoidCallback onBack;
-  final VoidCallback? onFavorite;
-  final Future<void> Function(BuildContext context)? onShare;
+  final bool isFavorite;
+  final VoidCallback? onFavorite;  final Future<void> Function(BuildContext context)? onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -81,9 +82,9 @@ class LandmarkHeroSection extends StatelessWidget {
                   Row(
                     children: [
                       _circleIcon(
-                        icon: Icons.favorite,
+                        icon: isFavorite ? Icons.favorite : Icons.favorite_border, 
                         onTap: onFavorite,
-                        filled: true,
+                        filled: isFavorite, 
                       ),
                       const SizedBox(width: 6),
                       _circleIcon(icon: Icons.share, onTapWithContext: onShare),
