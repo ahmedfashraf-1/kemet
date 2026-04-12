@@ -8,7 +8,19 @@ class GetAllLandmarksUsecase {
 
   GetAllLandmarksUsecase(this.repository);
 
-  Future<Either<Failure, List<Landmark>>> call({required int page, required int limit, String? city, String? kind,}) async {
-    return await repository.getAllLandmarks(page:page, limit: limit, city: city, kind: kind);
+  Future<Either<Failure, List<Landmark>>> call({
+    required int page,
+    required int limit,
+    String? city,
+    String? kind,
+    String? query,
+  }) async {
+    return await repository.getAllLandmarks(
+      page: page,
+      limit: limit,
+      city: city,
+      kind: kind,
+      query: query,
+    );
   }
 }

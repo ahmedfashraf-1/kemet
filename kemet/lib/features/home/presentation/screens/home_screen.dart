@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
+  StreamSubscription<User?>? _authSubscription;
 
   String _selectedCategory = '';
   String _selectedCity = '';
@@ -63,12 +64,18 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LandmarksCubit>().getLandmarks(page: 1);
+      context.read<SettingsCubit>().loadProfileAvatarForCurrentUser();
+    });
+    _authSubscription = FirebaseAuth.instance.userChanges().listen((_) {
+      if (!mounted) return;
+      context.read<SettingsCubit>().loadProfileAvatarForCurrentUser();
     });
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _authSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -77,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<LandmarksCubit>().applyFilter(
       city: _selectedCity.isEmpty ? null : _selectedCity,
       kind: _selectedCategory.isEmpty ? null : _selectedCategory,
+      query: _searchController.text,
     );
   }
 
@@ -105,9 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFF0F0C06),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: const Color(0xFFD4AF37).withOpacity(0.3),
-            ),
+            border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFFD4AF37).withOpacity(0.08),
@@ -211,7 +217,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _logout() async {
-    await context.read<SettingsCubit>().clearProfileAvatar();
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(context, '/onLoginScreen', (_) => false);
@@ -297,9 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Text(
                                 state.message,
-                                style: const TextStyle(
-                                  color: Colors.redAccent,
-                                ),
+                                style: const TextStyle(color: Colors.redAccent),
                               ),
                               SizedBox(height: 12.h),
                               SizedBox(
@@ -328,33 +331,32 @@ class _HomeScreenState extends State<HomeScreen> {
                       return SliverPadding(
                         padding: EdgeInsets.only(bottom: shellOverlayClearance),
                         sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              if (index == state.landmarks.length) {
-                                return _buildPagination(
-                                  currentPage: state.currentPage,
-                                  isLastPage: state.isLastPage,
-                                  onPageSelected: (page) {
-                                    context
-                                        .read<LandmarksCubit>()
-                                        .getLandmarks(
-                                          page: page,
-                                          city: state.city,
-                                          kind: state.kind,
-                                          isPagination: true,
-                                        );
-                                  },
-                                );
-                              }
-
-                              final landmark = state.landmarks[index];
-                              return Padding(
-                                padding: EdgeInsets.only(bottom: 28.h),
-                                child: _buildLandmarkCard(landmark),
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            if (index == state.landmarks.length) {
+                              return _buildPagination(
+                                currentPage: state.currentPage,
+                                isLastPage: state.isLastPage,
+                                onPageSelected: (page) {
+                                  context.read<LandmarksCubit>().getLandmarks(
+                                    page: page,
+                                    city: state.city,
+                                    kind: state.kind,
+                                    query: state.query,
+                                    isPagination: true,
+                                  );
+                                },
                               );
-                            },
-                            childCount: state.landmarks.length + 1,
-                          ),
+                            }
+
+                            final landmark = state.landmarks[index];
+                            return Padding(
+                              padding: EdgeInsets.only(bottom: 28.h),
+                              child: _buildLandmarkCard(landmark),
+                            );
+                          }, childCount: state.landmarks.length + 1),
                         ),
                       );
                     }
@@ -370,12 +372,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTopAppBar() {
-    final avatarLocalPath =
-        context.select((SettingsCubit cubit) => cubit.state.avatarLocalPath);
-    final avatarRemoteUrl =
-        context.select((SettingsCubit cubit) => cubit.state.avatarRemoteUrl);
-    final avatarCacheBuster =
-        context.select((SettingsCubit cubit) => cubit.state.avatarCacheBuster);
+    final avatarLocalPath = context.select(
+      (SettingsCubit cubit) => cubit.state.avatarLocalPath,
+    );
+    final avatarRemoteUrl = context.select(
+      (SettingsCubit cubit) => cubit.state.avatarRemoteUrl,
+    );
+    final avatarCacheBuster = context.select(
+      (SettingsCubit cubit) => cubit.state.avatarCacheBuster,
+    );
 
     return Container(
       color: _bgColor,
@@ -391,8 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
           StreamBuilder<User?>(
             stream: FirebaseAuth.instance.userChanges(),
             builder: (context, snapshot) {
-              final user =
-                  snapshot.data ?? FirebaseAuth.instance.currentUser;
+              final user = snapshot.data ?? FirebaseAuth.instance.currentUser;
               final isGuest = user == null || user.isAnonymous;
               return ProfileAvatarButton(
                 name: user?.displayName ?? 'Guest',
@@ -541,9 +545,7 @@ class _HomeScreenState extends State<HomeScreen> {
               duration: const Duration(milliseconds: 250),
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.mainGold
-                    : AppColors.cardBackground,
+                color: isActive ? AppColors.mainGold : AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(9999),
                 border: Border.all(
                   color: isActive
@@ -697,8 +699,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildLandmarkCard(Landmark landmark) {
     final isFav = _favourites[landmark.id] ?? false;
 
-    final imageUrl =
-        landmark.photos.isNotEmpty ? landmark.photos.first.url : '';
+    final imageUrl = landmark.photos.isNotEmpty
+        ? landmark.photos.first.url
+        : '';
     final parsedUri = Uri.tryParse(imageUrl);
     final hasValidNetworkUrl =
         imageUrl.isNotEmpty &&
@@ -782,9 +785,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         color: _goldColor.withOpacity(0.18),
                         borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: _goldColor.withOpacity(0.35),
-                        ),
+                        border: Border.all(color: _goldColor.withOpacity(0.35)),
                       ),
                       child: Text(
                         landmark.category.name.toUpperCase(),
@@ -934,9 +935,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPlaceholderImage() {
     return Container(
       color: const Color(0xFF1A1A1A),
-      child: Center(
-        child: Icon(Icons.landscape, color: _goldColor, size: 60),
-      ),
+      child: Center(child: Icon(Icons.landscape, color: _goldColor, size: 60)),
     );
   }
 

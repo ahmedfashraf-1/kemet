@@ -24,7 +24,16 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
     required int limit,
     String? city,
     String? kind,
+    String? query,
   }) async {
+    final hasQuery = query != null && query.trim().isNotEmpty;
+    if (hasQuery) {
+      final cachedResult = await _getFromCacheForSearch(city: city, kind: kind);
+      if (cachedResult != null) {
+        return Right(cachedResult);
+      }
+    }
+
     try {
       // 1) Always try remote first.
       final remoteLandmarks = await remoteDataSource.getAllLandmarks(
@@ -50,6 +59,34 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
         city: city,
         kind: kind,
       );
+    }
+  }
+
+  Future<List<Landmark>?> _getFromCacheForSearch({
+    String? city,
+    String? kind,
+  }) async {
+    try {
+      List<Landmark> localLandmarks = await localDataSource
+          .getCachedLandmarks();
+
+      if (city != null && city.isNotEmpty) {
+        localLandmarks = localLandmarks.where((landmark) {
+          return landmark.city.toLowerCase() == city.toLowerCase();
+        }).toList();
+      }
+
+      if (kind != null && kind.isNotEmpty) {
+        localLandmarks = localLandmarks.where((landmark) {
+          return landmark.category.name.toLowerCase() == kind.toLowerCase();
+        }).toList();
+      }
+
+      return localLandmarks;
+    } on EmptyCacheException {
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 

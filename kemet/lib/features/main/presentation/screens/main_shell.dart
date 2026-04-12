@@ -22,11 +22,13 @@ class _MainShellState extends State<MainShell> {
     {'icon': Icons.settings_outlined, 'label': 'settings'},
   ];
 
-  void _onItemTap(int index) {
+  Future<void> _onItemTap(int index) async {
     setState(() => _currentIndex = index);
 
     if (index == 2) {
-      Navigator.of(context).pushNamed(Routes.settingsScreen);
+      await Navigator.of(context).pushNamed(Routes.settingsScreen);
+      if (!mounted) return;
+      setState(() => _currentIndex = 0);
     }
   }
 
@@ -41,49 +43,49 @@ class _MainShellState extends State<MainShell> {
         child: Padding(
           padding: EdgeInsetsDirectional.only(end: 16.w, bottom: 8.h),
           child: Container(
-          height: 48.h,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(9999),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFDAAB5F), Color(0xFF96703D)],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.mainGold.withOpacity(0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: MaterialButton(
-            onPressed: () {},
-            shape: RoundedRectangleBorder(
+            height: 48.h,
+            decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(9999),
-            ),
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  context.tr('kemet_ai'),
-                  style: GoogleFonts.cinzel(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textDarkOnGold,
-                    letterSpacing: 1,
-                  ),
-                ),
-                SizedBox(width: 8.w),
-                Icon(
-                  Icons.auto_awesome_outlined,
-                  color: AppColors.textDarkOnGold,
-                  size: 18.sp,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFDAAB5F), Color(0xFF96703D)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.mainGold.withOpacity(0.4),
+                  blurRadius: 20,
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
-          ),
+            child: MaterialButton(
+              onPressed: () {},
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(9999),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    context.tr('kemet_ai'),
+                    style: GoogleFonts.cinzel(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDarkOnGold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  Icon(
+                    Icons.auto_awesome_outlined,
+                    color: AppColors.textDarkOnGold,
+                    size: 18.sp,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

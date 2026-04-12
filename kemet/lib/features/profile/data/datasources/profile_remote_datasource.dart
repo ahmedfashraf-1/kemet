@@ -13,7 +13,6 @@ import 'package:kemet/features/reviews/domain/entities/review.dart';
 
 import '../models/profile_model.dart';
 
-
 // Interface
 
 abstract class ProfileRemoteDataSource {
@@ -24,9 +23,8 @@ abstract class ProfileRemoteDataSource {
   Future<void> logout();
 }
 
-
 // Implementation
- 
+
 class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   final FirebaseFirestore firestore;
   final http.Client client;
@@ -38,20 +36,16 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     }
     return key;
   }
+
   static const String _xidBase =
       'https://api.opentripmap.com/0.1/en/places/xid';
 
-  ProfileRemoteDataSourceImpl({
-    required this.firestore,
-    required this.client,
-  });
-
+  ProfileRemoteDataSourceImpl({required this.firestore, required this.client});
 
   @override
   Future<ProfileModel> getProfile(String userId) async {
     try {
-      final doc =
-          await firestore.collection('users').doc(userId).get();
+      final doc = await firestore.collection('users').doc(userId).get();
 
       if (!doc.exists) throw ServerException();
 
@@ -60,8 +54,10 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       return ProfileModel.fromFirestore(
         id: userId,
         data: data,
-        
-        tripsCount: 0,/// explore or trips ??
+
+        tripsCount: 0,
+
+        /// explore or trips ??
         savedCount: 0,
         reviewsCount: 0,
       );
@@ -70,106 +66,59 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     }
   }
 
-
   @override
   Future<List<Landmark>> getRecentPlaces(String userId) async {
     try {
       // 1 xids
       final doc = await firestore.collection('users').doc(userId).get();
       final List<dynamic> allXids = doc.data()?['recentTrips'] ?? [];
- 
+
       if (allXids.isEmpty) return [];
- 
-        final recentXids = allXids.reversed.toList();
- 
+
+      final recentXids = allXids.reversed.toList();
+
       final futures = recentXids.map((xid) async {
         try {
           final response = await client.get(
             Uri.parse('$_xidBase/$xid?apikey=$_apiKey'),
           );
- 
+
           if (response.statusCode != 200) return null;
- 
+
           final json = jsonDecode(response.body) as Map<String, dynamic>;
- 
-          
+
           if (json['name'] == null || json['name'].toString().trim().isEmpty) {
             return null;
           }
- 
+
           return _mapJsonToLandmark(json);
         } catch (_) {
           return null;
         }
       }).toList();
- 
+
       final results = await Future.wait(futures);
- 
+
       return results.whereType<Landmark>().toList();
     } catch (_) {
       throw ServerException();
     }
   }
-// Duummy
- @override
-Future<List<Review>> getMyReviews(String userId) async {
-  await Future.delayed(const Duration(milliseconds: 300));
 
-  return [
-    Review(
-      id: 'r1',
-      userId: userId,
-      username: 'Nour',
-      landmarkId: 'karnak_temple',
-      comment: 'Amazing place!',
-      rating: 5.0,
-      createdAt: DateTime(2025, 3),
-    ),
-    Review(
-      id: 'r2',
-      userId: userId,
-      username: 'Nour',
-      landmarkId: 'pyramids_giza',
-      comment: 'Great experience',
-      rating: 4.0,
-      createdAt: DateTime(2025, 1),
-    ),
-  ];
-}
- 
-
- // Dummy
   @override
-  Future<List<Favorite>> getFavoritePlaces(String userId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return [
-      Favorite(
-        id: 'f1',
-        name: 'Ibn Tulun Mosque',
-        location: 'Cairo',
-        icon: '🕌',
-      ),
-      Favorite(
-        id: 'f2',
-        name: 'Ras Mohammed',
-        location: 'Sinai',
-        icon: '🌊',
-      ),
-      Favorite(
-        id: 'f3',
-        name: 'Egyptian Museum',
-        location: 'Cairo',
-        icon: '🏺',
-      ),
-    ];
+  Future<List<Review>> getMyReviews(String userId) async {
+    return [];
   }
 
+  @override
+  Future<List<Favorite>> getFavoritePlaces(String userId) async {
+    return [];
+  }
 
   @override
   Future<void> logout() async {
     await FirebaseAuth.instance.signOut();
   }
-
 
   Landmark _mapJsonToLandmark(Map<String, dynamic> json) {
     return Landmark(
@@ -177,7 +126,8 @@ Future<List<Review>> getMyReviews(String userId) async {
       name: json['name'] ?? 'Unknown',
       description:
           json['wikipedia_extracts']?['text'] ?? 'No description available',
-      city: json['address']?['state'] ??
+      city:
+          json['address']?['state'] ??
           json['address']?['village'] ??
           json['address']?['locality'] ??
           'Unknown',
