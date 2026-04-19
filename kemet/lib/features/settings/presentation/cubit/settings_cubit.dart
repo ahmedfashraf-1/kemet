@@ -82,15 +82,16 @@ class SettingsState extends Equatable {
 
 class SettingsCubit extends Cubit<SettingsState> {
   static const String _pushNotificationsKey = 'settings_push_notifications';
-  static const String _emailUpdatesKey = 'settings_email_updates';
-  static const String _soundKey = 'settings_sound';
-  static const String _darkModeKey = 'settings_dark_mode';
-  static const String _localeKey = 'settings_locale_code';
-  static const String _locationAccessKey = 'settings_location_access';
+  static const String _emailUpdatesKey      = 'settings_email_updates';
+  static const String _soundKey             = 'settings_sound';
+  static const String _darkModeKey          = 'settings_dark_mode';
+  static const String _localeKey            = 'settings_locale_code';
+  static const String _locationAccessKey    = 'settings_location_access';
   static const String _avatarLocalPathPrefix = 'settings_avatar_local_path_';
   static const String _avatarRemoteUrlPrefix = 'settings_avatar_remote_url_';
   static const String _avatarCacheBusterPrefix =
       'settings_avatar_cache_buster_';
+  static const String _isPrivateAccountPrefix = 'settings_is_private_account_';
 
   final SharedPreferences sharedPreferences;
 
@@ -117,8 +118,14 @@ class SettingsCubit extends Cubit<SettingsState> {
           avatarCacheBuster:
               sharedPreferences.getInt(_avatarCacheBusterKey(_activeUserKey)) ??
               0,
-        ),
-      );
+        isPrivateAccount: sharedPreferences.getBool(
+                  _isPrivateAccountKey(_activeUserKey),
+                ) ??
+                false,
+          ),
+        ) {
+    _loadPrivacyFromFirestore();
+      }
 
   static String get _activeUserKey =>
       FirebaseAuth.instance.currentUser?.uid ?? 'guest';
@@ -137,21 +144,24 @@ class SettingsCubit extends Cubit<SettingsState> {
   }
 
   // Push Notifications
-
+  
   Future<void> setPushNotifications(bool value) async {
     emit(state.copyWith(pushNotificationsEnabled: value));
     await sharedPreferences.setBool(_pushNotificationsKey, value);
 
     if (value) {
+      
       await FirebaseMessaging.instance.subscribeToTopic('all');
       await _saveTokenToFirestore();
     } else {
+      
       await FirebaseMessaging.instance.unsubscribeFromTopic('all');
       await _deleteTokenFromFirestore();
       await FirebaseMessaging.instance.deleteToken();
     }
   }
 
+  
   Future<void> _saveTokenToFirestore() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -160,23 +170,27 @@ class SettingsCubit extends Cubit<SettingsState> {
       final token = await FirebaseMessaging.instance.getToken();
       if (token == null) return;
 
-      await FirebaseFirestore.instance.collection('users').doc(userId).set({
-        'fcmToken': token,
-      }, SetOptions(merge: true));
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .set({'fcmToken': token}, SetOptions(merge: true));
     } catch (_) {}
   }
 
+  
   Future<void> _deleteTokenFromFirestore() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId == null) return;
 
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'fcmToken': FieldValue.delete(),
-      });
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update({'fcmToken': FieldValue.delete()});
     } catch (_) {}
   }
 
+  
   Future<void> setEmailUpdates(bool value) async {
     emit(state.copyWith(emailUpdatesEnabled: value));
     await sharedPreferences.setBool(_emailUpdatesKey, value);
@@ -210,18 +224,19 @@ class SettingsCubit extends Cubit<SettingsState> {
     final status = await Permission.locationWhenInUse.request();
     final granted = status.isGranted || status.isLimited;
 
-    emit(
-      state.copyWith(
-        locationAccessEnabled: granted,
-        isRequestingLocation: false,
-      ),
-    );
+    emit(state.copyWith(
+      locationAccessEnabled: granted,
+      isRequestingLocation: false,
+    ));
     await sharedPreferences.setBool(_locationAccessKey, granted);
 
     return granted;
   }
 
-  Future<void> setProfileAvatar({String? localPath, String? remoteUrl}) async {
+  Future<void> setProfileAvatar({
+    String? localPath,
+    String? remoteUrl,
+  }) async {
     final userKey = _activeUserKey;
     final cacheBuster = DateTime.now().millisecondsSinceEpoch;
 
@@ -238,46 +253,28 @@ class SettingsCubit extends Cubit<SettingsState> {
     if (localPath == null || localPath.isEmpty) {
       await sharedPreferences.remove(_avatarLocalPathKey(userKey));
     } else {
-      await sharedPreferences.setString(
-        _avatarLocalPathKey(userKey),
-        localPath,
-      );
+      await sharedPreferences.setString(_avatarLocalPathKey(userKey), localPath);
     }
 
     if (remoteUrl == null || remoteUrl.isEmpty) {
       await sharedPreferences.remove(_avatarRemoteUrlKey(userKey));
     } else {
-      await sharedPreferences.setString(
-        _avatarRemoteUrlKey(userKey),
-        remoteUrl,
-      );
+      await sharedPreferences.setString(_avatarRemoteUrlKey(userKey), remoteUrl);
     }
 
-    await sharedPreferences.setInt(_avatarCacheBusterKey(userKey), cacheBuster);
-  }
-
-  Future<void> loadProfileAvatarForCurrentUser() async {
-    final userKey = _activeUserKey;
-    final localPath = sharedPreferences.getString(_avatarLocalPathKey(userKey));
-    final remoteUrl = sharedPreferences.getString(_avatarRemoteUrlKey(userKey));
-    final cacheBuster =
-        sharedPreferences.getInt(_avatarCacheBusterKey(userKey)) ?? 0;
-
-    emit(
-      state.copyWith(
-        avatarLocalPath: localPath,
-        avatarRemoteUrl: remoteUrl,
-        clearAvatarLocalPath: localPath == null || localPath.isEmpty,
-        clearAvatarRemoteUrl: remoteUrl == null || remoteUrl.isEmpty,
-        avatarCacheBuster: cacheBuster,
-      ),
+    await sharedPreferences.setInt(
+      _avatarCacheBusterKey(userKey),
+      cacheBuster,
     );
   }
 
   Future<void> clearProfileAvatar() async {
     final userKey = _activeUserKey;
     emit(
-      state.copyWith(clearAvatarLocalPath: true, clearAvatarRemoteUrl: true),
+      state.copyWith(
+        clearAvatarLocalPath: true,
+        clearAvatarRemoteUrl: true,
+      ),
     );
     await sharedPreferences.remove(_avatarLocalPathKey(userKey));
     await sharedPreferences.remove(_avatarRemoteUrlKey(userKey));

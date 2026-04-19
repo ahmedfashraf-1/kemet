@@ -22,6 +22,8 @@
   "sound_subtitle": "تشغيل أصوات الإشعارات",
   "location_access": "الوصول إلى الموقع",
   "location_access_subtitle": "للاقتراحات القريبة",
+  "private_account": "حساب خاص",
+  "private_account_subtitle": "يمكنك أنت فقط رؤية ملفك الشخصي وتقييماتك",
   "location_permission_required": "يلزم إذن الموقع للحصول على الاقتراحات القريبة.",
   "privacy_policy": "سياسة الخصوصية",
   "data_personalization": "البيانات والتخصيص",

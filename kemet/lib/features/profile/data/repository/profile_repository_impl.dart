@@ -56,9 +56,12 @@ class ProfileRepositoryImpl implements ProfileRepository {
   
   // 3 Get My Reviews
   @override
-  Future<Either<Failure, List<Review>>> getMyReviews(String userId) async {
+  Future<Either<Failure, List<Review>>> getMyReviews(
+    String userId, {
+    int? limit,
+  }) async {
     try {
-      final data = await remoteDataSource.getMyReviews(userId);
+      final data = await remoteDataSource.getMyReviews(userId, limit: limit);
       return Right(data);
     } on ServerException catch (e) {
       return Left(ServerFailure());

@@ -7,7 +7,10 @@ class UserModel extends User {
     required super.email,
     super.address,
     required super.createdAt,
+    this.isPrivate = false,
   });
+
+  final bool isPrivate;
 
   /// Convert Map → Model
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -19,6 +22,7 @@ class UserModel extends User {
       createdAt: DateTime.parse(
         json['created_at'] ?? json['createdAt'] ?? DateTime.now().toIso8601String(),
       ),
+      isPrivate: json['isPrivate'] == true,
     );
   }
 
@@ -31,6 +35,7 @@ class UserModel extends User {
       'email': email,
       'address': address,
       'created_at': createdAt.toIso8601String(),
+      'isPrivate': isPrivate,
     };
   }
 }

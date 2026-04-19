@@ -19,6 +19,22 @@ class LandmarkModel extends Landmark {
 
   factory LandmarkModel.fromJson(Map<String, dynamic> json) {
     final point = json['point'] as Map<String, dynamic>?;
+    final rawPhotos = (json['photos'] as List<dynamic>? ?? [])
+        .map((e) => e.toString())
+        .toList();
+    final extraPhotoCandidates = <String?>[
+      json['imageUrl'] as String?,
+      json['photoUrl'] as String?,
+      json['coverImage'] as String?,
+      json['image'] as String?,
+      json['photo'] as String?,
+    ];
+    final allCandidates = <String>[...rawPhotos, ...extraPhotoCandidates.whereType<String>()];
+    final filteredPhotos = allCandidates
+        .map(LandmarkModel.normalizePhotoUrl)
+        .whereType<String>()
+        .toList();
+
     return LandmarkModel(
       id: json['xid'] ?? json['id'] ?? '',
       name: json['name'] ?? '',
@@ -30,9 +46,7 @@ class LandmarkModel extends Landmark {
         id: json['category_id'] ?? '',
         name: json['category_name'] ?? '',
       ),
-      photos: (json['photos'] as List<dynamic>? ?? [])
-          .map((e) => LandmarkPhoto(url: e))
-          .toList(),
+      photos: filteredPhotos.map((url) => LandmarkPhoto(url: url)).toList(),
       openingTime: json['opening_time'] ?? '',
       closingTime: json['closing_time'] ?? '',
       audioUrl: json['audio_url'],
@@ -64,5 +78,36 @@ class LandmarkModel extends Landmark {
       return value.toDouble();
     }
     return double.tryParse(value.toString());
+  }
+
+  static String? normalizePhotoUrl(String? value) {
+    if (value == null) {
+      return null;
+    }
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    if (_isAssetPath(trimmed) || _isAppStorageUrl(trimmed)) {
+      return trimmed;
+    }
+    return null;
+  }
+
+  static bool _isAssetPath(String value) {
+    return value.startsWith('images/') || value.startsWith('assets/');
+  }
+
+  static bool _isAppStorageUrl(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null) {
+      return false;
+    }
+    if (uri.scheme == 'gs') {
+      return true;
+    }
+    final host = uri.host.toLowerCase();
+    return host.contains('firebasestorage.googleapis.com') ||
+        host.contains('storage.googleapis.com');
   }
 }

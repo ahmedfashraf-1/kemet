@@ -13,6 +13,7 @@ import 'package:kemet/features/reviews/domain/entities/review.dart';
 
 import '../models/profile_model.dart';
 
+
 // Interface
 
 abstract class ProfileRemoteDataSource {
@@ -23,8 +24,9 @@ abstract class ProfileRemoteDataSource {
   Future<void> logout();
 }
 
-// Implementation
 
+// Implementation
+ 
 class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   final FirebaseFirestore firestore;
   final http.Client client;
@@ -36,16 +38,20 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     }
     return key;
   }
-
   static const String _xidBase =
       'https://api.opentripmap.com/0.1/en/places/xid';
 
-  ProfileRemoteDataSourceImpl({required this.firestore, required this.client});
+  ProfileRemoteDataSourceImpl({
+    required this.firestore,
+    required this.client,
+  });
+
 
   @override
   Future<ProfileModel> getProfile(String userId) async {
     try {
-      final doc = await firestore.collection('users').doc(userId).get();
+      final doc =
+          await firestore.collection('users').doc(userId).get();
 
       if (!doc.exists) throw ServerException();
 
@@ -55,16 +61,17 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         id: userId,
         data: data,
 
-        tripsCount: 0,
+        tripsCount: canViewPrivateData ? recentTrips.length :0,
 
-        /// explore or trips ??
-        savedCount: 0,
-        reviewsCount: 0,
+
+        savedCount: savedCount,
+        reviewsCount: reviewsCount,
       );
     } catch (_) {
       throw ServerException();
     }
   }
+
 
   @override
   Future<List<Landmark>> getRecentPlaces(String userId) async {
@@ -72,33 +79,34 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       // 1 xids
       final doc = await firestore.collection('users').doc(userId).get();
       final List<dynamic> allXids = doc.data()?['recentTrips'] ?? [];
-
+ 
       if (allXids.isEmpty) return [];
-
-      final recentXids = allXids.reversed.toList();
-
+ 
+        final recentXids = allXids.reversed.toList();
+ 
       final futures = recentXids.map((xid) async {
         try {
           final response = await client.get(
             Uri.parse('$_xidBase/$xid?apikey=$_apiKey'),
           );
-
+ 
           if (response.statusCode != 200) return null;
-
+ 
           final json = jsonDecode(response.body) as Map<String, dynamic>;
-
+ 
+          
           if (json['name'] == null || json['name'].toString().trim().isEmpty) {
             return null;
           }
-
+ 
           return _mapJsonToLandmark(json);
         } catch (_) {
           return null;
         }
       }).toList();
-
+ 
       final results = await Future.wait(futures);
-
+ 
       return results.whereType<Landmark>().toList();
     } catch (_) {
       throw ServerException();
@@ -109,16 +117,87 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   Future<List<Review>> getMyReviews(String userId) async {
     return [];
   }
+// Duummy
+ @override
+Future<List<Review>> getMyReviews(String userId, {int? limit}) async {
+  try {
+      final canViewPrivateData = await _canViewPrivateData(userId);
+      if (!canViewPrivateData) {
+        return [];
+      }
+
+      final snapshot = await firestore
+          .collection('reviews')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      final models = snapshot.docs.map((doc) {
+        final data = doc.data();
+        var model = ReviewModel.fromJson(data, doc.id);
+        if (model.userId.isEmpty) {
+          model = ReviewModel(
+            id: model.id,
+            userId: userId,
+            username: model.username,
+            userImage: model.userImage,
+            landmarkId: model.landmarkId,
+            landmarkName: model.landmarkName,
+            comment: model.comment,
+            rating: model.rating,
+            createdAt: model.createdAt,
+          );
+        }
+        return model;
+      }).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      final limited = (limit != null && limit > 0)
+          ? models.take(limit).toList()
+          : models;
+
+      return limited.map((model) => model.toEntity()).toList();
+    } catch (_) {
+      throw ServerException();
+    }
+}
+
 
   @override
   Future<List<Favorite>> getFavoritePlaces(String userId) async {
     return [];
+    final canViewPrivateData = await _canViewPrivateData(userId);
+    if (!canViewPrivateData) {
+      return [];
+    }
+    await Future.delayed(const Duration(milliseconds: 300));
+    return [
+      Favorite(
+        id: 'f1',
+        name: 'Ibn Tulun Mosque',
+        location: 'Cairo',
+        icon: '🕌',
+      ),
+      Favorite(
+        id: 'f2',
+        name: 'Ras Mohammed',
+        location: 'Sinai',
+        icon: '🌊',
+      ),
+      Favorite(
+        id: 'f3',
+        name: 'Egyptian Museum',
+        location: 'Cairo',
+        icon: '🏺',
+      ),
+    ];
   }
+
 
   @override
   Future<void> logout() async {
     await FirebaseAuth.instance.signOut();
   }
+
 
   Landmark _mapJsonToLandmark(Map<String, dynamic> json) {
     return Landmark(
@@ -126,8 +205,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       name: json['name'] ?? 'Unknown',
       description:
           json['wikipedia_extracts']?['text'] ?? 'No description available',
-      city:
-          json['address']?['state'] ??
+      city: json['address']?['state'] ??
           json['address']?['village'] ??
           json['address']?['locality'] ??
           'Unknown',

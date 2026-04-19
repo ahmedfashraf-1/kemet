@@ -8,6 +8,5 @@ abstract class LandmarksRepository {
     required int limit,
     String? city,
     String? kind,
-    String? query,
   });
 }

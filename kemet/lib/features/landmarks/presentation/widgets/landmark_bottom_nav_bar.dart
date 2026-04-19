@@ -14,7 +14,9 @@ class LandmarkBottomNavBar extends StatelessWidget {
   final int activeIndex;
   final double bottomInset;
   final VoidCallback? onReviews;
-  
+
+  final VoidCallback? onAudioTap;
+  final bool showReviews;
 
   @override
   Widget build(BuildContext context) {

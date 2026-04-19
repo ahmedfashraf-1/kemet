@@ -8,8 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
-import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
-import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
 
@@ -36,7 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
-  StreamSubscription<User?>? _authSubscription;
 
   String _selectedCategory = '';
   String _selectedCity = '';
@@ -66,18 +63,12 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LandmarksCubit>().getLandmarks(page: 1);
-      context.read<SettingsCubit>().loadProfileAvatarForCurrentUser();
-    });
-    _authSubscription = FirebaseAuth.instance.userChanges().listen((_) {
-      if (!mounted) return;
-      context.read<SettingsCubit>().loadProfileAvatarForCurrentUser();
     });
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
-    _authSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -86,7 +77,6 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<LandmarksCubit>().applyFilter(
       city: _selectedCity.isEmpty ? null : _selectedCity,
       kind: _selectedCategory.isEmpty ? null : _selectedCategory,
-      query: _searchController.text,
     );
   }
 
@@ -219,6 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _logout() async {
+    await context.read<SettingsCubit>().clearProfileAvatar();
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(context, '/onLoginScreen', (_) => false);
@@ -304,7 +295,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Text(
                                 state.message,
-                                style: const TextStyle(color: Colors.redAccent),
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                ),
                               ),
                               SizedBox(height: 12.h),
                               SizedBox(
@@ -333,32 +326,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       return SliverPadding(
                         padding: EdgeInsets.only(bottom: shellOverlayClearance),
                         sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            if (index == state.landmarks.length) {
-                              return _buildPagination(
-                                currentPage: state.currentPage,
-                                isLastPage: state.isLastPage,
-                                onPageSelected: (page) {
-                                  context.read<LandmarksCubit>().getLandmarks(
-                                    page: page,
-                                    city: state.city,
-                                    kind: state.kind,
-                                    query: state.query,
-                                    isPagination: true,
-                                  );
-                                },
-                              );
-                            }
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              if (index == state.landmarks.length) {
+                                return _buildPagination(
+                                  currentPage: state.currentPage,
+                                  isLastPage: state.isLastPage,
+                                  onPageSelected: (page) {
+                                    context
+                                        .read<LandmarksCubit>()
+                                        .getLandmarks(
+                                          page: page,
+                                          city: state.city,
+                                          kind: state.kind,
+                                          isPagination: true,
+                                        );
+                                  },
+                                );
+                              }
 
-                            final landmark = state.landmarks[index];
-                            return Padding(
-                              padding: EdgeInsets.only(bottom: 28.h),
-                              child: _buildLandmarkCard(landmark),
-                            );
-                          }, childCount: state.landmarks.length + 1),
+                              final landmark = state.landmarks[index];
+                              return Padding(
+                                padding: EdgeInsets.only(bottom: 28.h),
+                                child: _buildLandmarkCard(landmark),
+                              );
+                            },
+                            childCount: state.landmarks.length + 1,
+                          ),
                         ),
                       );
                     }
@@ -374,15 +368,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTopAppBar() {
-    final avatarLocalPath = context.select(
-      (SettingsCubit cubit) => cubit.state.avatarLocalPath,
-    );
-    final avatarRemoteUrl = context.select(
-      (SettingsCubit cubit) => cubit.state.avatarRemoteUrl,
-    );
-    final avatarCacheBuster = context.select(
-      (SettingsCubit cubit) => cubit.state.avatarCacheBuster,
-    );
+    final avatarLocalPath =
+        context.select((SettingsCubit cubit) => cubit.state.avatarLocalPath);
+    final avatarRemoteUrl =
+        context.select((SettingsCubit cubit) => cubit.state.avatarRemoteUrl);
+    final avatarCacheBuster =
+        context.select((SettingsCubit cubit) => cubit.state.avatarCacheBuster);
 
     return Container(
       color: _bgColor,
@@ -398,7 +389,8 @@ class _HomeScreenState extends State<HomeScreen> {
           StreamBuilder<User?>(
             stream: FirebaseAuth.instance.userChanges(),
             builder: (context, snapshot) {
-              final user = snapshot.data ?? FirebaseAuth.instance.currentUser;
+              final user =
+                  snapshot.data ?? FirebaseAuth.instance.currentUser;
               final isGuest = user == null || user.isAnonymous;
               return ProfileAvatarButton(
                 name: user?.displayName ?? 'Guest',
@@ -547,7 +539,9 @@ class _HomeScreenState extends State<HomeScreen> {
               duration: const Duration(milliseconds: 250),
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               decoration: BoxDecoration(
-                color: isActive ? AppColors.mainGold : AppColors.cardBackground,
+                color: isActive
+                    ? AppColors.mainGold
+                    : AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(9999),
                 border: Border.all(
                   color: isActive
@@ -704,11 +698,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final imageUrl = landmark.photos.isNotEmpty
         ? landmark.photos.first.url
         : '';
-    final parsedUri = Uri.tryParse(imageUrl);
-    final hasValidNetworkUrl =
-        imageUrl.isNotEmpty &&
-        parsedUri != null &&
-        (parsedUri.scheme == 'http' || parsedUri.scheme == 'https');
+    final isAsset = _isAssetPath(imageUrl);
+    final isAppUrl = _isAppStorageUrl(imageUrl);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -787,7 +778,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         color: _goldColor.withOpacity(0.18),
                         borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: _goldColor.withOpacity(0.35)),
+                        border: Border.all(
+                          color: _goldColor.withOpacity(0.35),
+                        ),
                       ),
                       child: Text(
                         landmark.category.name.toUpperCase(),
@@ -800,42 +793,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                  // 
                   Positioned(
-                      top: 12.h,
-                      right: 12.w,
-                      child: BlocBuilder<FavoritesCubit, FavoritesState>(
-                        builder: (context, favState) {
-                          final isFav = favState is FavoritesLoaded
-                              ? favState.isFavorite(landmark.id)
-                              : false;
-
-                          return GestureDetector(
-                            onTap: () => context.read<FavoritesCubit>().toggle(landmark.id),
-                            child: Container(
-                              width: 48.w,
-                              height: 48.w,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _bgColor.withOpacity(0.62),
-                                border: Border.all(color: _goldColor.withOpacity(0.24)),
-                              ),
-                              child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 250),
-                                transitionBuilder: (child, anim) =>
-                                    ScaleTransition(scale: anim, child: child),
-                                child: Icon(
-                                  isFav ? Icons.favorite : Icons.favorite_border,
-                                  key: ValueKey(isFav),
-                                  color: _goldColor,
-                                  size: 21,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
+                    top: 12.h,
+                    right: 12.w,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _favourites[landmark.id] = !isFav;
+                        });
+                      },
+                      child: Container(
+                        width: 48.w,
+                        height: 48.w,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _bgColor.withOpacity(0.62),
+                          border: Border.all(
+                            color: _goldColor.withOpacity(0.24),
+                          ),
+                        ),
+                        child: Icon(
+                          isFav ? Icons.favorite : Icons.favorite_border,
+                          color: _goldColor,
+                          size: 21,
+                        ),
                       ),
                     ),
+                  ),
                   Positioned(
                     bottom: 18.h,
                     left: 18.w,
@@ -944,11 +928,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPlaceholderImage() {
-    return Container(
+    return Image.asset(
+      'images/heroScreen.png',
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) =>Container(
       color: const Color(0xFF1A1A1A),
-      child: Center(child: Icon(Icons.landscape, color: _goldColor, size: 60)),
+      child: Center(child: Icon(Icons.landscape, color: _goldColor, size: 60)),),
     );
   }
 
   String _heroTag(String id) => 'landmark-hero-$id';
 }
+
+

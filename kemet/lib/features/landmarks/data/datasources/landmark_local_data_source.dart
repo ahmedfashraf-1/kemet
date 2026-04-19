@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 abstract class LandmarkLocalDataSource {
   Future<List<LandmarkModel>> getCachedLandmarks();
   Future<Unit> cacheLandmarks(List<LandmarkModel> landmarkModels);
+  Future<LandmarkModel?> getCachedLandmarkById(String id);
 }
 
 const cacheLandmarksKey= "CACHED_LANDMARKS_KEY";
@@ -49,6 +50,16 @@ class LandmarkLocalDataSourceImpl implements LandmarkLocalDataSource {
       return Future.value(jsonToLandmarkModels);
     } else {
       throw EmptyCacheException();
+    }
+  }
+
+  @override
+  Future<LandmarkModel?> getCachedLandmarkById(String id) async {
+    final cached = await getCachedLandmarksSafe();
+    try {
+      return cached.firstWhere((landmark) => landmark.id == id);
+    } catch (_) {
+      return null;
     }
   }
 

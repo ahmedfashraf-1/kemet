@@ -16,7 +16,7 @@ abstract class ProfileRepository {
   Future<Either<Failure, List<Landmark>>> getRecentTrips(String userId);
 
   
-  Future<Either<Failure, List<Review>>> getMyReviews(String userId);
+  Future<Either<Failure, List<Review>>> getMyReviews(String userId, {int? limit});
 
   
   Future<Either<Failure, List<Favorite>>> getFavoritePlaces(String userId);

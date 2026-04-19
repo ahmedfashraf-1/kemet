@@ -25,7 +25,8 @@ class LandmarkHeroSection extends StatelessWidget {
     final imageUrl = landmark.photos.isNotEmpty
         ? landmark.photos.first.url
         : '';
-    final hasValidUrl = _isValidNetworkUrl(imageUrl);
+    final isAsset = _isAssetPath(imageUrl);
+    final isAppUrl = _isAppStorageUrl(imageUrl);
 
     return SizedBox(
       height: heroHeight,
@@ -35,14 +36,21 @@ class LandmarkHeroSection extends StatelessWidget {
           Positioned.fill(
             child: Hero(
               tag: _heroTag(landmark.id),
-              child: hasValidUrl
-                  ? CachedNetworkImage(
-                      imageUrl: imageUrl,
+              child: isAsset
+                  ? Image.asset(
+                      imageUrl,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => _buildPlaceholder(),
-                      errorWidget: (context, url, error) => _buildPlaceholder(),
+                      errorBuilder: (context, url, error) => _buildPlaceholder(),
                     )
-                  : _buildPlaceholder(),
+                  : isAppUrl
+                      ? CachedNetworkImage(
+                          imageUrl: imageUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => _buildPlaceholder(),
+                          errorWidget: (context, url, error) =>
+                              _buildPlaceholder(),
+                        )
+                      : _buildPlaceholder(),
             ),
           ),
           Positioned.fill(
@@ -199,16 +207,31 @@ class LandmarkHeroSection extends StatelessWidget {
   }
 
   Widget _buildPlaceholder() {
-    return Container(
-      color: const Color(0xFF161616),
-      child: Icon(Icons.landscape, color: AppColors.mainGold, size: 64),
+    return Image.asset(
+      'images/heroScreen.png',
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: const Color(0xFF161616),
+        child: Icon(Icons.landscape, color: AppColors.mainGold, size: 64),
+      ),
     );
   }
 
-  bool _isValidNetworkUrl(String url) {
+  bool _isAssetPath(String url) {
+    return url.startsWith('images/') || url.startsWith('assets/');
+  }
+
+  bool _isAppStorageUrl(String url) {
     final parsed = Uri.tryParse(url);
-    return parsed != null &&
-        (parsed.scheme == 'http' || parsed.scheme == 'https');
+    if (parsed == null) {
+      return false;
+    }
+    if (parsed.scheme == 'gs') {
+      return true;
+    }
+    final host = parsed.host.toLowerCase();
+    return host.contains('firebasestorage.googleapis.com') ||
+        host.contains('storage.googleapis.com');
   }
 
   String _heroTag(String id) => 'landmark-hero-$id';

@@ -135,4 +135,27 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
       return Left(isConnected ? ServerFailure() : OfflineFailure());
     }
   }
+
+  @override
+  Future<Either<Failure, Landmark>> getLandmarkById(String id) async {
+    try {
+      final cached = await localDataSource.getCachedLandmarkById(id);
+      if (cached != null) {
+        return Right(cached);
+      }
+
+      final bool isConnected = await networkInfo.isConnected;
+      if (!isConnected) {
+        return Left(OfflineFailure());
+      }
+
+      final remoteLandmark = await remoteDataSource.getLandmarkById(id);
+      await localDataSource.cacheLandmarks([remoteLandmark]);
+      return Right(remoteLandmark);
+    } on ServerException {
+      return Left(ServerFailure());
+    } catch (_) {
+      return Left(ServerFailure());
+    }
+  }
 }

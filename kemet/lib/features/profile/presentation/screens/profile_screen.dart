@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -6,11 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
-import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/utils/extensions.dart';
-import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
-import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
-import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 
 import '../cubit/profile_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
@@ -300,7 +295,27 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                         ),
                       ),
                     ),
+                  ],
 
+                  const ProfileSectionLabel(label: 'FAVORITE PLACES'),
+                  if (state.favoritePlaces.isEmpty)
+                    _buildEmptyHint('No favorites yet.')
+                  else
+                    ...state.favoritePlaces.map(
+                      (f) => Padding(
+                        padding: EdgeInsets.only(bottom: 6.h),
+                        child: ProfileSavedItem(
+                          name: f.name,
+                          location: f.location,
+                          icon: '',
+                        ),
+                      ),
+                    ),
+
+                  SizedBox(height: 16.h),
+                  if (isOwnProfile) const ProfileSignOutButton(),
+                  SizedBox(height: 24.h),
+                ],
                 // ── Favorite Places Section ──────────────────────────────────
                 const ProfileSectionLabel(label: 'FAVORITE PLACES'),
 
@@ -356,12 +371,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildFavoritePreviewItem(BuildContext context, Landmark landmark) {
-    final imageUrl = landmark.photos.isNotEmpty
-        ? landmark.photos.first.url
-        : '';
-    final hasValidUrl = imageUrl.isNotEmpty &&
-        (Uri.tryParse(imageUrl)?.hasScheme ?? false);
+  // Name Section
 
     return GestureDetector(
       onTap: () => Navigator.pushNamed(
@@ -445,7 +455,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       ),
     );
   }
-  Widget _buildNameSection(String fullName, String email) {
+  Widget _buildNameSection(String fullName, String email, {required bool canEdit}) {
     return Center(
       child: Column(
         children: [
