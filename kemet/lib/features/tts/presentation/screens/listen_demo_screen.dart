@@ -26,6 +26,8 @@ class _ListenDemoScreenState extends State<ListenDemoScreen> {
   bool _isInitializing = true;
   TtsLanguageMode _languageMode = TtsLanguageMode.auto;
   String _activeLanguage = 'en-US';
+  double _progress = 0.0;
+  bool _isScrubbing = false;
 
   @override
   void initState() {
@@ -51,6 +53,7 @@ class _ListenDemoScreenState extends State<ListenDemoScreen> {
           _isPaused = _ttsService.isPaused;
           _languageMode = _ttsService.languageMode;
           _activeLanguage = _ttsService.activeLanguage;
+          _progress = _ttsService.progress;
         });
       }
     }
@@ -65,6 +68,9 @@ class _ListenDemoScreenState extends State<ListenDemoScreen> {
       _isPaused = _ttsService.isPaused;
       _languageMode = _ttsService.languageMode;
       _activeLanguage = _ttsService.activeLanguage;
+      if (!_isScrubbing) {
+        _progress = _ttsService.progress;
+      }
     });
   }
 
@@ -86,6 +92,13 @@ class _ListenDemoScreenState extends State<ListenDemoScreen> {
       return;
     }
     await _ttsService.stop();
+  }
+
+  Future<void> _seek(double value) async {
+    if (_isInitializing) {
+      return;
+    }
+    await _ttsService.seekToFraction(widget.text, value);
   }
 
   Future<void> _setLanguageMode(TtsLanguageMode mode) async {
@@ -191,6 +204,30 @@ class _ListenDemoScreenState extends State<ListenDemoScreen> {
                 gold: _gold,
               ),
               const SizedBox(height: 16),
+              _PlaybackTimeline(
+                enabled: !_isInitializing,
+                value: _progress,
+                gold: _gold,
+                surface: _surface,
+                onChangeStart: () {
+                  setState(() {
+                    _isScrubbing = true;
+                  });
+                },
+                onChanged: (value) {
+                  setState(() {
+                    _progress = value;
+                  });
+                },
+                onChangeEnd: (value) async {
+                  setState(() {
+                    _isScrubbing = false;
+                    _progress = value;
+                  });
+                  await _seek(value);
+                },
+              ),
+              const SizedBox(height: 8),
               Text(
                 'Voice: $_activeLanguage',
                 textAlign: TextAlign.center,
@@ -307,8 +344,8 @@ class _ListenDemoScreenState extends State<ListenDemoScreen> {
                 _isPlaying
                     ? 'Audio is playing. Tap pause to continue later.'
                     : (_isPaused
-                        ? 'Audio paused. Tap resume to continue.'
-                        : 'Tap listen to hear the text aloud.'),
+                          ? 'Audio paused. Tap resume to continue.'
+                          : 'Tap listen to hear the text aloud.'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _textMuted.withValues(alpha: 0.9),
@@ -341,18 +378,9 @@ class _LanguageModeSelector extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _modeChip(
-          mode: TtsLanguageMode.auto,
-          label: 'AUTO',
-        ),
-        _modeChip(
-          mode: TtsLanguageMode.english,
-          label: 'EN',
-        ),
-        _modeChip(
-          mode: TtsLanguageMode.arabic,
-          label: 'AR',
-        ),
+        _modeChip(mode: TtsLanguageMode.auto, label: 'AUTO'),
+        _modeChip(mode: TtsLanguageMode.english, label: 'EN'),
+        _modeChip(mode: TtsLanguageMode.arabic, label: 'AR'),
       ],
     );
   }
@@ -378,3 +406,80 @@ class _LanguageModeSelector extends StatelessWidget {
   }
 }
 
+class _PlaybackTimeline extends StatelessWidget {
+  const _PlaybackTimeline({
+    required this.enabled,
+    required this.value,
+    required this.gold,
+    required this.surface,
+    required this.onChangeStart,
+    required this.onChanged,
+    required this.onChangeEnd,
+  });
+
+  final bool enabled;
+  final double value;
+  final Color gold;
+  final Color surface;
+  final VoidCallback onChangeStart;
+  final ValueChanged<double> onChanged;
+  final ValueChanged<double> onChangeEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final progressLabel = '${(value.clamp(0.0, 1.0) * 100).round()}%';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: gold.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'POSITION',
+                style: TextStyle(
+                  color: gold.withValues(alpha: 0.85),
+                  fontSize: 11,
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                progressLabel,
+                style: TextStyle(
+                  color: gold.withValues(alpha: 0.85),
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: gold,
+              inactiveTrackColor: gold.withValues(alpha: 0.2),
+              thumbColor: gold,
+              overlayColor: gold.withValues(alpha: 0.15),
+              trackHeight: 3,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+            ),
+            child: Slider(
+              value: value.clamp(0.0, 1.0),
+              onChangeStart: enabled ? (_) => onChangeStart() : null,
+              onChanged: enabled ? onChanged : null,
+              onChangeEnd: enabled ? onChangeEnd : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

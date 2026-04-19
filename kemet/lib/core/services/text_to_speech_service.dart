@@ -15,6 +15,9 @@ abstract class TextToSpeechService extends Listenable {
   double get pitch;
   String get activeLanguage;
   TtsLanguageMode get languageMode;
+  int get resumeOffset;
+  int get totalLength;
+  double get progress;
 
   Future<void> initialize({
     String defaultLanguage,
@@ -23,12 +26,13 @@ abstract class TextToSpeechService extends Listenable {
     TtsLanguageMode languageMode,
   });
 
-  Future<void> play(String text);
+  Future<void> play(String text, {int startOffset});
   Future<void> pause();
   Future<void> resume();
   Future<void> stop();
   Future<void> togglePlayPause(String text);
   Future<void> setLanguageMode(TtsLanguageMode mode);
+  Future<void> seekToFraction(String text, double fraction);
 
   // Backward-compatible aliases.
   Future<void> speak(String text);
@@ -43,7 +47,7 @@ class FlutterTextToSpeechService extends ChangeNotifier
       FlutterTextToSpeechService();
 
   FlutterTextToSpeechService({FlutterTts? flutterTts})
-      : _flutterTts = flutterTts ?? FlutterTts();
+    : _flutterTts = flutterTts ?? FlutterTts();
 
   final FlutterTts _flutterTts;
   static final RegExp _arabicRegex = RegExp(
@@ -54,12 +58,15 @@ class FlutterTextToSpeechService extends ChangeNotifier
   bool _isPlaying = false;
   bool _isPaused = false;
   bool _pauseRequested = false;
+  bool _seekInProgress = false;
   double _speechRate = 0.5;
   double _pitch = 1.0;
   String _activeLanguage = 'en-US';
   TtsLanguageMode _languageMode = TtsLanguageMode.auto;
   String _lastText = '';
   int _resumeOffset = 0;
+  String _currentUtterance = '';
+  int _utteranceOffsetBase = 0;
 
   @override
   bool get isPlaying => _isPlaying;
@@ -91,6 +98,21 @@ class FlutterTextToSpeechService extends ChangeNotifier
   TtsLanguageMode get languageMode => _languageMode;
 
   @override
+  int get resumeOffset => _resumeOffset;
+
+  @override
+  int get totalLength => _lastText.length;
+
+  @override
+  double get progress {
+    if (_lastText.isEmpty) {
+      return 0.0;
+    }
+    final ratio = _resumeOffset / _lastText.length;
+    return ratio.clamp(0.0, 1.0);
+  }
+
+  @override
   Future<void> initialize({
     String defaultLanguage = 'en-US',
     double speechRate = 0.5,
@@ -111,16 +133,28 @@ class FlutterTextToSpeechService extends ChangeNotifier
 
     _flutterTts.setStartHandler(() {
       _pauseRequested = false;
+      _seekInProgress = false;
       _setState(playing: true, paused: false);
     });
 
     _flutterTts.setProgressHandler((text, startOffset, endOffset, word) {
-      if (text == _lastText && endOffset >= 0 && endOffset <= text.length) {
-        _resumeOffset = endOffset;
+      if (text == _currentUtterance &&
+          endOffset >= 0 &&
+          endOffset <= text.length) {
+        final combinedOffset = _utteranceOffsetBase + endOffset;
+        if (combinedOffset >= 0 && combinedOffset <= _lastText.length) {
+          if (_resumeOffset != combinedOffset) {
+            _resumeOffset = combinedOffset;
+            notifyListeners();
+          }
+        }
       }
     });
 
     _flutterTts.setCompletionHandler(() {
+      if (_seekInProgress) {
+        return;
+      }
       _setState(playing: false, paused: false, resetProgress: true);
     });
 
@@ -128,6 +162,9 @@ class FlutterTextToSpeechService extends ChangeNotifier
       if (_pauseRequested) {
         _pauseRequested = false;
         _setState(playing: false, paused: true);
+        return;
+      }
+      if (_seekInProgress) {
         return;
       }
       _setState(playing: false, paused: false, resetProgress: true);
@@ -149,7 +186,7 @@ class FlutterTextToSpeechService extends ChangeNotifier
   }
 
   @override
-  Future<void> play(String text) async {
+  Future<void> play(String text, {int startOffset = 0}) async {
     final sanitized = text.trim();
     if (sanitized.isEmpty) {
       return;
@@ -168,14 +205,22 @@ class FlutterTextToSpeechService extends ChangeNotifier
     }
 
     _lastText = sanitized;
-    _resumeOffset = 0;
+    _resumeOffset = startOffset.clamp(0, sanitized.length);
     _pauseRequested = false;
     _activeLanguage = await _resolveLanguageForText(sanitized);
     await _applyConfiguration();
 
+    final remaining = sanitized.substring(_resumeOffset).trim();
+    if (remaining.isEmpty) {
+      _setState(playing: false, paused: false, resetProgress: true);
+      return;
+    }
+
+    _currentUtterance = remaining;
+    _utteranceOffsetBase = _resumeOffset;
     _setState(playing: true, paused: false);
     try {
-      await _flutterTts.speak(sanitized);
+      await _flutterTts.speak(remaining);
     } catch (_) {
       _setState(playing: false, paused: false, resetProgress: true);
       rethrow;
@@ -212,6 +257,8 @@ class FlutterTextToSpeechService extends ChangeNotifier
     _setState(playing: true, paused: false);
     try {
       await _applyConfiguration();
+      _currentUtterance = remaining;
+      _utteranceOffsetBase = safeOffset;
       await _flutterTts.speak(remaining);
     } catch (_) {
       _setState(playing: false, paused: false, resetProgress: true);
@@ -222,6 +269,7 @@ class FlutterTextToSpeechService extends ChangeNotifier
   @override
   Future<void> stop() async {
     _pauseRequested = false;
+    _seekInProgress = false;
     await _flutterTts.stop();
     _setState(playing: false, paused: false, resetProgress: true);
   }
@@ -236,7 +284,7 @@ class FlutterTextToSpeechService extends ChangeNotifier
       await resume();
       return;
     }
-    await play(text);
+    await play(text, startOffset: _resumeOffset);
   }
 
   @override
@@ -258,6 +306,49 @@ class FlutterTextToSpeechService extends ChangeNotifier
   @override
   Future<void> toggle(String text) async {
     await togglePlayPause(text);
+  }
+
+  @override
+  Future<void> seekToFraction(String text, double fraction) async {
+    final sanitized = text.trim();
+    if (sanitized.isEmpty) {
+      return;
+    }
+    final clamped = fraction.clamp(0.0, 1.0);
+    final target = (sanitized.length * clamped).round();
+    await _seekToOffsetInternal(sanitized, target);
+  }
+
+  Future<void> _seekToOffsetInternal(String text, int offset) async {
+    final clampedOffset = offset.clamp(0, text.length);
+    _lastText = text;
+    _resumeOffset = clampedOffset;
+    notifyListeners();
+
+    if (!_isPlaying) {
+      return;
+    }
+
+    _seekInProgress = true;
+    _pauseRequested = false;
+    await _flutterTts.stop();
+
+    final remaining = text.substring(clampedOffset).trim();
+    if (remaining.isEmpty) {
+      _setState(playing: false, paused: false, resetProgress: true);
+      return;
+    }
+
+    _currentUtterance = remaining;
+    _utteranceOffsetBase = clampedOffset;
+    _setState(playing: true, paused: false);
+    try {
+      await _applyConfiguration();
+      await _flutterTts.speak(remaining);
+    } catch (_) {
+      _setState(playing: false, paused: false, resetProgress: true);
+      rethrow;
+    }
   }
 
   Future<String> _resolveLanguageForText(String text) async {
@@ -289,12 +380,16 @@ class FlutterTextToSpeechService extends ChangeNotifier
 
     if (preferred.startsWith('ar')) {
       return pick(const ['ar-EG', 'ar-SA']) ??
-          pick(available.where((e) => e.toLowerCase().startsWith('ar')).toList()) ??
+          pick(
+            available.where((e) => e.toLowerCase().startsWith('ar')).toList(),
+          ) ??
           preferred;
     }
 
     return pick(const ['en-US']) ??
-        pick(available.where((e) => e.toLowerCase().startsWith('en')).toList()) ??
+        pick(
+          available.where((e) => e.toLowerCase().startsWith('en')).toList(),
+        ) ??
         preferred;
   }
 
@@ -325,6 +420,8 @@ class FlutterTextToSpeechService extends ChangeNotifier
     if (resetProgress) {
       _lastText = '';
       _resumeOffset = 0;
+      _currentUtterance = '';
+      _utteranceOffsetBase = 0;
     }
 
     notifyListeners();
@@ -337,6 +434,3 @@ class FlutterTextToSpeechService extends ChangeNotifier
     super.dispose();
   }
 }
-
-
-
