@@ -5,7 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/utils/extensions.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
 
 import '../cubit/profile_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
@@ -37,6 +40,14 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   late final Animation<double> _glowAnim;
 
   Future<void> pickProfileImage() async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null || currentUserId != widget.userId) {
+      if (mounted) {
+        _showToast(context, 'You can only edit your own profile image', isError: true);
+      }
+      return;
+    }
+
     if (_isPickingImage) return;
     _isPickingImage = true;
 
@@ -97,6 +108,12 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   Future<void> _editDisplayName(String currentName) async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null || currentUserId != widget.userId) {
+      _showToast(context, 'You can only edit your own profile data', isError: true);
+      return;
+    }
+
     final parentContext = context;
     final String? savedName = await showDialog<String>(
       context: parentContext,
@@ -223,10 +240,21 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   Widget _buildLoadedView(BuildContext context, ProfileLoaded state) {
     final profile = state.profile;
+    final isOwnProfile = FirebaseAuth.instance.currentUser?.uid == widget.userId;
+    final canViewPrivateData = isOwnProfile || !profile.isPrivate;
+    final favoritesState = context.watch<FavoritesCubit>().state;
+    final ownerFavorites = favoritesState is FavoritesLoaded
+        ? favoritesState.favorites
+        : const [];
+    final effectiveSavedCount = isOwnProfile
+        ? ownerFavorites.length
+        : profile.savedCount;
     final displayName = _displayName.trim().isNotEmpty
         ? _displayName
         : (profile.fullName.trim().isNotEmpty ? profile.fullName : 'Guest');
-    final email = profile.email.trim().isNotEmpty ? profile.email : '-';
+    final email = canViewPrivateData && profile.email.trim().isNotEmpty
+        ? profile.email
+        : '-';
     final horizontalPadding = MediaQuery.of(context).size.width < 360
         ? 16.0
         : 24.0;
@@ -236,12 +264,17 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         context.select((SettingsCubit cubit) => cubit.state.avatarRemoteUrl);
     final avatarCacheBuster =
         context.select((SettingsCubit cubit) => cubit.state.avatarCacheBuster);
-    final localFile = _image ??
-        ((avatarLocalPath != null &&
-                avatarLocalPath.isNotEmpty &&
-                File(avatarLocalPath).existsSync())
-            ? File(avatarLocalPath)
-            : null);
+    final localFile = isOwnProfile
+        ? (_image ??
+            ((avatarLocalPath != null &&
+                    avatarLocalPath.isNotEmpty &&
+                    File(avatarLocalPath).existsSync())
+                ? File(avatarLocalPath)
+                : null))
+        : null;
+    final effectiveRemoteAvatarUrl =
+        isOwnProfile ? (avatarRemoteUrl ?? profile.avatarUrl) : profile.avatarUrl;
+    final effectiveAvatarCacheBuster = isOwnProfile ? avatarCacheBuster : 0;
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -252,9 +285,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             child: ProfileCoverWidget(
               name: displayName,
               imageFile: localFile,
-              avatarRemoteUrl: avatarRemoteUrl,
-              avatarCacheBuster: avatarCacheBuster,
-              onEditProfileImage: pickProfileImage,
+              avatarRemoteUrl: effectiveRemoteAvatarUrl,
+              avatarCacheBuster: effectiveAvatarCacheBuster,
+              onEditProfileImage: isOwnProfile ? pickProfileImage : () {},
+              isEditable: isOwnProfile,
             ),
           ),
 
@@ -265,50 +299,126 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               children: [
                 SizedBox(height: 72.h),
 
-                _buildNameSection(displayName, email),
+                _buildNameSection(displayName, email, canEdit: isOwnProfile),
 
                 SizedBox(height: 20.h),
 
                 ProfileStatsWidget(
                   trips: profile.tripsCount,
-                  saved: profile.savedCount,
+                  saved: effectiveSavedCount,
                   reviews: profile.reviewsCount,
+                  onFavoriteTap: isOwnProfile
+                      ? () => Navigator.pushNamed(context, Routes.favoritesScreen)
+                      : null,
+                  onReviewsTap: canViewPrivateData
+                      ? () => Navigator.pushNamed(
+                          context,
+                          Routes.userReviewsScreen,
+                          arguments: widget.userId,
+                        )
+                      : null,
                 ),
 
-                // ── Recent Places
-                const ProfileSectionLabel(label: 'RECENT PLACES'),
+                if (!canViewPrivateData) ...[
+                  SizedBox(height: 14.h),
+                  _buildEmptyHint('This account is private. Some details are hidden.'),
+                  SizedBox(height: 24.h),
+                  if (isOwnProfile) const ProfileSignOutButton(),
+                  SizedBox(height: 24.h),
+                ] else ...[
 
-                _buildRecentPlacesRow(state),
+                  // ── Recent Places
+                  const ProfileSectionLabel(label: 'RECENT PLACES'),
 
-                // ── My Reviews
-                const ProfileSectionLabel(label: 'MY REVIEWS'),
-                if (state.reviews.isEmpty)
-                  _buildEmptyHint('No reviews yet.')
-                else
-                  ...state.reviews.map(
+                  _buildRecentPlacesRow(state),
+
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: ProfileSectionLabel(label: 'MY REVIEWS'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          Routes.userReviewsScreen,
+                          arguments: widget.userId,
+                        ),
+                        child: Text(
+                          'See all',
+                          style: TextStyle(
+                            color: _goldColor,
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (state.reviews.isEmpty)
+                    _buildEmptyHint('No reviews yet.')
+                  else
+                    ...state.reviews.map(
                       (r) => Padding(
                         padding: EdgeInsets.only(bottom: 6.h),
                         child: ProfileReviewItem(
-                          place: r.landmarkId, // مؤقت لحد ما تجيبي الاسم الحقيقي
+                          place: r.landmarkName.isNotEmpty
+                              ? r.landmarkName
+                              : r.landmarkId,
                           rating: r.rating,
                           date: formatDate(r.createdAt),
                         ),
                       ),
                     ),
-                  ],
 
-                  const ProfileSectionLabel(label: 'FAVORITE PLACES'),
-                  if (state.favoritePlaces.isEmpty)
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: ProfileSectionLabel(label: 'FAVORITE PLACES'),
+                      ),
+                      if (isOwnProfile)
+                        TextButton(
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            Routes.favoritesScreen,
+                          ),
+                          child: Text(
+                            'See all',
+                            style: TextStyle(
+                              color: _goldColor,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if ((isOwnProfile ? ownerFavorites : state.favoritePlaces)
+                      .isEmpty)
                     _buildEmptyHint('No favorites yet.')
                   else
-                    ...state.favoritePlaces.map(
-                      (f) => Padding(
+                    ...(isOwnProfile
+                            ? ownerFavorites
+                                .map(
+                                  (landmark) => ProfileSavedItem(
+                                    name: landmark.name,
+                                    location: landmark.city,
+                                    icon: '',
+                                  ),
+                                )
+                                .toList()
+                            : state.favoritePlaces
+                                .map(
+                                  (f) => ProfileSavedItem(
+                                    name: f.name,
+                                    location: f.location,
+                                    icon: '',
+                                  ),
+                                )
+                                .toList())
+                        .map(
+                      (item) => Padding(
                         padding: EdgeInsets.only(bottom: 6.h),
-                        child: ProfileSavedItem(
-                          name: f.name,
-                          location: f.location,
-                          icon: '',
-                        ),
+                        child: item,
                       ),
                     ),
 
@@ -316,53 +426,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   if (isOwnProfile) const ProfileSignOutButton(),
                   SizedBox(height: 24.h),
                 ],
-                // ── Favorite Places Section ──────────────────────────────────
-                const ProfileSectionLabel(label: 'FAVORITE PLACES'),
-
-                BlocBuilder<FavoritesCubit, FavoritesState>(
-                  builder: (context, favState) {
-                    if (favState is! FavoritesLoaded || favState.favorites.isEmpty) {
-                      return _buildEmptyHint('No favorites yet.');
-                    }
-
-                    // أول 3 فقط
-                    final preview = favState.favorites.take(3).toList();
-
-                    return Column(
-                      children: [
-                        ...preview.map(
-                          (landmark) => Padding(
-                            padding: EdgeInsets.only(bottom: 8.h),
-                            child: _buildFavoritePreviewItem(context, landmark),
-                          ),
-                        ),
-
-                        // سهم "See All" لو عنده أكتر من 3
-                        if (favState.favorites.length > 3)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              onPressed: () =>
-                                  Navigator.pushNamed(context, Routes.favoritesScreen),
-                              icon: Text(
-                                'See all ${favState.favorites.length}',
-                                style: TextStyle(
-                                  color: _goldColor,
-                                  fontSize: 13.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              label: Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                color: _goldColor,
-                                size: 14.sp,
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
               ],
             ),
           ),
@@ -373,88 +436,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   // Name Section
 
-    return GestureDetector(
-      onTap: () => Navigator.pushNamed(
-        context,
-        Routes.landmarkDetails,
-        arguments: landmark,
-      ),
-      child: Container(
-        padding: EdgeInsets.all(12.w),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(color: _goldColor.withOpacity(0.18)),
-        ),
-        child: Row(
-          children: [
-            // Thumbnail
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10.r),
-              child: SizedBox(
-                width: 58.w,
-                height: 58.w,
-                child: hasValidUrl
-                    ? CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(
-                          color: const Color(0xFF1A1A1A),
-                        ),
-                        errorWidget: (_, __, ___) => Container(
-                          color: const Color(0xFF1A1A1A),
-                          child: const Icon(Icons.image_not_supported,
-                              color: Colors.grey),
-                        ),
-                      )
-                    : Container(color: const Color(0xFF1A1A1A)),
-              ),
-            ),
-
-            SizedBox(width: 14.w),
-
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    landmark.name,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: 4.h),
-                  Row(
-                    children: [
-                      Icon(Icons.location_on_outlined,
-                          color: _goldColor.withOpacity(0.8), size: 13.sp),
-                      SizedBox(width: 4.w),
-                      Text(
-                        landmark.city,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 11.sp,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Arrow
-            Icon(Icons.arrow_forward_ios_rounded,
-                color: _goldColor.withOpacity(0.6), size: 14.sp),
-          ],
-        ),
-      ),
-    );
-  }
   Widget _buildNameSection(String fullName, String email, {required bool canEdit}) {
     return Center(
       child: Column(
@@ -479,26 +460,27 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   ),
                 ),
                 SizedBox(width: 6.w),
-                GestureDetector(
-                  onTap: () => _editDisplayName(fullName),
-                  child: Container(
-                    width: 26.w,
-                    height: 26.w,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF19140B),
-                      border: Border.all(
-                        color: AppColors.mainGold.withOpacity(0.42),
-                        width: 0.8,
+                if (canEdit)
+                  GestureDetector(
+                    onTap: () => _editDisplayName(fullName),
+                    child: Container(
+                      width: 26.w,
+                      height: 26.w,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF19140B),
+                        border: Border.all(
+                          color: AppColors.mainGold.withOpacity(0.42),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.edit_outlined,
+                        size: 14,
+                        color: AppColors.mainGold,
                       ),
                     ),
-                    child: const Icon(
-                      Icons.edit_outlined,
-                      size: 14,
-                      color: AppColors.mainGold,
-                    ),
                   ),
-                ),
               ],
             ),
           ),

@@ -8,5 +8,8 @@ abstract class LandmarksRepository {
     required int limit,
     String? city,
     String? kind,
+    String? query,
   });
+
+  Future<Either<Failure, Landmark>> getLandmarkById(String id);
 }

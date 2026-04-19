@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dartz/dartz.dart';
 import 'package:kemet/core/errors/exceptions.dart';
-import 'package:kemet/core/errors/failures.dart';
 import 'package:kemet/core/errors/failures.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/favorite/domain/entities/favorite.dart';
@@ -26,11 +23,11 @@ class ProfileRepositoryImpl implements ProfileRepository {
     try {
       final model = await remoteDataSource.getProfile(userId);
       return Right(model);
-    } on ServerException catch (e) {
+    } on ServerException {
       return Left(ServerFailure());
-    } on FirebaseException catch (e) {
+    } on FirebaseException {
       return Left(ServerFailure());
-    } catch (e) {
+    } catch (_) {
       return Left(ServerFailure());
     }
   }
@@ -43,12 +40,12 @@ class ProfileRepositoryImpl implements ProfileRepository {
     try {
       final data = await remoteDataSource.getRecentPlaces(userId);
       return Right(data);
-    } on ServerException catch (e) {
+    } on ServerException {
       return Left(ServerFailure());
-    } on FirebaseException catch (e) {
+    } on FirebaseException {
       return Left(ServerFailure());
-    } catch (e) {
-      
+    } catch (_) {
+
       return const Right([]);
     }
   }
@@ -63,11 +60,11 @@ class ProfileRepositoryImpl implements ProfileRepository {
     try {
       final data = await remoteDataSource.getMyReviews(userId, limit: limit);
       return Right(data);
-    } on ServerException catch (e) {
+    } on ServerException {
       return Left(ServerFailure());
-    } on FirebaseException catch (e) {
+    } on FirebaseException {
       return Left(ServerFailure());
-    } catch (e) {
+    } catch (_) {
       return const Right([]);
     }
   }
@@ -81,11 +78,11 @@ class ProfileRepositoryImpl implements ProfileRepository {
     try {
       final data = await remoteDataSource.getFavoritePlaces(userId);
       return Right(data);
-    } on ServerException catch (e) {
+    } on ServerException {
       return Left(ServerFailure());
-    } on FirebaseException catch (e) {
+    } on FirebaseException {
       return Left(ServerFailure());
-    } catch (e) {
+    } catch (_) {
       return const Right([]);
     }
   }
@@ -98,11 +95,11 @@ class ProfileRepositoryImpl implements ProfileRepository {
     try {
       await remoteDataSource.logout();
       return const Right(null);
-    } on ServerException catch (e) {
+    } on ServerException {
       return Left(ServerFailure());
-    } on FirebaseException catch (e) {
+    } on FirebaseException {
       return Left(ServerFailure());
-    } catch (e) {
+    } catch (_) {
       return Left(ServerFailure());
     }
   }

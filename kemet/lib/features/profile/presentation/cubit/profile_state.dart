@@ -21,9 +21,9 @@ class ProfileLoaded extends ProfileState {
 }
 
 class ProfileError extends ProfileState {
-  String? get message => null;
-  // final String message;
-  // ProfileError(this.message);
+  final String message;
+
+  ProfileError([this.message = 'Failed to load profile data']);
 }
 
 class ProfileLoggedOut extends ProfileState {}

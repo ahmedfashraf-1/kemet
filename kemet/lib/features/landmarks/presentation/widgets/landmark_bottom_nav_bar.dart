@@ -9,6 +9,8 @@ class LandmarkBottomNavBar extends StatelessWidget {
     this.activeIndex = 1,
     this.bottomInset = 0,
     this.onReviews,
+    this.onAudioTap,
+    this.showReviews = true,
   });
 
   final int activeIndex;
@@ -53,12 +55,17 @@ class LandmarkBottomNavBar extends StatelessWidget {
                     isActive: activeIndex == 0,
                   ),
                   _primaryNavIcon(icon: Icons.map, isActive: activeIndex == 1),
-                  _navIcon(icon: Icons.headphones, isActive: activeIndex == 2),
                   _navIcon(
-                    icon: Icons.rate_review_outlined,
-                    isActive: activeIndex == 3,
-                    onTap: onReviews,
+                    icon: Icons.headphones,
+                    isActive: activeIndex == 2,
+                    onTap: onAudioTap,
                   ),
+                  if (showReviews)
+                    _navIcon(
+                      icon: Icons.rate_review_outlined,
+                      isActive: activeIndex == 3,
+                      onTap: onReviews,
+                    ),
                 ],
               ),
             ),

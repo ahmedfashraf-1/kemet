@@ -1,5 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // Section Label
@@ -264,11 +267,12 @@ class ProfileSignOutButton extends StatelessWidget {
 }
 
 Future<void> _logout(BuildContext context) async {
+  await context.read<SettingsCubit>().clearProfileAvatar();
   await FirebaseAuth.instance.signOut();
 
   Navigator.pushNamedAndRemoveUntil(
     context,
-    '/onLoginScreen',
+    Routes.LoginView,
     (route) => false,
   );
 }

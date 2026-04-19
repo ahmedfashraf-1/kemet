@@ -12,6 +12,8 @@ import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
 import 'package:kemet/features/notifications/presentation/widgets/notification_bell_button.dart';
@@ -55,8 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
     'nature',
     'island',
   ];
-
-  final Map<String, bool> _favourites = {};
 
   @override
   void initState() {
@@ -693,13 +693,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildLandmarkCard(Landmark landmark) {
-    final isFav = _favourites[landmark.id] ?? false;
+    final favoritesState = context.watch<FavoritesCubit>().state;
+    final isFav = favoritesState is FavoritesLoaded
+        ? favoritesState.favoriteIds.contains(landmark.id)
+        : false;
 
     final imageUrl = landmark.photos.isNotEmpty
         ? landmark.photos.first.url
         : '';
     final isAsset = _isAssetPath(imageUrl);
     final isAppUrl = _isAppStorageUrl(imageUrl);
+    final hasValidNetworkUrl =
+        imageUrl.isNotEmpty && !isAsset && !isAppUrl && _isHttpUrl(imageUrl);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -797,11 +802,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     top: 12.h,
                     right: 12.w,
                     child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _favourites[landmark.id] = !isFav;
-                        });
-                      },
+                      onTap: () => context.read<FavoritesCubit>().toggle(landmark.id),
                       child: Container(
                         width: 48.w,
                         height: 48.w,
@@ -938,6 +939,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _heroTag(String id) => 'landmark-hero-$id';
+
+  bool _isAssetPath(String value) {
+    return value.startsWith('images/') || value.startsWith('assets/');
+  }
+
+  bool _isAppStorageUrl(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null) {
+      return false;
+    }
+    if (uri.scheme == 'gs') {
+      return true;
+    }
+    final host = uri.host.toLowerCase();
+    return host.contains('firebasestorage.googleapis.com') ||
+        host.contains('storage.googleapis.com');
+  }
+
+  bool _isHttpUrl(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null || !uri.hasAbsolutePath) {
+      return false;
+    }
+    return uri.scheme == 'http' || uri.scheme == 'https';
+  }
 }
 
 

@@ -682,6 +682,7 @@ Future<void> _showDeleteAccountDialog(BuildContext context) async {
     );
 
     if (shouldLogout == true && context.mounted) {
+      await context.read<SettingsCubit>().clearProfileAvatar();
       await context.read<AuthCubit>().signOut();
       if (context.mounted) {
         Navigator.of(
