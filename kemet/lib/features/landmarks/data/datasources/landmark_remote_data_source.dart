@@ -13,6 +13,7 @@ abstract class LandmarkRemoteDataSource {
     String? city,
     String? kind,
   });
+  Future<LandmarkModel> getLandmarkById(String id);
 }
 
 const BASE_URL = "https://api.opentripmap.com/0.1/en/places/bbox";
@@ -26,6 +27,26 @@ const double latMax = 31.6;
 class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
   final http.Client client;
   LandmarkRemoteDataSourceImpl({required this.client});
+
+  @override
+  Future<LandmarkModel> getLandmarkById(String id) async {
+    try {
+      final response = await client.get(
+        Uri.parse(
+          'https://api.opentripmap.com/0.1/en/places/xid/$id?apikey=$API_KEY',
+        ),
+      );
+
+      if (response.statusCode != 200) {
+        throw ServerException();
+      }
+
+      final jsonDetails = json.decode(response.body) as Map<String, dynamic>;
+      return _mapJsonToModel(jsonDetails);
+    } catch (_) {
+      throw ServerException();
+    }
+  }
 
   @override
   Future<List<LandmarkModel>> getAllLandmarks({
@@ -181,12 +202,17 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
   }
 
   List<LandmarkPhoto> _extractPhotos(Map<String, dynamic> json) {
-    List<LandmarkPhoto> photos = [];
+    final photos = <LandmarkPhoto>[];
 
-    if (json['preview'] != null) {
-      photos.add(LandmarkPhoto(url: json['preview']['source']));
-    } else if (json['image'] != null) {
-      photos.add(LandmarkPhoto(url: json['image']));
+    final previewUrl = json['preview']?['source']?.toString();
+    final imageUrl = json['image']?.toString();
+    final candidates = <String?>[previewUrl, imageUrl];
+
+    for (final candidate in candidates) {
+      final normalized = LandmarkModel.normalizePhotoUrl(candidate);
+      if (normalized != null) {
+        photos.add(LandmarkPhoto(url: normalized));
+      }
     }
 
     return photos;

@@ -9,4 +9,5 @@ abstract class LandmarksRepository {
     String? city,
     String? kind,
   });
+  Future<Either<Failure, Landmark>> getLandmarkById(String id);
 }

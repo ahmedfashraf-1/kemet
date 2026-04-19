@@ -17,6 +17,7 @@ class SettingsState extends Equatable {
   final String? avatarLocalPath;
   final String? avatarRemoteUrl;
   final int avatarCacheBuster;
+  final bool isPrivateAccount;
 
   const SettingsState({
     required this.pushNotificationsEnabled,
@@ -29,6 +30,7 @@ class SettingsState extends Equatable {
     this.avatarLocalPath,
     this.avatarRemoteUrl,
     this.avatarCacheBuster = 0,
+    this.isPrivateAccount = false,
   });
 
   SettingsState copyWith({
@@ -42,6 +44,7 @@ class SettingsState extends Equatable {
     String? avatarLocalPath,
     String? avatarRemoteUrl,
     int? avatarCacheBuster,
+    bool? isPrivateAccount,
     bool clearAvatarLocalPath = false,
     bool clearAvatarRemoteUrl = false,
   }) {
@@ -62,6 +65,7 @@ class SettingsState extends Equatable {
           ? null
           : (avatarRemoteUrl ?? this.avatarRemoteUrl),
       avatarCacheBuster: avatarCacheBuster ?? this.avatarCacheBuster,
+      isPrivateAccount: isPrivateAccount ?? this.isPrivateAccount,
     );
   }
 
@@ -77,6 +81,7 @@ class SettingsState extends Equatable {
     avatarLocalPath,
     avatarRemoteUrl,
     avatarCacheBuster,
+    isPrivateAccount,
   ];
 }
 
@@ -90,6 +95,7 @@ class SettingsCubit extends Cubit<SettingsState> {
   static const String _avatarLocalPathPrefix = 'settings_avatar_local_path_';
   static const String _avatarRemoteUrlPrefix = 'settings_avatar_remote_url_';
   static const String _avatarCacheBusterPrefix = 'settings_avatar_cache_buster_';
+  static const String _isPrivateAccountPrefix = 'settings_is_private_account_';
 
   final SharedPreferences sharedPreferences;
 
@@ -117,8 +123,14 @@ class SettingsCubit extends Cubit<SettingsState> {
               _avatarCacheBusterKey(_activeUserKey),
             ) ??
                 0,
+            isPrivateAccount: sharedPreferences.getBool(
+                  _isPrivateAccountKey(_activeUserKey),
+                ) ??
+                false,
           ),
-        );
+        ) {
+    _loadPrivacyFromFirestore();
+  }
 
   static String get _activeUserKey =>
       FirebaseAuth.instance.currentUser?.uid ?? 'guest';
@@ -131,6 +143,9 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   static String _avatarCacheBusterKey(String userKey) =>
       '$_avatarCacheBusterPrefix$userKey';
+
+  static String _isPrivateAccountKey(String userKey) =>
+      '$_isPrivateAccountPrefix$userKey';
 
   static String _normalizeLocaleCode(String? localeCode) {
     return localeCode == 'ar' ? 'ar' : 'en';
@@ -271,5 +286,58 @@ class SettingsCubit extends Cubit<SettingsState> {
     );
     await sharedPreferences.remove(_avatarLocalPathKey(userKey));
     await sharedPreferences.remove(_avatarRemoteUrlKey(userKey));
+  }
+
+  Future<void> _loadPrivacyFromFirestore() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      final data = doc.data();
+      final hasField = data?.containsKey('isPrivate') ?? false;
+      final remoteValue = data?['isPrivate'] == true;
+
+      if (!hasField) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .set({'isPrivate': false}, SetOptions(merge: true));
+      }
+
+      emit(state.copyWith(isPrivateAccount: remoteValue));
+      await sharedPreferences.setBool(_isPrivateAccountKey(userId), remoteValue);
+    } catch (_) {}
+  }
+
+  Future<void> setAccountPrivacy(bool isPrivate) async {
+    final previousValue = state.isPrivateAccount;
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    final userKey = _activeUserKey;
+
+    emit(state.copyWith(isPrivateAccount: isPrivate));
+    await sharedPreferences.setBool(_isPrivateAccountKey(userKey), isPrivate);
+
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .set({'isPrivate': isPrivate}, SetOptions(merge: true));
+    } catch (_) {
+      emit(state.copyWith(isPrivateAccount: previousValue));
+      await sharedPreferences.setBool(
+        _isPrivateAccountKey(userKey),
+        previousValue,
+      );
+    }
   }
 }

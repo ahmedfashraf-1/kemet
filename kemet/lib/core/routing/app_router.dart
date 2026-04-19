@@ -31,11 +31,18 @@ import 'package:kemet/features/reviews/domain/repositories/reviews_repository.da
 import 'package:kemet/features/reviews/domain/usecases/add_review.dart';
 import 'package:kemet/features/reviews/domain/usecases/delete_review.dart';
 import 'package:kemet/features/reviews/domain/usecases/get_reviews_for_landmark.dart';
+import 'package:kemet/features/reviews/domain/usecases/watch_reviews_for_landmark.dart';
 import 'package:kemet/features/reviews/presentation/cubit/reviews_cubit.dart';
 import 'package:kemet/features/reviews/presentation/screens/reviews_screen.dart';
+import 'package:kemet/features/reviews/presentation/cubit/user_reviews_cubit.dart';
+import 'package:kemet/features/reviews/presentation/screens/user_reviews_screen.dart';
+import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
+import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:kemet/features/profile/presentation/di/profile_di.dart';
 // import 'package:kemet/features/home/presentation/screens/home_screen.dart';
 import 'package:kemet/features/settings/presentation/screens/settings_screen.dart';
 import 'package:kemet/features/notifications/presentation/screens/notification_details_screen.dart';
+import 'package:kemet/features/tts/presentation/screens/listen_demo_screen.dart';
 
 //landmarks
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
@@ -121,6 +128,12 @@ class AppRouter {
           setting,
         );
 
+      case Routes.listenDemoScreen:
+        return _fadeDominantFromRight(
+          const ListenDemoScreen(),
+          setting,
+        );
+
       case Routes.reviewsScreen:
         final landmarkArg = setting.arguments;
         if (landmarkArg is! Landmark) {
@@ -136,6 +149,9 @@ class AppRouter {
               getReviewsForLandmarkUseCase: GetReviewsForLandmarkUseCase(
                 context.read<ReviewsRepository>(),
               ),
+              watchReviewsForLandmarkUseCase: WatchReviewsForLandmarkUseCase(
+                context.read<ReviewsRepository>(),
+              ),
               addReviewUseCase: AddReviewUseCase(
                 context.read<ReviewsRepository>(),
               ),
@@ -144,6 +160,40 @@ class AppRouter {
               ),
             ),
             child: ReviewsScreen(landmark: landmarkArg),
+          ),
+          setting,
+        );
+
+      case Routes.profileScreen:
+        final userIdArg = setting.arguments;
+        if (userIdArg is! String || userIdArg.isEmpty) {
+          return MaterialPageRoute(
+            builder: (_) => const Scaffold(
+              body: Center(child: Text('Invalid user data')),
+            ),
+          );
+        }
+        return _fadeDominantFromRight(
+          BlocProvider<ProfileCubit>(
+            create: (_) => getIt<ProfileCubit>(),
+            child: ProfileScreen(userId: userIdArg),
+          ),
+          setting,
+        );
+
+      case Routes.userReviewsScreen:
+        final userIdArg = setting.arguments;
+        if (userIdArg is! String || userIdArg.isEmpty) {
+          return MaterialPageRoute(
+            builder: (_) => const Scaffold(
+              body: Center(child: Text('Invalid user data')),
+            ),
+          );
+        }
+        return _fadeDominantFromRight(
+          BlocProvider<UserReviewsCubit>(
+            create: (_) => UserReviewsCubit(getMyReviewsUseCase: getIt()),
+            child: UserReviewsScreen(userId: userIdArg),
           ),
           setting,
         );

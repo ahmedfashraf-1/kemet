@@ -7,6 +7,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
+import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/core/widgets/join_kemet_dialog.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
@@ -15,9 +17,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
 import 'package:kemet/features/notifications/presentation/widgets/notification_bell_button.dart';
-import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
-import 'package:kemet/features/profile/presentation/di/profile_di.dart';
-import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:kemet/features/profile/presentation/widgets/profile_avatar_button.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 
@@ -94,119 +93,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showGuestPrompt(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.75),
-      builder: (_) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F0C06),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: const Color(0xFFD4AF37).withOpacity(0.3),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFD4AF37).withOpacity(0.08),
-                blurRadius: 30,
-                spreadRadius: 5,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '𓂀',
-                style: TextStyle(fontSize: 42, color: Color(0xFFD4AF37)),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'JOIN KEMET',
-                style: GoogleFonts.cinzel(
-                  color: const Color(0xFFD4AF37),
-                  fontSize: 18,
-                  letterSpacing: 3,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Create an account to unlock your profile, save favorite places, and track your Egyptian journey.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.55),
-                  fontSize: 13,
-                  height: 1.6,
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4AF37),
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pushNamed('/onLoginScreen');
-                  },
-                  child: Text(
-                    'SIGN IN / REGISTER',
-                    style: GoogleFonts.cinzel(
-                      fontSize: 13,
-                      letterSpacing: 2,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  'Continue as Guest',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.35),
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _openProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     final isGuest = user == null || user.isAnonymous;
 
     if (isGuest) {
-      _showGuestPrompt(context);
+      showJoinKemetDialog(context);
       return;
     }
 
     final userId = user.uid;
     if (!mounted) return;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (_) => getIt<ProfileCubit>(),
-          child: ProfileScreen(userId: userId),
-        ),
-      ),
+    Navigator.of(context).pushNamed(
+      Routes.profileScreen,
+      arguments: userId,
     );
   }
 
@@ -699,11 +600,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final imageUrl =
         landmark.photos.isNotEmpty ? landmark.photos.first.url : '';
-    final parsedUri = Uri.tryParse(imageUrl);
-    final hasValidNetworkUrl =
-        imageUrl.isNotEmpty &&
-        parsedUri != null &&
-        (parsedUri.scheme == 'http' || parsedUri.scheme == 'https');
+    final isAsset = _isAssetPath(imageUrl);
+    final isAppUrl = _isAppStorageUrl(imageUrl);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -737,22 +635,29 @@ class _HomeScreenState extends State<HomeScreen> {
                     aspectRatio: 16 / 10,
                     child: Hero(
                       tag: _heroTag(landmark.id),
-                      child: hasValidNetworkUrl
-                          ? CachedNetworkImage(
-                              imageUrl: imageUrl,
+                      child: isAsset
+                          ? Image.asset(
+                              imageUrl,
                               fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                color: const Color(0xFF161616),
-                                child: const Center(
-                                  child: CircularProgressIndicator(
-                                    color: _goldColor,
-                                  ),
-                                ),
-                              ),
-                              errorWidget: (context, url, error) =>
+                              errorBuilder: (_, __, ___) =>
                                   _buildPlaceholderImage(),
                             )
-                          : _buildPlaceholderImage(),
+                          : isAppUrl
+                              ? CachedNetworkImage(
+                                  imageUrl: imageUrl,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Container(
+                                    color: const Color(0xFF161616),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: _goldColor,
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      _buildPlaceholderImage(),
+                                )
+                              : _buildPlaceholderImage(),
                     ),
                   ),
                   Positioned.fill(
@@ -932,13 +837,35 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPlaceholderImage() {
-    return Container(
-      color: const Color(0xFF1A1A1A),
-      child: Center(
-        child: Icon(Icons.landscape, color: _goldColor, size: 60),
+    return Image.asset(
+      'images/heroScreen.png',
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: const Color(0xFF1A1A1A),
+        child: Center(
+          child: Icon(Icons.landscape, color: _goldColor, size: 60),
+        ),
       ),
     );
   }
 
+  bool _isAssetPath(String url) {
+    return url.startsWith('images/') || url.startsWith('assets/');
+  }
+
+  bool _isAppStorageUrl(String url) {
+    final parsed = Uri.tryParse(url);
+    if (parsed == null) {
+      return false;
+    }
+    if (parsed.scheme == 'gs') {
+      return true;
+    }
+    final host = parsed.host.toLowerCase();
+    return host.contains('firebasestorage.googleapis.com') ||
+        host.contains('storage.googleapis.com');
+  }
+
   String _heroTag(String id) => 'landmark-hero-$id';
 }
+

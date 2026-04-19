@@ -7,7 +7,9 @@ class ReviewModel extends Review {
     required super.id,
     required super.userId,
     required super.username,
+    super.userImage,
     required super.landmarkId,
+    required super.landmarkName,
     required super.comment,
     required super.rating,
     required super.createdAt,
@@ -16,14 +18,29 @@ class ReviewModel extends Review {
   factory ReviewModel.fromJson(Map<String, dynamic> json, String id) {
     final rawCreatedAt = json['createdAt'];
 
-    final Username = (json['username'] as String?)?.trim();
+    final comment = (json['text'] as String?) ??
+        (json['comment'] as String?) ??
+        '';
+
+    final username = (json['username'] as String?)?.trim() ??
+        (json['userName'] as String?)?.trim() ??
+        (json['fullName'] as String?)?.trim() ??
+        '';
+
+    final userImage = (json['userImage'] as String?) ??
+        (json['userPhotoUrl'] as String?) ??
+        (json['photoURL'] as String?) ??
+        (json['photoUrl'] as String?) ??
+        (json['avatarUrl'] as String?);
 
     return ReviewModel(
       id: id,
       userId: json['userId'] as String? ?? '',
-      username: Username ?? '',
+      username: username,
+      userImage: userImage,
       landmarkId: json['landmarkId'] as String? ?? '',
-      comment: json['comment'] as String? ?? '',
+      landmarkName: (json['landmarkName'] as String?) ?? '',
+      comment: comment,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       createdAt: _parseCreatedAt(rawCreatedAt),
     );
@@ -32,9 +49,12 @@ class ReviewModel extends Review {
   Map<String, dynamic> toJson() {
     return {
       'userId': userId,
-      'username': username,
       'landmarkId': landmarkId,
+      'landmarkName': landmarkName,
+      'username': username,
+      'userImage': userImage,
       'comment': comment,
+      'text': comment,
       'rating': rating,
       // Keep Firestore field type consistent to avoid mixed-type query issues.
       'createdAt': Timestamp.fromDate(createdAt),
@@ -46,7 +66,9 @@ class ReviewModel extends Review {
       id: id,
       userId: userId,
       username: username,
+      userImage: userImage,
       landmarkId: landmarkId,
+      landmarkName: landmarkName,
       comment: comment,
       rating: rating,
       createdAt: createdAt,
@@ -58,7 +80,9 @@ class ReviewModel extends Review {
       id: review.id,
       userId: review.userId,
       username: review.username,
+      userImage: review.userImage,
       landmarkId: review.landmarkId,
+      landmarkName: review.landmarkName,
       comment: review.comment,
       rating: review.rating,
       createdAt: review.createdAt,

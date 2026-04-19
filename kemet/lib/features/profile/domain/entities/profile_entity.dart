@@ -6,7 +6,12 @@ class ProfileEntity {
   final int tripsCount;    
   final int savedCount;    
   final int reviewsCount;  
+  final String? imageUrl;
+  final String? photoUrl;
+  final String? imageId;
+  final String? imagePath;
   final String? avatarUrl;
+  final bool isPrivate;
 
 
   const ProfileEntity({
@@ -17,6 +22,11 @@ class ProfileEntity {
     required this.tripsCount,
     required this.savedCount,
     required this.reviewsCount,
+    this.imageUrl,
+    this.photoUrl,
+    this.imageId,
+    this.imagePath,
     this.avatarUrl,
+    this.isPrivate = false,
   });
 }

@@ -1,10 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/utils/extensions.dart';
 
 import '../cubit/profile_cubit.dart';
@@ -14,6 +17,10 @@ import '../widgets/profile_stats_widget.dart';
 import '../widgets/profile_widgets.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
+import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
+import 'package:kemet/features/landmarks/domain/usecases/get_landmark_by_id.dart';
+import 'package:kemet/features/reviews/domain/entities/review.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -36,38 +43,204 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   late final AnimationController _glowController;
   late final Animation<double> _glowAnim;
 
+  _LandmarkLookupCache? _landmarkLookup;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _landmarkLookup ??= _LandmarkLookupCache(
+      GetLandmarkByIdUseCase(context.read<LandmarksRepository>()),
+    );
+  }
+
   Future<void> pickProfileImage() async {
     if (_isPickingImage) return;
     _isPickingImage = true;
 
     try {
+      debugPrint('Profile photo flow started for widget.userId=${widget.userId}');
       final pickedFile = await _imagePicker.pickImage(
         source: ImageSource.gallery,
       );
 
       if (!mounted || pickedFile == null) {
+        debugPrint('Profile photo pick cancelled or widget disposed.');
+        return;
+      }
+
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      debugPrint('Current auth user for upload: ${firebaseUser?.uid ?? 'null'}');
+      if (firebaseUser == null ||
+          firebaseUser.uid.isEmpty ||
+          firebaseUser.isAnonymous) {
+        if (mounted) {
+          _showToast(context, 'Please sign in to update photo', isError: true);
+        }
+        return;
+      }
+
+      if (firebaseUser.uid != widget.userId) {
+        if (mounted) {
+          _showToast(context, 'You can edit only your profile photo', isError: true);
+        }
         return;
       }
 
       final selectedFile = File(pickedFile.path);
-      setState(() => _image = selectedFile);
-      print('Image updated: $_image');
+      if (!selectedFile.existsSync()) {
+        debugPrint('Selected image path is not accessible: ${pickedFile.path}');
+        if (mounted) {
+          _showToast(context, 'Selected image is not accessible', isError: true);
+        }
+        return;
+      }
 
-      await context.read<SettingsCubit>().setProfileAvatar(
-            localPath: pickedFile.path,
-          );
+      final remoteUrl = await uploadProfileImage(selectedFile);
+
+      if (!mounted) return;
+      setState(() => _image = selectedFile);
+
+      try {
+        await context.read<SettingsCubit>().setProfileAvatar(
+              localPath: pickedFile.path,
+              remoteUrl: remoteUrl,
+            );
+      } catch (settingsError, settingsStack) {
+        debugPrint('Non-fatal settings cache update failed: $settingsError');
+        debugPrintStack(stackTrace: settingsStack);
+      }
 
       if (mounted) {
         _showToast(context, 'Profile photo updated successfully ✦');
       }
-    } catch (e) {
-      debugPrint('Failed to pick image: $e');
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Auth error during photo upload: ${e.code} ${e.message}');
       if (mounted) {
-        _showToast(context, 'Failed to update photo', isError: true);
+        _showToast(
+          context,
+          'Upload failed: ${_formatUploadError(e)}',
+          isError: true,
+        );
+      }
+    } on FirebaseException catch (e, st) {
+      debugPrint('Firebase photo upload/save error: code=${e.code} message=${e.message}');
+      debugPrintStack(stackTrace: st);
+      if (mounted) {
+        _showToast(
+          context,
+          'Upload failed: ${_formatUploadError(e)}',
+          isError: true,
+        );
+      }
+    } catch (e) {
+      debugPrint('Unexpected photo upload error: $e');
+      if (mounted) {
+        _showToast(
+          context,
+          'Upload failed: ${e.toString()}',
+          isError: true,
+        );
       }
     } finally {
       _isPickingImage = false;
     }
+  }
+
+  Future<String?> uploadToCloudinary(File imageFile) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://api.cloudinary.com/v1_1/datkysjx4/image/upload'),
+      )
+        ..fields['upload_preset'] = 'kmt_upload'
+        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        debugPrint('Cloudinary upload failed: status=${response.statusCode} body=$body');
+        return null;
+      }
+
+      final data = jsonDecode(body);
+      if (data is! Map<String, dynamic>) {
+        debugPrint('Cloudinary upload failed: invalid response shape');
+        return null;
+      }
+
+      final secureUrl = data['secure_url'] as String?;
+      if (secureUrl == null || secureUrl.trim().isEmpty) {
+        debugPrint('Cloudinary upload failed: secure_url missing');
+        return null;
+      }
+
+      return secureUrl.trim();
+    } catch (e, st) {
+      debugPrint('Cloudinary upload exception: $e');
+      debugPrintStack(stackTrace: st);
+      return null;
+    }
+  }
+
+  Future<String> uploadProfileImage(File file) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-authenticated',
+        message: 'User must be authenticated before uploading a profile photo.',
+      );
+    }
+
+    if (!file.existsSync()) {
+      throw StateError('Selected profile image file does not exist on disk.');
+    }
+
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+    final uploadPath = 'users/$uid/$fileName.jpg';
+
+    print('UID: $uid');
+    print('UPLOAD PATH: $uploadPath');
+
+    final downloadUrl = await uploadToCloudinary(file);
+    if (downloadUrl == null) {
+      throw FirebaseException(
+        plugin: 'cloudinary_upload',
+        code: 'upload-failed',
+        message: 'Cloudinary upload failed: secure_url was not returned.',
+      );
+    }
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .update({'photoUrl': downloadUrl});
+
+    return downloadUrl;
+  }
+
+
+  String _formatUploadError(Object error) {
+    if (error is FirebaseAuthException) {
+      final message = error.message?.trim();
+      return message == null || message.isEmpty
+          ? error.code
+          : '${error.code}: $message';
+    }
+
+    if (error is FirebaseException) {
+      if (error.code == 'upload-failed') {
+        return 'Image upload failed. Please try again.';
+      }
+
+      final message = error.message?.trim();
+      return message == null || message.isEmpty
+          ? error.code
+          : '${error.code}: $message';
+    }
+
+    return error.toString();
   }
 
   @override
@@ -223,25 +396,38 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   Widget _buildLoadedView(BuildContext context, ProfileLoaded state) {
     final profile = state.profile;
-    final displayName = _displayName.trim().isNotEmpty
-        ? _displayName
-        : (profile.fullName.trim().isNotEmpty ? profile.fullName : 'Guest');
-    final email = profile.email.trim().isNotEmpty ? profile.email : '-';
     final horizontalPadding = MediaQuery.of(context).size.width < 360
         ? 16.0
         : 24.0;
+    final viewedUserId = widget.userId;
+    final signedInUserId = FirebaseAuth.instance.currentUser?.uid;
+    final isOwnProfile = viewedUserId == signedInUserId;
+    final isPrivateView = profile.isPrivate && !isOwnProfile;
+    final displayName = isPrivateView
+        ? 'Private Account'
+        : (_displayName.trim().isNotEmpty
+            ? _displayName
+            : (profile.fullName.trim().isNotEmpty ? profile.fullName : 'Guest'));
+    final email = isPrivateView
+        ? 'This account is private'
+        : (profile.email.trim().isNotEmpty ? profile.email : '-');
     final avatarLocalPath =
         context.select((SettingsCubit cubit) => cubit.state.avatarLocalPath);
-    final avatarRemoteUrl =
+    final avatarRemoteUrlFromSettings =
         context.select((SettingsCubit cubit) => cubit.state.avatarRemoteUrl);
     final avatarCacheBuster =
         context.select((SettingsCubit cubit) => cubit.state.avatarCacheBuster);
-    final localFile = _image ??
-        ((avatarLocalPath != null &&
-                avatarLocalPath.isNotEmpty &&
-                File(avatarLocalPath).existsSync())
-            ? File(avatarLocalPath)
-            : null);
+    final localFile = isOwnProfile
+        ? (_image ??
+            ((avatarLocalPath != null &&
+                    avatarLocalPath.isNotEmpty &&
+                    File(avatarLocalPath).existsSync())
+                ? File(avatarLocalPath)
+                : null))
+        : null;
+    final avatarRemoteUrl = isOwnProfile
+        ? (avatarRemoteUrlFromSettings ?? profile.photoUrl)
+        : (isPrivateView ? null : profile.photoUrl);
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -255,6 +441,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               avatarRemoteUrl: avatarRemoteUrl,
               avatarCacheBuster: avatarCacheBuster,
               onEditProfileImage: pickProfileImage,
+              isEditable: isOwnProfile && !isPrivateView,
             ),
           ),
 
@@ -265,57 +452,100 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               children: [
                 SizedBox(height: 72.h),
 
-                _buildNameSection(displayName, email),
+                _buildNameSection(
+                  displayName,
+                  email,
+                  canEdit: isOwnProfile && !isPrivateView,
+                ),
 
                 SizedBox(height: 20.h),
 
-                ProfileStatsWidget(
-                  trips: profile.tripsCount,
-                  saved: profile.savedCount,
-                  reviews: profile.reviewsCount,
-                ),
+                if (isPrivateView) ...[
+                  _buildPrivateAccountNotice(),
+                  SizedBox(height: 24.h),
+                ] else ...[
+                  ProfileStatsWidget(
+                    trips: profile.tripsCount,
+                    saved: profile.savedCount,
+                    reviews: profile.reviewsCount,
+                    onExploredTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Explored list coming soon.')),
+                      );
+                    },
+                    onFavoriteTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Favorites coming soon.')),
+                      );
+                    },
+                    onReviewsTap: () {
+                      Navigator.of(context).pushNamed(
+                        Routes.userReviewsScreen,
+                        arguments: widget.userId,
+                      );
+                    },
+                  ),
 
-                // ── Recent Places
-                const ProfileSectionLabel(label: 'RECENT PLACES'),
+                  const ProfileSectionLabel(label: 'RECENT PLACES'),
+                  _buildRecentPlacesRow(state),
 
-                _buildRecentPlacesRow(state),
+                  const ProfileSectionLabel(label: 'MY REVIEWS'),
+                  if (state.reviews.isEmpty)
+                    _buildEmptyHint('No reviews yet.')
+                  else ...[
+                    ...state.reviews.map(
+                      (review) => Padding(
+                        padding: EdgeInsets.only(bottom: 12.h),
+                        child: ProfileReviewPreviewCard(
+                          rating: review.rating,
+                          comment: review.comment,
+                          createdAt: review.createdAt,
+                          onTap: () => _openLandmarkFromReview(review),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pushNamed(
+                          Routes.userReviewsScreen,
+                          arguments: widget.userId,
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.mainGold,
+                        ),
+                        child: const Text(
+                          'VIEW ALL REVIEWS',
+                          style: TextStyle(
+                            fontSize: 11,
+                            letterSpacing: 1.8,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
 
-                // ── My Reviews
-                const ProfileSectionLabel(label: 'MY REVIEWS'),
-                if (state.reviews.isEmpty)
-                  _buildEmptyHint('No reviews yet.')
-                else
-                  ...state.reviews.map(
-                      (r) => Padding(
+                  const ProfileSectionLabel(label: 'FAVORITE PLACES'),
+                  if (state.favoritePlaces.isEmpty)
+                    _buildEmptyHint('No favorites yet.')
+                  else
+                    ...state.favoritePlaces.map(
+                      (f) => Padding(
                         padding: EdgeInsets.only(bottom: 6.h),
-                        child: ProfileReviewItem(
-                          place: r.landmarkId, // مؤقت لحد ما تجيبي الاسم الحقيقي
-                          rating: r.rating,
-                          date: formatDate(r.createdAt),
+                        child: ProfileSavedItem(
+                          name: f.name,
+                          location: f.location,
+                          icon: '',
                         ),
                       ),
                     ),
 
-                const ProfileSectionLabel(label: 'FAVORITE PLACES'),
-
-                if (state.favoritePlaces.isEmpty)
-                  _buildEmptyHint('No favorites yet.')
-                else
-                  ...state.favoritePlaces.map(
-                    (f) => Padding(
-                      padding: EdgeInsets.only(bottom: 6.h),
-                      child: ProfileSavedItem(
-                        //icon: f.icon,
-                        name: f.name,
-                        location: f.location,
-                        icon: '',
-                      ),
-                    ),
-                  ),
-
-                SizedBox(height: 16.h),
-                const ProfileSignOutButton(),
-                SizedBox(height: 24.h),
+                  SizedBox(height: 16.h),
+                  if (isOwnProfile) const ProfileSignOutButton(),
+                  SizedBox(height: 24.h),
+                ],
               ],
             ),
           ),
@@ -326,7 +556,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   // Name Section
 
-  Widget _buildNameSection(String fullName, String email) {
+  Widget _buildNameSection(String fullName, String email, {required bool canEdit}) {
     return Center(
       child: Column(
         children: [
@@ -349,27 +579,29 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                     ),
                   ),
                 ),
-                SizedBox(width: 6.w),
-                GestureDetector(
-                  onTap: () => _editDisplayName(fullName),
-                  child: Container(
-                    width: 26.w,
-                    height: 26.w,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF19140B),
-                      border: Border.all(
-                        color: AppColors.mainGold.withOpacity(0.42),
-                        width: 0.8,
+                if (canEdit) ...[
+                  SizedBox(width: 6.w),
+                  GestureDetector(
+                    onTap: () => _editDisplayName(fullName),
+                    child: Container(
+                      width: 26.w,
+                      height: 26.w,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF19140B),
+                        border: Border.all(
+                          color: AppColors.mainGold.withOpacity(0.42),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.edit_outlined,
+                        size: 14,
+                        color: AppColors.mainGold,
                       ),
                     ),
-                    child: const Icon(
-                      Icons.edit_outlined,
-                      size: 14,
-                      color: AppColors.mainGold,
-                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -459,6 +691,71 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         text,
         style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12.sp),
       ),
+    );
+  }
+
+  Widget _buildPrivateAccountNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF13110C),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.mainGold.withOpacity(0.22)),
+      ),
+      child: const Text(
+        'This account is private',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white70,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openLandmarkFromReview(Review review) async {
+    final lookup = _landmarkLookup;
+    if (lookup == null) {
+      return;
+    }
+
+    final landmark = await lookup.getLandmark(review.landmarkId);
+    if (!mounted) {
+      return;
+    }
+
+    if (landmark == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Landmark details are unavailable.')),
+      );
+      return;
+    }
+
+    Navigator.of(context).pushNamed(
+      Routes.landmarkDetails,
+      arguments: landmark,
+    );
+  }
+}
+
+class _LandmarkLookupCache {
+  _LandmarkLookupCache(this._getLandmarkByIdUseCase);
+
+  final GetLandmarkByIdUseCase _getLandmarkByIdUseCase;
+  final Map<String, Future<Landmark?>> _landmarkFutures = {};
+
+  Future<Landmark?> getLandmark(String id) {
+    return _landmarkFutures.putIfAbsent(
+      id,
+      () async {
+        final result = await _getLandmarkByIdUseCase(id);
+        return result.fold(
+          (_) => null,
+          (landmark) => landmark,
+        );
+      },
     );
   }
 }
@@ -661,3 +958,4 @@ class _EditDisplayNameDialogState extends State<_EditDisplayNameDialog> {
 String formatDate(DateTime date) {
   return "${date.month}/${date.year}";
 }
+

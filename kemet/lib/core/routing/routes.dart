@@ -11,8 +11,11 @@ class Routes {
   static const String mainShell = '/mainShell';
   static const String landmarkDetails = '/landmarkDetails';
   static const String reviewsScreen = '/reviews';
+  static const String profileScreen = '/profile';
+  static const String userReviewsScreen = '/user-reviews';
   static const String settingsScreen = '/settingsScreen';
   static const String notificationsScreen = '/notifications';
+  static const String listenDemoScreen = '/listen-demo';
 
 
   static const String verifyEmailOtp = '/verify-email-otp';

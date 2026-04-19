@@ -6,19 +6,26 @@ import 'package:kemet/features/reviews/domain/entities/review.dart';
 import 'package:kemet/features/reviews/domain/usecases/add_review.dart';
 import 'package:kemet/features/reviews/domain/usecases/delete_review.dart';
 import 'package:kemet/features/reviews/domain/usecases/get_reviews_for_landmark.dart';
+import 'package:kemet/features/reviews/domain/usecases/watch_reviews_for_landmark.dart';
 
 part 'reviews_state.dart';
 
 class ReviewsCubit extends Cubit<ReviewsState> {
   final GetReviewsForLandmarkUseCase getReviewsForLandmarkUseCase;
+  final WatchReviewsForLandmarkUseCase watchReviewsForLandmarkUseCase;
   final AddReviewUseCase addReviewUseCase;
   final DeleteReviewUseCase deleteReviewUseCase;
 
   ReviewsCubit({
     required this.getReviewsForLandmarkUseCase,
+    required this.watchReviewsForLandmarkUseCase,
     required this.addReviewUseCase,
     required this.deleteReviewUseCase,
   }) : super(ReviewsInitial());
+
+  Stream<List<Review>> watchReviewsForLandmark(String landmarkId) {
+    return watchReviewsForLandmarkUseCase(landmarkId);
+  }
 
   Future<void> getReviewsForLandmark(
     String landmarkId, {
@@ -27,40 +34,58 @@ class ReviewsCubit extends Cubit<ReviewsState> {
     if (showLoading) {
       emit(ReviewsLoading());
     }
-
-    final failureOrReviews = await getReviewsForLandmarkUseCase(landmarkId);
-    failureOrReviews.fold(
-      (failure) => emit(ReviewsError(message: _mapFailureToMessage(failure))),
-      (reviews) => emit(ReviewsLoaded(reviews: reviews)),
-    );
+    try {
+      final failureOrReviews = await getReviewsForLandmarkUseCase(landmarkId);
+      failureOrReviews.fold(
+        (failure) => emit(ReviewsError(message: _mapFailureToMessage(failure))),
+        (reviews) => emit(ReviewsLoaded(reviews: reviews)),
+      );
+    } catch (_) {
+      emit(ReviewsError(message: unknownFailureMessage));
+    }
   }
 
   Future<void> addReview(Review review) async {
     final currentReviews = state is ReviewsLoaded
         ? (state as ReviewsLoaded).reviews
         : const <Review>[];
-    final failureOrReview = await addReviewUseCase(review);
-    failureOrReview.fold(
-      (failure) => emit(ReviewsError(message: _mapFailureToMessage(failure))),
-      (savedReview) => emit(
-        ReviewsLoaded(reviews: _replaceUserReview(currentReviews, savedReview)),
-      ),
-    );
+    try {
+      final failureOrReview = await addReviewUseCase(review);
+      failureOrReview.fold(
+        (failure) => emit(ReviewsError(message: _mapFailureToMessage(failure))),
+        (savedReview) => emit(
+          ReviewsLoaded(
+            reviews: _replaceUserReview(currentReviews, savedReview),
+          ),
+        ),
+      );
+    } catch (_) {
+      emit(ReviewsError(message: unknownFailureMessage));
+    }
   }
 
   Future<void> deleteReview({
     required String reviewId,
     required String landmarkId,
+    required String userId,
   }) async {
     final currentReviews = state is ReviewsLoaded
         ? (state as ReviewsLoaded).reviews
         : const <Review>[];
-    final failureOrDelete = await deleteReviewUseCase(reviewId);
-    failureOrDelete.fold(
-      (failure) => emit(ReviewsError(message: _mapFailureToMessage(failure))),
-      (_) =>
-          emit(ReviewsLoaded(reviews: _removeReview(currentReviews, reviewId))),
-    );
+    try {
+      final failureOrDelete = await deleteReviewUseCase(
+        reviewId: reviewId,
+        userId: userId,
+      );
+      failureOrDelete.fold(
+        (failure) => emit(ReviewsError(message: _mapFailureToMessage(failure))),
+        (_) => emit(
+          ReviewsLoaded(reviews: _removeReview(currentReviews, reviewId)),
+        ),
+      );
+    } catch (_) {
+      emit(ReviewsError(message: unknownFailureMessage));
+    }
   }
 
   String _mapFailureToMessage(Failure failure) {

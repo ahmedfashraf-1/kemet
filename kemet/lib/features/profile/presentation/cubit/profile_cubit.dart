@@ -26,11 +26,10 @@ class ProfileCubit extends Cubit<ProfileState> {
   Future<void> loadProfile(String userId) async {
     emit(ProfileLoading());
 
-    
     final results = await Future.wait([
       getProfile(userId),
       getRecentTrips(userId),
-      getMyReviews(userId),
+      getMyReviews(userId, limit: 3),
       getFavoritePlaces(userId),
     ]);
 
@@ -62,4 +61,3 @@ class ProfileCubit extends Cubit<ProfileState> {
     );
   }
 }
-

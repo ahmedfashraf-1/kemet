@@ -22,6 +22,8 @@
   "sound_subtitle": "Play notification sounds",
   "location_access": "Location Access",
   "location_access_subtitle": "For nearby recommendations",
+  "private_account": "Private Account",
+  "private_account_subtitle": "Only you can view your profile and reviews",
   "location_permission_required": "Location permission is required for nearby recommendations.",
   "privacy_policy": "Privacy Policy",
   "data_personalization": "Data & Personalization",

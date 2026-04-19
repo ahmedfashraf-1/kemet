@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/services/text_to_speech_service.dart';
 
 class LandmarkBottomNavBar extends StatelessWidget {
   const LandmarkBottomNavBar({
@@ -9,11 +10,15 @@ class LandmarkBottomNavBar extends StatelessWidget {
     this.activeIndex = 1,
     this.bottomInset = 0,
     this.onReviews,
+    this.onAudioTap,
+    this.showReviews = true,
   });
 
   final int activeIndex;
   final double bottomInset;
   final VoidCallback? onReviews;
+  final VoidCallback? onAudioTap;
+  final bool showReviews;
 
   @override
   Widget build(BuildContext context) {
@@ -31,11 +36,11 @@ class LandmarkBottomNavBar extends StatelessWidget {
                 color: const Color(0xCC111111),
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                  color: AppColors.subtleGoldBorder.withOpacity(0.35),
+                  color: AppColors.subtleGoldBorder.withValues(alpha: 0.35),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.45),
+                    color: Colors.black.withValues(alpha: 0.45),
                     blurRadius: 40,
                     offset: const Offset(0, 18),
                   ),
@@ -50,12 +55,13 @@ class LandmarkBottomNavBar extends StatelessWidget {
                     isActive: activeIndex == 0,
                   ),
                   _primaryNavIcon(icon: Icons.map, isActive: activeIndex == 1),
-                  _navIcon(icon: Icons.headphones, isActive: activeIndex == 2),
-                  _navIcon(
-                    icon: Icons.rate_review_outlined,
-                    isActive: activeIndex == 3,
-                    onTap: onReviews,
-                  ),
+                  _audioNavIcon(),
+                  if (showReviews)
+                    _navIcon(
+                      icon: Icons.rate_review_outlined,
+                      isActive: activeIndex == 3,
+                      onTap: onReviews,
+                    ),
                 ],
               ),
             ),
@@ -70,35 +76,94 @@ class LandmarkBottomNavBar extends StatelessWidget {
     required bool isActive,
     VoidCallback? onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedScale(
-        scale: isActive ? 1.08 : 1.0,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-        child: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.transparent,
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: AppColors.mainGold.withOpacity(0.25),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : [],
-          ),
-          child: Icon(
-            icon,
-            color: isActive ? AppColors.mainGold : AppColors.darkGold,
-            size: 22,
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: AnimatedScale(
+          scale: isActive ? 1.08 : 1.0,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.transparent,
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: AppColors.mainGold.withValues(alpha: 0.25),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Icon(
+              icon,
+              color: isActive ? AppColors.mainGold : AppColors.darkGold,
+              size: 22,
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _audioNavIcon() {
+    final tts = FlutterTextToSpeechService.instance;
+    return AnimatedBuilder(
+      animation: tts,
+      builder: (context, _) {
+        final isPlaying = tts.isPlaying;
+        final isPaused = tts.isPaused;
+
+        // FIX: this icon originally had no tap handler, so it looked clickable
+        // but never received a real action. The listener is attached here to the
+        // shared TTS controller so the bottom bar can reflect playback state.
+        return Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onAudioTap,
+            child: AnimatedScale(
+              scale: (isPlaying || isPaused) ? 1.08 : 1.0,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.transparent,
+                  boxShadow: (isPlaying || isPaused)
+                      ? [
+                          BoxShadow(
+                            color: AppColors.mainGold.withValues(alpha: 0.25),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Icon(
+                  isPlaying
+                      ? Icons.pause
+                      : (isPaused ? Icons.play_arrow : Icons.volume_up),
+                  color: (isPlaying || isPaused)
+                      ? AppColors.mainGold
+                      : AppColors.darkGold,
+                  size: 22,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -117,7 +182,7 @@ class LandmarkBottomNavBar extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.mainGold.withOpacity(0.35),
+              color: AppColors.mainGold.withValues(alpha: 0.35),
               blurRadius: 14,
               offset: const Offset(0, 8),
             ),

@@ -8,6 +8,7 @@ class ProfileCoverWidget extends StatefulWidget {
   final String? avatarRemoteUrl;
   final int avatarCacheBuster;
   final VoidCallback onEditProfileImage;
+  final bool isEditable;
 
   const ProfileCoverWidget({
     super.key,
@@ -17,6 +18,7 @@ class ProfileCoverWidget extends StatefulWidget {
     this.avatarRemoteUrl,
     this.avatarCacheBuster = 0,
     required this.onEditProfileImage,
+    this.isEditable = true,
   });
 
   @override
@@ -41,7 +43,7 @@ class _ProfileCoverWidgetState extends State<ProfileCoverWidget> {
                   widget.avatarCacheBuster,
                 ),
               )
-            : null);
+            : const AssetImage('images/logo.png'));
     final totalHeight = coverHeight + (avatarSize / 2) - 8;
 
     return SizedBox(
@@ -153,73 +155,55 @@ class _ProfileCoverWidgetState extends State<ProfileCoverWidget> {
                     ),
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
-                      onTap: () {
-                        print('Image tap works');
-                        widget.onEditProfileImage();
-                      },
+                      onTap: widget.isEditable ? widget.onEditProfileImage : null,
                       child: Padding(
                         padding: const EdgeInsets.all(3.2),
                         child: CircleAvatar(
                           backgroundColor: const Color(0xFF1E1A0A),
                           backgroundImage: avatarProvider,
-                          child: avatarProvider == null ? _fallback() : null,
+                          child: null,
                         ),
                       ),
                     ),
                   ),
-                  Positioned(
-                    right: 0,
-                    bottom: 2,
-                    child: InkWell(
-                      onTap: () {
-                        print('Image tap works');
-                        widget.onEditProfileImage();
-                      },
-                      customBorder: const CircleBorder(),
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFFC9A84C),
-                          border: Border.all(
-                            color: const Color(0xFF0E0E0E),
-                            width: 2.2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFC9A84C).withOpacity(0.4),
-                              blurRadius: 10,
-                              spreadRadius: 0.5,
+                  if (widget.isEditable)
+                    Positioned(
+                      right: 0,
+                      bottom: 2,
+                      child: InkWell(
+                        onTap: widget.onEditProfileImage,
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFC9A84C),
+                            border: Border.all(
+                              color: const Color(0xFF0E0E0E),
+                              width: 2.2,
                             ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.edit,
-                          color: Color(0xFF111111),
-                          size: 13,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFC9A84C).withOpacity(0.4),
+                                blurRadius: 10,
+                                spreadRadius: 0.5,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.edit,
+                            color: Color(0xFF111111),
+                            size: 13,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _fallback() {
-    return Center(
-      child: Text(
-        widget.name.isNotEmpty ? widget.name[0].toUpperCase() : 'A',
-        style: const TextStyle(
-          color: Color(0xFFC9A84C),
-          fontSize: 34,
-          fontFamily: 'Georgia',
-        ),
       ),
     );
   }
