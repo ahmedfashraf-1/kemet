@@ -1,429 +1,612 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
-enum TtsPlaybackState { idle, playing, paused }
-
-enum TtsLanguageMode { auto, english, arabic }
-
-/// Abstraction over the speech backend so the app can swap Flutter TTS for a
-/// remote provider later (for example, ElevenLabs) without changing the UI.
-abstract class TextToSpeechService extends Listenable {
-  bool get isPlaying;
-  bool get isPaused;
-  TtsPlaybackState get playbackState;
-  double get speechRate;
-  double get pitch;
-  String get activeLanguage;
-  TtsLanguageMode get languageMode;
-  int get resumeOffset;
-  int get totalLength;
-  double get progress;
-
-  Future<void> initialize({
-    String defaultLanguage,
-    double speechRate,
-    double pitch,
-    TtsLanguageMode languageMode,
+class NarrationState {
+  const NarrationState({
+    required this.sentences,
+    required this.wordPrefixPerSentence,
+    required this.currentTime,
+    required this.totalTime,
+    required this.isPlaying,
+    required this.isPaused,
+    required this.currentSentenceIndex,
+    required this.currentWordIndex,
+    required this.totalWords,
   });
 
-  Future<void> play(String text, {int startOffset});
-  Future<void> pause();
-  Future<void> resume();
-  Future<void> stop();
-  Future<void> togglePlayPause(String text);
-  Future<void> setLanguageMode(TtsLanguageMode mode);
-  Future<void> seekToFraction(String text, double fraction);
+  factory NarrationState.initial() {
+    return const NarrationState(
+      sentences: <String>[],
+      wordPrefixPerSentence: <int>[],
+      currentTime: Duration.zero,
+      totalTime: Duration.zero,
+      isPlaying: false,
+      isPaused: false,
+      currentSentenceIndex: 0,
+      currentWordIndex: 0,
+      totalWords: 0,
+    );
+  }
 
-  // Backward-compatible aliases.
-  Future<void> speak(String text);
-  Future<void> toggle(String text);
-  void dispose();
+  final List<String> sentences;
+  final List<int> wordPrefixPerSentence;
+  final Duration currentTime;
+  final Duration totalTime;
+  final bool isPlaying;
+  final bool isPaused;
+  final int currentSentenceIndex;
+  final int currentWordIndex;
+  final int totalWords;
+
+  int get totalSentences => sentences.length;
+
+  double get sentenceProgress {
+    if (totalSentences <= 1) {
+      return 0;
+    }
+    return currentSentenceIndex / (totalSentences - 1);
+  }
+
+  double get wordProgress {
+    if (totalWords <= 1) {
+      return 0;
+    }
+    return currentWordIndex / (totalWords - 1);
+  }
+
+  Duration get currentPositionEstimate {
+    if (totalTime == Duration.zero) {
+      return Duration.zero;
+    }
+    return currentTime;
+  }
+
+  String get currentPositionLabel {
+    final current = currentPositionEstimate;
+    final minutes = current.inMinutes;
+    final seconds = current.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  String get estimatedDurationLabel {
+    if (totalTime == Duration.zero) {
+      return '--:--';
+    }
+    final totalSeconds = totalTime.inSeconds;
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  String get currentTimeLabel {
+    final currentSeconds = currentTime.inSeconds;
+    final minutes = currentSeconds ~/ 60;
+    final seconds = currentSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  String get totalTimeLabel => estimatedDurationLabel;
+
+  NarrationState copyWith({
+    List<String>? sentences,
+    List<int>? wordPrefixPerSentence,
+    Duration? currentTime,
+    Duration? totalTime,
+    bool? isPlaying,
+    bool? isPaused,
+    int? currentSentenceIndex,
+    int? currentWordIndex,
+    int? totalWords,
+  }) {
+    return NarrationState(
+      sentences: sentences ?? this.sentences,
+      wordPrefixPerSentence:
+          wordPrefixPerSentence ?? this.wordPrefixPerSentence,
+      currentTime: currentTime ?? this.currentTime,
+      totalTime: totalTime ?? this.totalTime,
+      isPlaying: isPlaying ?? this.isPlaying,
+      isPaused: isPaused ?? this.isPaused,
+      currentSentenceIndex: currentSentenceIndex ?? this.currentSentenceIndex,
+      currentWordIndex: currentWordIndex ?? this.currentWordIndex,
+      totalWords: totalWords ?? this.totalWords,
+    );
+  }
 }
 
-class FlutterTextToSpeechService extends ChangeNotifier
-    implements TextToSpeechService {
-  /// Shared app-wide controller so audio buttons can reflect the same state.
-  static final FlutterTextToSpeechService instance =
-      FlutterTextToSpeechService();
-
-  FlutterTextToSpeechService({FlutterTts? flutterTts})
+class NarrationTTSController extends ChangeNotifier {
+  NarrationTTSController._({FlutterTts? flutterTts})
     : _flutterTts = flutterTts ?? FlutterTts();
 
-  final FlutterTts _flutterTts;
+  static final NarrationTTSController instance = NarrationTTSController._();
+
   static final RegExp _arabicRegex = RegExp(
     r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]',
   );
 
-  bool _initialized = false;
-  bool _isPlaying = false;
-  bool _isPaused = false;
-  bool _pauseRequested = false;
-  bool _seekInProgress = false;
-  double _speechRate = 0.5;
-  double _pitch = 1.0;
-  String _activeLanguage = 'en-US';
-  TtsLanguageMode _languageMode = TtsLanguageMode.auto;
-  String _lastText = '';
-  int _resumeOffset = 0;
-  String _currentUtterance = '';
-  int _utteranceOffsetBase = 0;
+  final FlutterTts _flutterTts;
+  final ValueNotifier<NarrationState> stateNotifier = ValueNotifier(
+    NarrationState.initial(),
+  );
 
-  @override
-  bool get isPlaying => _isPlaying;
+  bool _isInitialized = false;
+  int _sessionId = 0;
+  int _currentSentenceIndex = 0;
+  int _currentWordIndex = 0;
+  int _totalWords = 0;
+  int _pausedSentenceIndex = 0;
+  String _lastLanguage = 'en-US';
+  List<String> _sentences = const <String>[];
+  List<int> _wordPrefixPerSentence = const <int>[];
+  List<int> _sentenceDurationsMs = const <int>[];
+  int _currentElapsedMs = 0;
+  Timer? _progressTimer;
+  bool _isCommandInFlight = false;
 
-  @override
-  bool get isPaused => _isPaused;
+  bool get isSpeaking => stateNotifier.value.isPlaying;
+  bool get isPaused => stateNotifier.value.isPaused;
+  int get currentIndex => stateNotifier.value.currentSentenceIndex;
+  Duration get currentTime => stateNotifier.value.currentTime;
+  Duration get totalTime => stateNotifier.value.totalTime;
+  List<String> get sentences => stateNotifier.value.sentences;
 
-  @override
-  TtsPlaybackState get playbackState {
-    if (_isPlaying) {
-      return TtsPlaybackState.playing;
-    }
-    if (_isPaused) {
-      return TtsPlaybackState.paused;
-    }
-    return TtsPlaybackState.idle;
-  }
-
-  @override
-  double get speechRate => _speechRate;
-
-  @override
-  double get pitch => _pitch;
-
-  @override
-  String get activeLanguage => _activeLanguage;
-
-  @override
-  TtsLanguageMode get languageMode => _languageMode;
-
-  @override
-  int get resumeOffset => _resumeOffset;
-
-  @override
-  int get totalLength => _lastText.length;
-
-  @override
-  double get progress {
-    if (_lastText.isEmpty) {
-      return 0.0;
-    }
-    final ratio = _resumeOffset / _lastText.length;
-    return ratio.clamp(0.0, 1.0);
-  }
-
-  @override
-  Future<void> initialize({
-    String defaultLanguage = 'en-US',
-    double speechRate = 0.5,
-    double pitch = 1.0,
-    TtsLanguageMode languageMode = TtsLanguageMode.auto,
-  }) async {
-    _activeLanguage = defaultLanguage;
-    _speechRate = speechRate;
-    _pitch = pitch;
-    _languageMode = languageMode;
-
-    if (_initialized) {
-      await _applyConfiguration();
+  Future<void> init() async {
+    if (_isInitialized) {
       return;
     }
 
-    await _applyConfiguration();
-
-    _flutterTts.setStartHandler(() {
-      _pauseRequested = false;
-      _seekInProgress = false;
-      _setState(playing: true, paused: false);
-    });
-
-    _flutterTts.setProgressHandler((text, startOffset, endOffset, word) {
-      if (text == _currentUtterance &&
-          endOffset >= 0 &&
-          endOffset <= text.length) {
-        final combinedOffset = _utteranceOffsetBase + endOffset;
-        if (combinedOffset >= 0 && combinedOffset <= _lastText.length) {
-          if (_resumeOffset != combinedOffset) {
-            _resumeOffset = combinedOffset;
-            notifyListeners();
-          }
-        }
-      }
-    });
-
-    _flutterTts.setCompletionHandler(() {
-      if (_seekInProgress) {
-        return;
-      }
-      _setState(playing: false, paused: false, resetProgress: true);
-    });
-
-    _flutterTts.setCancelHandler(() {
-      if (_pauseRequested) {
-        _pauseRequested = false;
-        _setState(playing: false, paused: true);
-        return;
-      }
-      if (_seekInProgress) {
-        return;
-      }
-      _setState(playing: false, paused: false, resetProgress: true);
-    });
-
-    _flutterTts.setErrorHandler((_) {
-      _pauseRequested = false;
-      _setState(playing: false, paused: false, resetProgress: true);
-    });
-
-    _initialized = true;
-  }
-
-  Future<void> _applyConfiguration() async {
-    await _flutterTts.setLanguage(_activeLanguage);
-    await _flutterTts.setSpeechRate(_speechRate);
-    await _flutterTts.setPitch(_pitch);
+    await _flutterTts.awaitSpeakCompletion(true);
+    await _flutterTts.setSpeechRate(0.45);
+    await _flutterTts.setPitch(1.0);
     await _flutterTts.setVolume(1.0);
+    await _flutterTts.setLanguage(_lastLanguage);
+
+    _flutterTts.setErrorHandler((message) {
+      debugPrint('NarrationTTSService error: $message');
+      _stopProgressTimer();
+      _updateState(isPlaying: false, isPaused: false);
+    });
+
+    _isInitialized = true;
   }
 
-  @override
-  Future<void> play(String text, {int startOffset = 0}) async {
-    final sanitized = text.trim();
-    if (sanitized.isEmpty) {
+  Future<void> speak(String text) async {
+    if (_isCommandInFlight) {
+      return;
+    }
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    _isCommandInFlight = true;
+    try {
+      await init();
+      await _prepareNarration(trimmed);
+      _currentElapsedMs = 0;
+      await _playFromSentence(
+        0,
+        resetState: true,
+        startPosition: Duration.zero,
+      );
+    } finally {
+      _isCommandInFlight = false;
+    }
+  }
+
+  Future<void> pause() async {
+    if (!isSpeaking) {
       return;
     }
 
-    await initialize(
-      defaultLanguage: _activeLanguage,
-      speechRate: _speechRate,
-      pitch: _pitch,
-      languageMode: _languageMode,
+    final pausedSentenceIndex = _currentSentenceIndex;
+    final pausedWordIndex = _currentWordIndex;
+
+    try {
+      _sessionId++;
+      _stopProgressTimer();
+      await _flutterTts.stop();
+    } catch (_) {
+      // Some engines may already have stopped; preserve progress either way.
+    }
+
+    _pausedSentenceIndex = pausedSentenceIndex;
+    _updateState(
+      isPlaying: false,
+      isPaused: true,
+      currentSentenceIndex: pausedSentenceIndex,
+      currentWordIndex: pausedWordIndex,
+      currentTime: Duration(milliseconds: _currentElapsedMs),
+    );
+  }
+
+  Future<void> resume() async {
+    if (!isPaused || _sentences.isEmpty) {
+      return;
+    }
+    _isCommandInFlight = true;
+    try {
+      await init();
+      await _playFromSentence(
+        _pausedSentenceIndex,
+        resetState: false,
+        startPosition: Duration(milliseconds: _currentElapsedMs),
+      );
+    } finally {
+      _isCommandInFlight = false;
+    }
+  }
+
+  Future<void> stop() async {
+    _sessionId++;
+    _stopProgressTimer();
+    await _flutterTts.stop();
+    _currentSentenceIndex = 0;
+    _currentWordIndex = 0;
+    _pausedSentenceIndex = 0;
+    _currentElapsedMs = 0;
+    _updateState(
+      isPlaying: false,
+      isPaused: false,
+      currentSentenceIndex: 0,
+      currentWordIndex: 0,
+      currentTime: Duration.zero,
+    );
+  }
+
+  Future<void> seekToSentence(int targetIndex) async {
+    if (_sentences.isEmpty) {
+      return;
+    }
+
+    final clamped = targetIndex.clamp(0, _sentences.length - 1);
+    final targetTime = Duration(milliseconds: _sentenceStartForIndex(clamped));
+    await seekToTime(targetTime);
+  }
+
+  Future<void> seekToTime(Duration targetTime) async {
+    if (_sentences.isEmpty) {
+      return;
+    }
+
+    final clampedMs = targetTime.inMilliseconds.clamp(
+      0,
+      totalTime.inMilliseconds,
+    );
+    final clamped = Duration(milliseconds: clampedMs);
+    final sentenceIndex = _sentenceIndexForElapsed(clampedMs);
+
+    _pausedSentenceIndex = sentenceIndex;
+    _currentSentenceIndex = sentenceIndex;
+    _currentWordIndex = _wordPrefixForSentence(sentenceIndex);
+    _currentElapsedMs = clampedMs;
+
+    _updateState(
+      currentSentenceIndex: _currentSentenceIndex,
+      currentWordIndex: _currentWordIndex,
+      currentTime: clamped,
     );
 
-    // Safety: prevent overlapping playback by canceling any in-progress audio.
-    if (_isPlaying || _isPaused) {
-      await stop();
-    }
-
-    _lastText = sanitized;
-    _resumeOffset = startOffset.clamp(0, sanitized.length);
-    _pauseRequested = false;
-    _activeLanguage = await _resolveLanguageForText(sanitized);
-    await _applyConfiguration();
-
-    final remaining = sanitized.substring(_resumeOffset).trim();
-    if (remaining.isEmpty) {
-      _setState(playing: false, paused: false, resetProgress: true);
+    if (isSpeaking) {
+      _sessionId++;
+      _stopProgressTimer();
+      await _flutterTts.stop();
+      await _playFromSentence(
+        sentenceIndex,
+        resetState: false,
+        startPosition: clamped,
+      );
       return;
-    }
-
-    _currentUtterance = remaining;
-    _utteranceOffsetBase = _resumeOffset;
-    _setState(playing: true, paused: false);
-    try {
-      await _flutterTts.speak(remaining);
-    } catch (_) {
-      _setState(playing: false, paused: false, resetProgress: true);
-      rethrow;
     }
   }
 
-  @override
-  Future<void> pause() async {
-    if (!_isPlaying) {
+  void previewSeekToTime(Duration targetTime) {
+    if (_sentences.isEmpty) {
       return;
     }
 
-    // flutter_tts pause support differs by engine/platform. We always use a
-    // safe fallback by stopping, then resume from last progress offset.
-    _pauseRequested = true;
-    await _flutterTts.stop();
-    _setState(playing: false, paused: true);
+    final clampedMs = targetTime.inMilliseconds.clamp(
+      0,
+      totalTime.inMilliseconds,
+    );
+    final clamped = Duration(milliseconds: clampedMs);
+    final sentenceIndex = _sentenceIndexForElapsed(clampedMs);
+
+    _pausedSentenceIndex = sentenceIndex;
+    _currentSentenceIndex = sentenceIndex;
+    _currentWordIndex = _wordPrefixForSentence(sentenceIndex);
+    _currentElapsedMs = clampedMs;
+
+    _updateState(
+      currentSentenceIndex: _currentSentenceIndex,
+      currentWordIndex: _currentWordIndex,
+      currentTime: clamped,
+    );
   }
 
-  @override
-  Future<void> resume() async {
-    if (!_isPaused || _lastText.trim().isEmpty) {
+  void previewSeekToSentence(int targetIndex) {
+    if (_sentences.isEmpty) {
       return;
     }
 
-    final safeOffset = _resumeOffset.clamp(0, _lastText.length);
-    final remaining = _lastText.substring(safeOffset).trim();
-    if (remaining.isEmpty) {
-      _setState(playing: false, paused: false, resetProgress: true);
-      return;
-    }
+    final clamped = targetIndex.clamp(0, _sentences.length - 1);
+    _currentSentenceIndex = clamped;
+    _currentWordIndex = _wordPrefixForSentence(clamped);
+    _pausedSentenceIndex = clamped;
+    _currentElapsedMs = _sentenceStartForIndex(clamped);
 
-    _pauseRequested = false;
-    _setState(playing: true, paused: false);
-    try {
-      await _applyConfiguration();
-      _currentUtterance = remaining;
-      _utteranceOffsetBase = safeOffset;
-      await _flutterTts.speak(remaining);
-    } catch (_) {
-      _setState(playing: false, paused: false, resetProgress: true);
-      rethrow;
-    }
+    _updateState(
+      currentSentenceIndex: _currentSentenceIndex,
+      currentWordIndex: _currentWordIndex,
+      currentTime: Duration(milliseconds: _currentElapsedMs),
+    );
   }
 
-  @override
-  Future<void> stop() async {
-    _pauseRequested = false;
-    _seekInProgress = false;
-    await _flutterTts.stop();
-    _setState(playing: false, paused: false, resetProgress: true);
-  }
-
-  @override
-  Future<void> togglePlayPause(String text) async {
-    if (_isPlaying) {
-      await pause();
-      return;
-    }
-    if (_isPaused) {
-      await resume();
-      return;
-    }
-    await play(text, startOffset: _resumeOffset);
-  }
-
-  @override
-  Future<void> setLanguageMode(TtsLanguageMode mode) async {
-    _languageMode = mode;
-    if (!_initialized) {
-      return;
-    }
-    if (_lastText.trim().isNotEmpty) {
-      _activeLanguage = await _resolveLanguageForText(_lastText);
-      await _applyConfiguration();
-    }
-    notifyListeners();
-  }
-
-  @override
-  Future<void> speak(String text) => play(text);
-
-  @override
-  Future<void> toggle(String text) async {
-    await togglePlayPause(text);
-  }
-
-  @override
-  Future<void> seekToFraction(String text, double fraction) async {
-    final sanitized = text.trim();
-    if (sanitized.isEmpty) {
-      return;
-    }
-    final clamped = fraction.clamp(0.0, 1.0);
-    final target = (sanitized.length * clamped).round();
-    await _seekToOffsetInternal(sanitized, target);
-  }
-
-  Future<void> _seekToOffsetInternal(String text, int offset) async {
-    final clampedOffset = offset.clamp(0, text.length);
-    _lastText = text;
-    _resumeOffset = clampedOffset;
-    notifyListeners();
-
-    if (!_isPlaying) {
-      return;
-    }
-
-    _seekInProgress = true;
-    _pauseRequested = false;
-    await _flutterTts.stop();
-
-    final remaining = text.substring(clampedOffset).trim();
-    if (remaining.isEmpty) {
-      _setState(playing: false, paused: false, resetProgress: true);
-      return;
-    }
-
-    _currentUtterance = remaining;
-    _utteranceOffsetBase = clampedOffset;
-    _setState(playing: true, paused: false);
-    try {
-      await _applyConfiguration();
-      await _flutterTts.speak(remaining);
-    } catch (_) {
-      _setState(playing: false, paused: false, resetProgress: true);
-      rethrow;
-    }
-  }
-
-  Future<String> _resolveLanguageForText(String text) async {
-    final preferred = switch (_languageMode) {
-      TtsLanguageMode.english => 'en-US',
-      TtsLanguageMode.arabic => 'ar-EG',
-      TtsLanguageMode.auto => _arabicRegex.hasMatch(text) ? 'ar-EG' : 'en-US',
-    };
-
-    final available = await _tryGetLanguages();
-    if (available.isEmpty) {
-      return preferred;
-    }
-
-    final normalized = available
-        .map((e) => e.toLowerCase().replaceAll('_', '-'))
+  Future<void> _prepareNarration(String rawText) async {
+    final normalized = rawText.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final baseSentences = _splitSentences(normalized);
+    final processedSentences = baseSentences
+        .map(_preprocessForNarration)
+        .where((value) => value.isNotEmpty)
         .toList(growable: false);
 
-    String? pick(List<String> candidates) {
-      for (final candidate in candidates) {
-        final key = candidate.toLowerCase().replaceAll('_', '-');
-        final idx = normalized.indexOf(key);
-        if (idx >= 0) {
-          return available[idx];
-        }
-      }
-      return null;
-    }
+    _sentences = processedSentences;
+    _wordPrefixPerSentence = _buildWordPrefixes(processedSentences);
+    _sentenceDurationsMs = _buildSentenceDurations(processedSentences);
+    _totalWords = _wordPrefixPerSentence.isNotEmpty
+        ? _wordPrefixPerSentence.last + _countWords(processedSentences.last)
+        : 0;
+    final estimatedTotalMs = _sentenceDurationsMs.fold<int>(
+      0,
+      (sum, value) => sum + value,
+    );
+    _currentSentenceIndex = 0;
+    _currentWordIndex = 0;
+    _pausedSentenceIndex = 0;
+    _currentElapsedMs = 0;
 
-    if (preferred.startsWith('ar')) {
-      return pick(const ['ar-EG', 'ar-SA']) ??
-          pick(
-            available.where((e) => e.toLowerCase().startsWith('ar')).toList(),
-          ) ??
-          preferred;
-    }
-
-    return pick(const ['en-US']) ??
-        pick(
-          available.where((e) => e.toLowerCase().startsWith('en')).toList(),
-        ) ??
-        preferred;
+    _updateState(
+      sentences: _sentences,
+      wordPrefixPerSentence: _wordPrefixPerSentence,
+      totalTime: Duration(milliseconds: estimatedTotalMs),
+      currentTime: Duration.zero,
+      currentSentenceIndex: 0,
+      currentWordIndex: 0,
+      totalWords: _totalWords,
+      isPlaying: false,
+      isPaused: false,
+    );
   }
 
-  Future<List<String>> _tryGetLanguages() async {
-    try {
-      final result = await _flutterTts.getLanguages;
-      if (result is List) {
-        return result.map((e) => e.toString()).toList(growable: false);
-      }
-    } catch (_) {
-      // Ignore language discovery failures and keep preferred fallback.
-    }
-    return const <String>[];
-  }
-
-  void _setState({
-    required bool playing,
-    required bool paused,
-    bool resetProgress = false,
-  }) {
-    if (_isPlaying == playing && _isPaused == paused && !resetProgress) {
+  Future<void> _playFromSentence(
+    int startIndex, {
+    required bool resetState,
+    required Duration startPosition,
+  }) async {
+    if (_sentences.isEmpty) {
       return;
     }
 
-    _isPlaying = playing;
-    _isPaused = paused;
+    final int session = ++_sessionId;
+    await _flutterTts.stop();
 
-    if (resetProgress) {
-      _lastText = '';
-      _resumeOffset = 0;
-      _currentUtterance = '';
-      _utteranceOffsetBase = 0;
+    _currentSentenceIndex = startIndex.clamp(0, _sentences.length - 1);
+    _currentWordIndex = _wordPrefixForSentence(_currentSentenceIndex);
+    _pausedSentenceIndex = _currentSentenceIndex;
+    _currentElapsedMs = startPosition.inMilliseconds.clamp(
+      0,
+      totalTime.inMilliseconds,
+    );
+    _updateState(
+      isPlaying: true,
+      isPaused: false,
+      currentSentenceIndex: _currentSentenceIndex,
+      currentWordIndex: _currentWordIndex,
+      currentTime: Duration(milliseconds: _currentElapsedMs),
+    );
+    _startProgressTimer();
+
+    for (var i = _currentSentenceIndex; i < _sentences.length; i++) {
+      if (session != _sessionId) {
+        return;
+      }
+
+      final sentence = _sentences[i];
+      final language = _detectLanguage(sentence);
+      if (language != _lastLanguage) {
+        await _flutterTts.setLanguage(language);
+        _lastLanguage = language;
+      }
+
+      _currentSentenceIndex = i;
+      _currentWordIndex = _wordPrefixForSentence(i);
+      _updateState(
+        currentSentenceIndex: _currentSentenceIndex,
+        currentWordIndex: _currentWordIndex,
+      );
+
+      await _flutterTts.speak(sentence);
     }
 
+    if (session == _sessionId) {
+      _stopProgressTimer();
+      _currentSentenceIndex = _sentences.length - 1;
+      _currentWordIndex = _totalWords > 0 ? _totalWords - 1 : 0;
+      _currentElapsedMs = totalTime.inMilliseconds;
+      _updateState(
+        isPlaying: false,
+        isPaused: false,
+        currentSentenceIndex: _currentSentenceIndex,
+        currentWordIndex: _currentWordIndex,
+        currentTime: totalTime,
+      );
+      if (resetState) {
+        _pausedSentenceIndex = 0;
+      }
+    }
+  }
+
+  List<String> _splitSentences(String text) {
+    final matches = RegExp(r'[^.!?؟…]+[.!?؟…]*').allMatches(text);
+    final parts = matches
+        .map((match) => match.group(0)?.trim() ?? '')
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (parts.isEmpty && text.isNotEmpty) {
+      return <String>[text];
+    }
+    return parts;
+  }
+
+  String _detectLanguage(String text) {
+    return _arabicRegex.hasMatch(text) ? 'ar-SA' : 'en-US';
+  }
+
+  String _preprocessForNarration(String text) {
+    var normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    normalized = normalized.replaceAll(RegExp(r'\.\s*'), '... ');
+    normalized = normalized.replaceAll(',', ', ... ');
+    normalized = normalized.replaceAll('،', '، ... ');
+    normalized = normalized.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return normalized;
+  }
+
+  List<int> _buildWordPrefixes(List<String> sentences) {
+    final prefixes = <int>[];
+    var runningCount = 0;
+    for (final sentence in sentences) {
+      prefixes.add(runningCount);
+      runningCount += _countWords(sentence);
+    }
+    return prefixes;
+  }
+
+  List<int> _buildSentenceDurations(List<String> sentences) {
+    return sentences.map(_estimateSentenceDurationMs).toList(growable: false);
+  }
+
+  int _countWords(String text) {
+    return RegExp(r'\S+').allMatches(text).length;
+  }
+
+  int _estimateSentenceDurationMs(String sentence) {
+    final words = _countWords(sentence);
+    if (words <= 0) {
+      return 0;
+    }
+    const wordsPerMinute = 120;
+    const basePauseMs = 250;
+    final wordsMs = (words * 60000 / wordsPerMinute).round();
+    final punctuationBonusMs = sentence.contains(RegExp(r'[.!?…]')) ? 250 : 0;
+    final commaBonusMs = sentence.contains(RegExp(r'[,،]')) ? 180 : 0;
+    return wordsMs + basePauseMs + punctuationBonusMs + commaBonusMs;
+  }
+
+  int _sentenceStartForIndex(int sentenceIndex) {
+    if (_sentenceDurationsMs.isEmpty) {
+      return 0;
+    }
+
+    var total = 0;
+    for (var i = 0; i < sentenceIndex && i < _sentenceDurationsMs.length; i++) {
+      total += _sentenceDurationsMs[i];
+    }
+    return total;
+  }
+
+  int _sentenceIndexForElapsed(int elapsedMs) {
+    if (_sentenceDurationsMs.isEmpty) {
+      return 0;
+    }
+
+    var running = 0;
+    for (var i = 0; i < _sentenceDurationsMs.length; i++) {
+      running += _sentenceDurationsMs[i];
+      if (elapsedMs < running) {
+        return i;
+      }
+    }
+
+    return _sentenceDurationsMs.length - 1;
+  }
+
+  void _startProgressTimer() {
+    _stopProgressTimer();
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 300), (timer) {
+      if (!isSpeaking) {
+        return;
+      }
+
+      final nextElapsed = (_currentElapsedMs + 300).clamp(
+        0,
+        totalTime.inMilliseconds,
+      );
+      _currentElapsedMs = nextElapsed;
+
+      _updateState(currentTime: Duration(milliseconds: _currentElapsedMs));
+
+      if (_currentElapsedMs >= totalTime.inMilliseconds &&
+          totalTime != Duration.zero) {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _stopProgressTimer() {
+    _progressTimer?.cancel();
+    _progressTimer = null;
+  }
+
+  int _wordPrefixForSentence(int sentenceIndex) {
+    if (_wordPrefixPerSentence.isEmpty) {
+      return 0;
+    }
+    return _wordPrefixPerSentence[sentenceIndex.clamp(
+      0,
+      _wordPrefixPerSentence.length - 1,
+    )];
+  }
+
+  void _updateState({
+    List<String>? sentences,
+    List<int>? wordPrefixPerSentence,
+    Duration? currentTime,
+    Duration? totalTime,
+    bool? isPlaying,
+    bool? isPaused,
+    int? currentSentenceIndex,
+    int? currentWordIndex,
+    int? totalWords,
+  }) {
+    final oldState = stateNotifier.value;
+    final nextState = oldState.copyWith(
+      sentences: sentences,
+      wordPrefixPerSentence: wordPrefixPerSentence,
+      currentTime: currentTime,
+      totalTime: totalTime,
+      isPlaying: isPlaying,
+      isPaused: isPaused,
+      currentSentenceIndex: currentSentenceIndex,
+      currentWordIndex: currentWordIndex,
+      totalWords: totalWords,
+    );
+    final unchanged =
+        oldState.isPlaying == nextState.isPlaying &&
+        oldState.isPaused == nextState.isPaused &&
+        oldState.currentSentenceIndex == nextState.currentSentenceIndex &&
+        oldState.currentWordIndex == nextState.currentWordIndex &&
+        oldState.totalWords == nextState.totalWords &&
+        oldState.currentTime == nextState.currentTime &&
+        oldState.totalTime == nextState.totalTime &&
+        listEquals(oldState.sentences, nextState.sentences) &&
+        listEquals(
+          oldState.wordPrefixPerSentence,
+          nextState.wordPrefixPerSentence,
+        );
+    if (unchanged) {
+      return;
+    }
+    stateNotifier.value = nextState;
     notifyListeners();
   }
 
@@ -431,6 +614,17 @@ class FlutterTextToSpeechService extends ChangeNotifier
   void dispose() {
     // ignore: discarded_futures
     _flutterTts.stop();
+    _stopProgressTimer();
+    stateNotifier.dispose();
     super.dispose();
   }
 }
+
+@Deprecated('Use NarrationTTSController instead.')
+class NarrationTTSService {
+  NarrationTTSService._();
+
+  static NarrationTTSController get instance => NarrationTTSController.instance;
+}
+
+typedef NarrationController = NarrationTTSController;

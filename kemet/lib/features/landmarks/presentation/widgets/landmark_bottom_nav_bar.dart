@@ -114,16 +114,13 @@ class LandmarkBottomNavBar extends StatelessWidget {
   }
 
   Widget _audioNavIcon() {
-    final tts = FlutterTextToSpeechService.instance;
+    final tts = NarrationTTSController.instance;
     return AnimatedBuilder(
       animation: tts,
       builder: (context, _) {
-        final isPlaying = tts.isPlaying;
+        final isPlaying = tts.isSpeaking;
         final isPaused = tts.isPaused;
 
-        // FIX: this icon originally had no tap handler, so it looked clickable
-        // but never received a real action. The listener is attached here to the
-        // shared TTS controller so the bottom bar can reflect playback state.
         return Material(
           color: Colors.transparent,
           shape: const CircleBorder(),
