@@ -31,7 +31,8 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateMixin {
+class _ProfileScreenState extends State<ProfileScreen>
+    with TickerProviderStateMixin {
   static const Color _bgColor = Color(0xFF0E0E0E);
   static const Color _goldColor = Color(0xFFD4AF37);
 
@@ -58,7 +59,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     _isPickingImage = true;
 
     try {
-      debugPrint('Profile photo flow started for widget.userId=${widget.userId}');
+      debugPrint(
+        'Profile photo flow started for widget.userId=${widget.userId}',
+      );
       final pickedFile = await _imagePicker.pickImage(
         source: ImageSource.gallery,
       );
@@ -69,7 +72,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       }
 
       final firebaseUser = FirebaseAuth.instance.currentUser;
-      debugPrint('Current auth user for upload: ${firebaseUser?.uid ?? 'null'}');
+      debugPrint(
+        'Current auth user for upload: ${firebaseUser?.uid ?? 'null'}',
+      );
       if (firebaseUser == null ||
           firebaseUser.uid.isEmpty ||
           firebaseUser.isAnonymous) {
@@ -81,7 +86,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
       if (firebaseUser.uid != widget.userId) {
         if (mounted) {
-          _showToast(context, 'You can edit only your profile photo', isError: true);
+          _showToast(
+            context,
+            'You can edit only your profile photo',
+            isError: true,
+          );
         }
         return;
       }
@@ -90,7 +99,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       if (!selectedFile.existsSync()) {
         debugPrint('Selected image path is not accessible: ${pickedFile.path}');
         if (mounted) {
-          _showToast(context, 'Selected image is not accessible', isError: true);
+          _showToast(
+            context,
+            'Selected image is not accessible',
+            isError: true,
+          );
         }
         return;
       }
@@ -102,9 +115,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
       try {
         await context.read<SettingsCubit>().setProfileAvatar(
-              localPath: pickedFile.path,
-              remoteUrl: remoteUrl,
-            );
+          localPath: pickedFile.path,
+          remoteUrl: remoteUrl,
+        );
       } catch (settingsError, settingsStack) {
         debugPrint('Non-fatal settings cache update failed: $settingsError');
         debugPrintStack(stackTrace: settingsStack);
@@ -123,7 +136,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         );
       }
     } on FirebaseException catch (e, st) {
-      debugPrint('Firebase photo upload/save error: code=${e.code} message=${e.message}');
+      debugPrint(
+        'Firebase photo upload/save error: code=${e.code} message=${e.message}',
+      );
       debugPrintStack(stackTrace: st);
       if (mounted) {
         _showToast(
@@ -135,11 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     } catch (e) {
       debugPrint('Unexpected photo upload error: $e');
       if (mounted) {
-        _showToast(
-          context,
-          'Upload failed: ${e.toString()}',
-          isError: true,
-        );
+        _showToast(context, 'Upload failed: ${e.toString()}', isError: true);
       }
     } finally {
       _isPickingImage = false;
@@ -148,18 +159,25 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   Future<String?> uploadToCloudinary(File imageFile) async {
     try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('https://api.cloudinary.com/v1_1/datkysjx4/image/upload'),
-      )
-        ..fields['upload_preset'] = 'kmt_upload'
-        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+      final request =
+          http.MultipartRequest(
+              'POST',
+              Uri.parse(
+                'https://api.cloudinary.com/v1_1/datkysjx4/image/upload',
+              ),
+            )
+            ..fields['upload_preset'] = 'kmt_upload'
+            ..files.add(
+              await http.MultipartFile.fromPath('file', imageFile.path),
+            );
 
       final response = await request.send();
       final body = await response.stream.bytesToString();
 
       if (response.statusCode != 200 && response.statusCode != 201) {
-        debugPrint('Cloudinary upload failed: status=${response.statusCode} body=$body');
+        debugPrint(
+          'Cloudinary upload failed: status=${response.statusCode} body=$body',
+        );
         return null;
       }
 
@@ -212,14 +230,12 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       );
     }
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .update({'photoUrl': downloadUrl});
+    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+      'photoUrl': downloadUrl,
+    });
 
     return downloadUrl;
   }
-
 
   String _formatUploadError(Object error) {
     if (error is FirebaseAuthException) {
@@ -406,24 +422,29 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     final displayName = isPrivateView
         ? 'Private Account'
         : (_displayName.trim().isNotEmpty
-            ? _displayName
-            : (profile.fullName.trim().isNotEmpty ? profile.fullName : 'Guest'));
+              ? _displayName
+              : (profile.fullName.trim().isNotEmpty
+                    ? profile.fullName
+                    : 'Guest'));
     final email = isPrivateView
         ? 'This account is private'
         : (profile.email.trim().isNotEmpty ? profile.email : '-');
-    final avatarLocalPath =
-        context.select((SettingsCubit cubit) => cubit.state.avatarLocalPath);
-    final avatarRemoteUrlFromSettings =
-        context.select((SettingsCubit cubit) => cubit.state.avatarRemoteUrl);
-    final avatarCacheBuster =
-        context.select((SettingsCubit cubit) => cubit.state.avatarCacheBuster);
+    final avatarLocalPath = context.select(
+      (SettingsCubit cubit) => cubit.state.avatarLocalPath,
+    );
+    final avatarRemoteUrlFromSettings = context.select(
+      (SettingsCubit cubit) => cubit.state.avatarRemoteUrl,
+    );
+    final avatarCacheBuster = context.select(
+      (SettingsCubit cubit) => cubit.state.avatarCacheBuster,
+    );
     final localFile = isOwnProfile
         ? (_image ??
-            ((avatarLocalPath != null &&
-                    avatarLocalPath.isNotEmpty &&
-                    File(avatarLocalPath).existsSync())
-                ? File(avatarLocalPath)
-                : null))
+              ((avatarLocalPath != null &&
+                      avatarLocalPath.isNotEmpty &&
+                      File(avatarLocalPath).existsSync())
+                  ? File(avatarLocalPath)
+                  : null))
         : null;
     final avatarRemoteUrl = isOwnProfile
         ? (avatarRemoteUrlFromSettings ?? profile.photoUrl)
@@ -470,7 +491,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                     reviews: profile.reviewsCount,
                     onExploredTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Explored list coming soon.')),
+                        const SnackBar(
+                          content: Text('Explored list coming soon.'),
+                        ),
                       );
                     },
                     onFavoriteTap: () {
@@ -556,7 +579,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   // Name Section
 
-  Widget _buildNameSection(String fullName, String email, {required bool canEdit}) {
+  Widget _buildNameSection(
+    String fullName,
+    String email, {
+    required bool canEdit,
+  }) {
     return Center(
       child: Column(
         children: [
@@ -631,7 +658,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 borderRadius: BorderRadius.circular(20.r),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.mainGold.withOpacity(_glowAnim.value * 0.3),
+                    color: AppColors.mainGold.withOpacity(
+                      _glowAnim.value * 0.3,
+                    ),
                     blurRadius: 12,
                     spreadRadius: 1,
                   ),
@@ -721,7 +750,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       return;
     }
 
-    final landmark = await lookup.getLandmark(review.landmarkId);
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final landmark = await lookup.getLandmark(
+      review.landmarkId,
+      languageCode: languageCode,
+    );
     if (!mounted) {
       return;
     }
@@ -733,10 +766,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       return;
     }
 
-    Navigator.of(context).pushNamed(
-      Routes.landmarkDetails,
-      arguments: landmark,
-    );
+    Navigator.of(
+      context,
+    ).pushNamed(Routes.landmarkDetails, arguments: landmark);
   }
 }
 
@@ -746,17 +778,15 @@ class _LandmarkLookupCache {
   final GetLandmarkByIdUseCase _getLandmarkByIdUseCase;
   final Map<String, Future<Landmark?>> _landmarkFutures = {};
 
-  Future<Landmark?> getLandmark(String id) {
-    return _landmarkFutures.putIfAbsent(
-      id,
-      () async {
-        final result = await _getLandmarkByIdUseCase(id);
-        return result.fold(
-          (_) => null,
-          (landmark) => landmark,
-        );
-      },
-    );
+  Future<Landmark?> getLandmark(String id, {String? languageCode}) {
+    final cacheKey = '${languageCode ?? 'en'}|$id';
+    return _landmarkFutures.putIfAbsent(cacheKey, () async {
+      final result = await _getLandmarkByIdUseCase(
+        id,
+        languageCode: languageCode,
+      );
+      return result.fold((_) => null, (landmark) => landmark);
+    });
   }
 }
 
@@ -876,10 +906,9 @@ class _EditDisplayNameDialogState extends State<_EditDisplayNameDialog> {
       await user.updateDisplayName(newName);
       await user.reload();
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({'fullName': newName});
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
+        {'fullName': newName},
+      );
 
       if (!mounted) return;
 
@@ -890,7 +919,11 @@ class _EditDisplayNameDialogState extends State<_EditDisplayNameDialog> {
       setState(() => _isSaving = false);
 
       if (widget.parentContext.mounted) {
-        _showToast(widget.parentContext, 'Failed to update name', isError: true);
+        _showToast(
+          widget.parentContext,
+          'Failed to update name',
+          isError: true,
+        );
       }
     }
   }
@@ -958,4 +991,3 @@ class _EditDisplayNameDialogState extends State<_EditDisplayNameDialog> {
 String formatDate(DateTime date) {
   return "${date.month}/${date.year}";
 }
-

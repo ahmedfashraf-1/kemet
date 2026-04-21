@@ -1,6 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:http/http.dart' as http;
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/routing/app_router.dart';
 import 'package:kemet/core/widgets/join_kemet_dialog.dart';
@@ -8,6 +13,7 @@ import 'package:kemet/core/utils/share_service.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/services/text_to_speech_service.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
+import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/discover_more_section.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_description_section.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_gallery.dart';
@@ -28,13 +34,23 @@ class LandmarkDetailsScreen extends StatefulWidget {
 
 class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
     with WidgetsBindingObserver, RouteAware {
+  static final RegExp _arabicRegex = RegExp(
+    r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]',
+  );
+
   late final NarrationTTSController _ttsService;
   ModalRoute<dynamic>? _route;
+  String _descriptionText = '';
+  String? _descriptionLocaleCode;
+  bool _isResolvingDescription = false;
+  Timer? _descriptionRetry;
+  DateTime? _lastDescriptionAttempt;
 
   @override
   void initState() {
     super.initState();
     _ttsService = NarrationTTSController.instance;
+    _descriptionText = widget.landmark.description;
     WidgetsBinding.instance.addObserver(this);
     _saveToRecentTrips();
     _initializeTts();
@@ -43,6 +59,7 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _resolveLocalizedDescription();
     final route = ModalRoute.of(context);
     if (_route != route) {
       if (_route is PageRoute<dynamic>) {
@@ -59,6 +76,7 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     routeObserver.unsubscribe(this);
+    _descriptionRetry?.cancel();
     _ttsService.stop();
     super.dispose();
   }
@@ -81,6 +99,194 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
       return;
     }
     await _ttsService.speak(text);
+  }
+
+  Future<void> _resolveLocalizedDescription() async {
+    final localeCode = Localizations.localeOf(context).languageCode;
+    if (_descriptionLocaleCode == localeCode || _isResolvingDescription) {
+      return;
+    }
+
+    _descriptionLocaleCode = localeCode;
+    final baseText = widget.landmark.description.trim();
+    if (localeCode != 'ar') {
+      _descriptionRetry?.cancel();
+      if (mounted) {
+        setState(() {
+          _descriptionText = baseText;
+        });
+      }
+      return;
+    }
+
+    if (_isMostlyArabic(baseText)) {
+      if (mounted) {
+        setState(() {
+          _descriptionText = baseText;
+        });
+      }
+      return;
+    }
+
+    _isResolvingDescription = true;
+    try {
+      final now = DateTime.now();
+      if (_lastDescriptionAttempt != null &&
+          now.difference(_lastDescriptionAttempt!).inSeconds < 2) {
+        return;
+      }
+      _lastDescriptionAttempt = now;
+
+      final repository = context.read<LandmarksRepository>();
+      final result = await repository.getLandmarkById(
+        widget.landmark.id,
+        languageCode: 'ar',
+      );
+      final localized = result.fold((_) => null, (landmark) => landmark);
+      final arabicFromApi = localized?.description.trim() ?? '';
+      if (_isMostlyArabic(arabicFromApi)) {
+        if (mounted) {
+          setState(() {
+            _descriptionText = arabicFromApi;
+          });
+        }
+        return;
+      }
+
+      final translated = await _translateToArabic(baseText);
+      if (translated != null && mounted) {
+        setState(() {
+          _descriptionText = translated;
+        });
+      }
+    } finally {
+      _isResolvingDescription = false;
+    }
+
+    if (mounted && !_isMostlyArabic(_descriptionText)) {
+      _descriptionRetry?.cancel();
+      _descriptionRetry = Timer(
+        const Duration(seconds: 2),
+        _resolveLocalizedDescription,
+      );
+    }
+  }
+
+  bool _isMostlyArabic(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+    final arabicCount = _countMatches(trimmed, _arabicRegex);
+    final latinCount = _countMatches(trimmed, RegExp(r'[A-Za-z]'));
+    final total = arabicCount + latinCount;
+    if (total == 0) {
+      return false;
+    }
+    return arabicCount / total >= 0.4;
+  }
+
+  int _countMatches(String text, RegExp pattern) {
+    return pattern.allMatches(text).length;
+  }
+
+  Future<String?> _translateToArabic(String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    try {
+      final chunks = _splitIntoChunks(trimmed, maxLength: 900);
+      final buffer = StringBuffer();
+      for (final chunk in chunks) {
+        final translatedChunk = await _translateChunkToArabic(chunk);
+        if (translatedChunk == null) {
+          return null;
+        }
+        if (buffer.isNotEmpty) {
+          buffer.write(' ');
+        }
+        buffer.write(translatedChunk);
+      }
+      final translated = buffer.toString().trim();
+      if (translated.isEmpty || !_isMostlyArabic(translated)) {
+        return null;
+      }
+      return translated;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> _translateChunkToArabic(String chunk) async {
+    final uri = Uri.https('translate.googleapis.com', '/translate_a/single');
+    final response = await http
+        .post(
+          uri,
+          headers: const {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          },
+          body: {
+            'client': 'gtx',
+            'sl': 'en',
+            'tl': 'ar',
+            'dt': 't',
+            'q': chunk,
+          },
+        )
+        .timeout(const Duration(seconds: 6));
+    if (response.statusCode != 200) {
+      return null;
+    }
+
+    final data = json.decode(response.body);
+    if (data is! List || data.isEmpty) {
+      return null;
+    }
+
+    final segments = data[0];
+    if (segments is! List) {
+      return null;
+    }
+
+    final buffer = StringBuffer();
+    for (final segment in segments) {
+      if (segment is List && segment.isNotEmpty && segment[0] is String) {
+        buffer.write(segment[0] as String);
+      }
+    }
+
+    final translated = buffer.toString().trim();
+    if (translated.isEmpty) {
+      return null;
+    }
+    return translated;
+  }
+
+  List<String> _splitIntoChunks(String text, {required int maxLength}) {
+    if (text.length <= maxLength) {
+      return [text];
+    }
+
+    final parts = <String>[];
+    var remaining = text.trim();
+    while (remaining.length > maxLength) {
+      var splitIndex = remaining.lastIndexOf(RegExp(r'[.!?\n]'), maxLength);
+      if (splitIndex <= 0) {
+        splitIndex = remaining.lastIndexOf(' ', maxLength);
+      }
+      if (splitIndex <= 0) {
+        splitIndex = maxLength;
+      }
+      parts.add(remaining.substring(0, splitIndex).trim());
+      remaining = remaining.substring(splitIndex).trim();
+    }
+
+    if (remaining.isNotEmpty) {
+      parts.add(remaining);
+    }
+
+    return parts;
   }
 
   @override
@@ -190,7 +396,10 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
                     // Description section with narrative and audio button (UI only).
                     SliverToBoxAdapter(
                       child: _SectionFadeSlide(
-                        child: LandmarkDescriptionSection(landmark: landmark),
+                        child: LandmarkDescriptionSection(
+                          landmark: landmark,
+                          descriptionOverride: _descriptionText,
+                        ),
                       ),
                     ),
 
@@ -241,7 +450,7 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
                   onAudioTap: () {
                     // The audio action is wired here so the bottom navigation icon can
                     // control the same landmark narration as the main description button.
-                    _toggleListen(landmark.description);
+                    _toggleListen(_descriptionText);
                   },
                   onReviews: openReviews,
                 ),

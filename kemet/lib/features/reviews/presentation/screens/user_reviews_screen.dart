@@ -110,7 +110,11 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
       return;
     }
 
-    final landmark = await lookup.getLandmark(review.landmarkId);
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final landmark = await lookup.getLandmark(
+      review.landmarkId,
+      languageCode: languageCode,
+    );
     if (!mounted) {
       return;
     }
@@ -122,10 +126,9 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
       return;
     }
 
-    Navigator.of(context).pushNamed(
-      Routes.landmarkDetails,
-      arguments: landmark,
-    );
+    Navigator.of(
+      context,
+    ).pushNamed(Routes.landmarkDetails, arguments: landmark);
   }
 }
 
@@ -155,7 +158,10 @@ class _ReviewItem extends StatelessWidget {
     }
 
     return FutureBuilder<Landmark?>(
-      future: lookupCache.getLandmark(review.landmarkId),
+      future: lookupCache.getLandmark(
+        review.landmarkId,
+        languageCode: Localizations.localeOf(context).languageCode,
+      ),
       builder: (context, snapshot) {
         final landmark = snapshot.data;
         final displayName = _displayLandmarkName(review, landmark);
@@ -188,17 +194,15 @@ class _LandmarkLookupCache {
   final GetLandmarkByIdUseCase _getLandmarkByIdUseCase;
   final Map<String, Future<Landmark?>> _landmarkFutures = {};
 
-  Future<Landmark?> getLandmark(String id) {
-    return _landmarkFutures.putIfAbsent(
-      id,
-      () async {
-        final result = await _getLandmarkByIdUseCase(id);
-        return result.fold(
-          (_) => null,
-          (landmark) => landmark,
-        );
-      },
-    );
+  Future<Landmark?> getLandmark(String id, {String? languageCode}) {
+    final cacheKey = '${languageCode ?? 'en'}|$id';
+    return _landmarkFutures.putIfAbsent(cacheKey, () async {
+      final result = await _getLandmarkByIdUseCase(
+        id,
+        languageCode: languageCode,
+      );
+      return result.fold((_) => null, (landmark) => landmark);
+    });
   }
 }
 
@@ -219,16 +223,12 @@ class _EmptyState extends StatelessWidget {
         child: const Text(
           'No reviews yet. Share your first experience!',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Color(0xFFD2C4B5),
-            fontSize: 13,
-          ),
+          style: TextStyle(color: Color(0xFFD2C4B5), fontSize: 13),
         ),
       ),
     );
   }
 }
-
 
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message, required this.onRetry});
@@ -253,10 +253,7 @@ class _ErrorState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFFD2C4B5),
-                fontSize: 13,
-              ),
+              style: const TextStyle(color: Color(0xFFD2C4B5), fontSize: 13),
             ),
             const SizedBox(height: 14),
             TextButton(
@@ -264,10 +261,7 @@ class _ErrorState extends StatelessWidget {
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xFFEBC07E),
               ),
-              child: const Text(
-                'RETRY',
-                style: TextStyle(letterSpacing: 1.4),
-              ),
+              child: const Text('RETRY', style: TextStyle(letterSpacing: 1.4)),
             ),
           ],
         ),

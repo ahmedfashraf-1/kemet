@@ -12,11 +12,11 @@ abstract class LandmarkRemoteDataSource {
     required int limit,
     String? city,
     String? kind,
+    String? languageCode,
   });
-  Future<LandmarkModel> getLandmarkById(String id);
+  Future<LandmarkModel> getLandmarkById(String id, {String? languageCode});
 }
 
-const BASE_URL = "https://api.opentripmap.com/0.1/en/places/bbox";
 const String API_KEY =
     "5ae2e3f221c38a28845f05b686f69838eab47a77852ceed62a3dfec3";
 const double lonMin = 24.7;
@@ -28,30 +28,37 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
   final http.Client client;
   LandmarkRemoteDataSourceImpl({required this.client});
 
-  @override
-  Future<LandmarkModel> getLandmarkById(String id) async {
-    try {
-      final response = await client.get(
-        Uri.parse(
-          'https://api.opentripmap.com/0.1/en/places/xid/$id?apikey=$API_KEY',
-        ),
-      );
-
-      if (response.statusCode != 200) {
-        throw ServerException();
-      }
-
-      final jsonDetails = json.decode(response.body) as Map<String, dynamic>;
-      return _mapJsonToModel(jsonDetails);
-    } catch (_) {
-      throw ServerException();
-    }
+  String _resolveLanguageCode(String? languageCode) {
+    return languageCode == 'ar' ? 'ar' : 'en';
   }
 
-  @override
-  Future<List<LandmarkModel>> getAllLandmarks({
+  String _baseUrl(String? languageCode) {
+    final lang = _resolveLanguageCode(languageCode);
+    return 'https://api.opentripmap.com/0.1/$lang/places';
+  }
+
+  bool _shouldTryArabic(String? languageCode) => languageCode == 'ar';
+
+  Future<LandmarkModel> _getLandmarkByIdWithBaseUrl(
+    String id,
+    String baseUrl,
+  ) async {
+    final response = await client.get(
+      Uri.parse('$baseUrl/xid/$id?apikey=$API_KEY'),
+    );
+
+    if (response.statusCode != 200) {
+      throw ServerException();
+    }
+
+    final jsonDetails = json.decode(response.body) as Map<String, dynamic>;
+    return _mapJsonToModel(jsonDetails);
+  }
+
+  Future<List<LandmarkModel>> _getAllLandmarksWithBaseUrl({
     required int page,
     required int limit,
+    required String baseUrl,
     String? city,
     String? kind,
   }) async {
@@ -61,9 +68,7 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
     http.Response response;
     if (city != null && city.isNotEmpty) {
       final geoResponse = await client.get(
-        Uri.parse(
-          'https://api.opentripmap.com/0.1/en/places/geoname?name=$city&apikey=$API_KEY',
-        ),
+        Uri.parse('$baseUrl/geoname?name=$city&apikey=$API_KEY'),
       );
 
       if (geoResponse.statusCode == 200) {
@@ -73,7 +78,7 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
           final lon = geoData['lon'];
 
           final radiusUrl =
-              "https://api.opentripmap.com/0.1/en/places/radius?radius=10000&lon=$lon&lat=$lat&kinds=$kindsParam&format=json&limit=$limit&offset=$offset&apikey=$API_KEY";
+              "$baseUrl/radius?radius=10000&lon=$lon&lat=$lat&kinds=$kindsParam&format=json&limit=$limit&offset=$offset&apikey=$API_KEY";
           response = await client.get(Uri.parse(radiusUrl));
         } else {
           throw ServerException();
@@ -83,7 +88,7 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
       }
     } else {
       final boxUrl =
-          "https://api.opentripmap.com/0.1/en/places/bbox?lon_min=$lonMin&lat_min=$latMin&lon_max=$lonMax&lat_max=$latMax&kinds=$kindsParam&format=json&limit=$limit&offset=$offset&apikey=$API_KEY";
+          "$baseUrl/bbox?lon_min=$lonMin&lat_min=$latMin&lon_max=$lonMax&lat_max=$latMax&kinds=$kindsParam&format=json&limit=$limit&offset=$offset&apikey=$API_KEY";
       response = await client.get(Uri.parse(boxUrl));
     }
 
@@ -98,9 +103,7 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
 
         try {
           final detailsResponse = await client.get(
-            Uri.parse(
-              'https://api.opentripmap.com/0.1/en/places/xid/$xid?apikey=$API_KEY',
-            ),
+            Uri.parse('$baseUrl/xid/$xid?apikey=$API_KEY'),
           );
 
           if (detailsResponse.statusCode == 200) {
@@ -118,6 +121,59 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
       return results;
     } else {
       throw ServerException();
+    }
+  }
+
+  @override
+  Future<LandmarkModel> getLandmarkById(
+    String id, {
+    String? languageCode,
+  }) async {
+    try {
+      final baseUrl = _baseUrl(languageCode);
+      try {
+        return await _getLandmarkByIdWithBaseUrl(id, baseUrl);
+      } on ServerException {
+        if (_shouldTryArabic(languageCode)) {
+          final fallbackBaseUrl = _baseUrl('en');
+          return await _getLandmarkByIdWithBaseUrl(id, fallbackBaseUrl);
+        }
+        rethrow;
+      }
+    } catch (_) {
+      throw ServerException();
+    }
+  }
+
+  @override
+  Future<List<LandmarkModel>> getAllLandmarks({
+    required int page,
+    required int limit,
+    String? city,
+    String? kind,
+    String? languageCode,
+  }) async {
+    final String baseUrl = _baseUrl(languageCode);
+    try {
+      return await _getAllLandmarksWithBaseUrl(
+        page: page,
+        limit: limit,
+        city: city,
+        kind: kind,
+        baseUrl: baseUrl,
+      );
+    } on ServerException {
+      if (_shouldTryArabic(languageCode)) {
+        final fallbackBaseUrl = _baseUrl('en');
+        return await _getAllLandmarksWithBaseUrl(
+          page: page,
+          limit: limit,
+          city: city,
+          kind: kind,
+          baseUrl: fallbackBaseUrl,
+        );
+      }
+      rethrow;
     }
   }
 

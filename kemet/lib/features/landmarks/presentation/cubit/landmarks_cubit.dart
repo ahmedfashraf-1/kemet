@@ -11,9 +11,16 @@ class LandmarksCubit extends Cubit<LandmarksState> {
   final GetAllLandmarksUsecase getAllLandmarksUsecase;
   final int pageSize = 7;
 
-  LandmarksCubit({required this.getAllLandmarksUsecase}) : super(LandmarksInitial());
+  LandmarksCubit({required this.getAllLandmarksUsecase})
+    : super(LandmarksInitial());
 
-  Future<void> getLandmarks({int page = 1, String? city, String? kind, bool isPagination = false}) async {
+  Future<void> getLandmarks({
+    int page = 1,
+    String? city,
+    String? kind,
+    String? languageCode,
+    bool isPagination = false,
+  }) async {
     if (!isPagination) {
       emit(LandmarksLoading());
     }
@@ -23,21 +30,25 @@ class LandmarksCubit extends Cubit<LandmarksState> {
       limit: pageSize,
       city: city,
       kind: kind,
+      languageCode: languageCode,
     );
 
     failureOrLandmarks.fold(
-          (failure) => emit(LandmarksError(message: _mapFailureToMessage(failure))),
-          (landmarks) {
-            bool isLastPage = landmarks.length < pageSize;
+      (failure) => emit(LandmarksError(message: _mapFailureToMessage(failure))),
+      (landmarks) {
+        bool isLastPage = landmarks.length < pageSize;
 
-            emit(LandmarksLoaded(
-              landmarks: landmarks,
-              currentPage: page,
-              city: city,
-              kind: kind,
-              isLastPage: isLastPage,
-            ));
-          },
+        emit(
+          LandmarksLoaded(
+            landmarks: landmarks,
+            currentPage: page,
+            city: city,
+            kind: kind,
+            languageCode: languageCode ?? 'en',
+            isLastPage: isLastPage,
+          ),
+        );
+      },
     );
   }
 
@@ -49,6 +60,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
           page: currentState.currentPage + 1,
           city: currentState.city,
           kind: currentState.kind,
+          languageCode: currentState.languageCode,
           isPagination: true,
         );
       }
@@ -63,14 +75,15 @@ class LandmarksCubit extends Cubit<LandmarksState> {
           page: currentState.currentPage - 1,
           city: currentState.city,
           kind: currentState.kind,
+          languageCode: currentState.languageCode,
           isPagination: true,
         );
       }
     }
   }
 
-  void applyFilter({String? city, String? kind}) {
-    getLandmarks(page: 1, city: city, kind: kind);
+  void applyFilter({String? city, String? kind, String? languageCode}) {
+    getLandmarks(page: 1, city: city, kind: kind, languageCode: languageCode);
   }
 
   String _mapFailureToMessage(Failure failure) {
@@ -81,5 +94,4 @@ class LandmarksCubit extends Cubit<LandmarksState> {
       _ => unknownFailureMessage,
     };
   }
-
 }

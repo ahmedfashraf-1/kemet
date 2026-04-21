@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/services/text_to_speech_service.dart';
 
 class NarrationPlayerPanel extends StatefulWidget {
@@ -31,19 +32,37 @@ class _NarrationPlayerPanelState extends State<NarrationPlayerPanel> {
       valueListenable: _tts.stateNotifier,
       builder: (context, state, _) {
         final totalSentences = state.totalSentences;
-        final totalTimeSeconds = state.totalTime.inSeconds;
-        final canSeek = totalTimeSeconds > 0;
+        final totalTimeMs = state.totalTime.inMilliseconds;
+        final canSeek = totalTimeMs > 0;
         final visualIndex = _isScrubbing
-            ? (_scrubValue ?? state.currentTime.inSeconds.toDouble())
-            : state.currentTime.inSeconds.toDouble();
+            ? (_scrubValue ?? state.currentTime.inMilliseconds.toDouble())
+            : state.currentTime.inMilliseconds.toDouble();
         final clampedTime = visualIndex.clamp(
           0.0,
-          canSeek ? totalTimeSeconds.toDouble() : 0.0,
+          canSeek ? totalTimeMs.toDouble() : 0.0,
         );
         final positionLabel = state.currentTimeLabel;
         final durationLabel = state.totalTimeLabel;
         final isPlaying = state.isPlaying;
         final isPaused = state.isPaused;
+        final canResumeFromPosition =
+            canSeek && state.currentTime > Duration.zero;
+        final sentenceLabel = context.tr(
+          'sentence_progress',
+          args: {
+            'current': '${state.currentSentenceIndex + 1}',
+            'total': '$totalSentences',
+          },
+        );
+        final readyLabel = context.tr('narration_ready');
+
+        void handlePlay() {
+          if (canResumeFromPosition) {
+            _tts.playFromPosition(widget.text, state.currentTime);
+            return;
+          }
+          _tts.speak(widget.text);
+        }
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -113,9 +132,7 @@ class _NarrationPlayerPanelState extends State<NarrationPlayerPanel> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              canSeek
-                                  ? 'Sentence ${state.currentSentenceIndex + 1}/$totalSentences'
-                                  : 'Ready to narrate',
+                              canSeek ? sentenceLabel : readyLabel,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.notoSerif(
@@ -130,9 +147,7 @@ class _NarrationPlayerPanelState extends State<NarrationPlayerPanel> {
                       _PlayPauseButton(
                         isPlaying: isPlaying,
                         isPaused: isPaused,
-                        onPlay: () {
-                          _tts.speak(widget.text);
-                        },
+                        onPlay: handlePlay,
                         onPause: isPlaying ? _tts.pause : null,
                         onResume: isPaused ? _tts.resume : null,
                       ),
@@ -186,8 +201,7 @@ class _NarrationPlayerPanelState extends State<NarrationPlayerPanel> {
                       child: Slider(
                         value: canSeek ? clampedTime : 0,
                         min: 0,
-                        max: canSeek ? totalTimeSeconds.toDouble() : 1,
-                        divisions: canSeek ? totalTimeSeconds : null,
+                        max: canSeek ? totalTimeMs.toDouble() : 1,
                         onChangeStart: canSeek
                             ? (value) {
                                 setState(() {
@@ -202,7 +216,7 @@ class _NarrationPlayerPanelState extends State<NarrationPlayerPanel> {
                                   _scrubValue = value;
                                 });
                                 _tts.previewSeekToTime(
-                                  Duration(seconds: value.round()),
+                                  Duration(milliseconds: value.round()),
                                 );
                               }
                             : null,
@@ -213,7 +227,7 @@ class _NarrationPlayerPanelState extends State<NarrationPlayerPanel> {
                                   _scrubValue = null;
                                 });
                                 await _tts.seekToTime(
-                                  Duration(seconds: value.round()),
+                                  Duration(milliseconds: value.round()),
                                 );
                               }
                             : null,
@@ -228,19 +242,17 @@ class _NarrationPlayerPanelState extends State<NarrationPlayerPanel> {
                       SizedBox(
                         width: buttonWidth,
                         child: _PlayerActionButton(
-                          label: 'Play',
+                          label: context.tr('play'),
                           icon: Icons.play_arrow,
                           enabled: !isPlaying && !isPaused,
-                          onPressed: () {
-                            _tts.speak(widget.text);
-                          },
+                          onPressed: handlePlay,
                           filled: true,
                         ),
                       ),
                       SizedBox(
                         width: buttonWidth,
                         child: _PlayerActionButton(
-                          label: 'Pause',
+                          label: context.tr('pause'),
                           icon: Icons.pause,
                           enabled: isPlaying,
                           onPressed: _tts.pause,
@@ -249,7 +261,7 @@ class _NarrationPlayerPanelState extends State<NarrationPlayerPanel> {
                       SizedBox(
                         width: buttonWidth,
                         child: _PlayerActionButton(
-                          label: 'Resume',
+                          label: context.tr('resume'),
                           icon: Icons.play_circle_outline,
                           enabled: isPaused,
                           onPressed: _tts.resume,
@@ -258,7 +270,7 @@ class _NarrationPlayerPanelState extends State<NarrationPlayerPanel> {
                       SizedBox(
                         width: buttonWidth,
                         child: _PlayerActionButton(
-                          label: 'Stop',
+                          label: context.tr('stop'),
                           icon: Icons.stop,
                           enabled: isPlaying || isPaused,
                           onPressed: _tts.stop,

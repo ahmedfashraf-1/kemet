@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarkphotos.dart';
 
 class LandmarkGallery extends StatelessWidget {
@@ -22,7 +23,7 @@ class LandmarkGallery extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  'Gallery of Antiquity',
+                  context.tr('gallery_of_antiquity'),
                   style: GoogleFonts.notoSerif(
                     fontSize: 22,
                     color: AppColors.textPrimary,
@@ -83,13 +84,13 @@ class LandmarkGallery extends StatelessWidget {
                 errorBuilder: (_, __, ___) => _placeholderCard(),
               )
             : isAppUrl
-                ? CachedNetworkImage(
-                    imageUrl: url,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => _placeholderCard(),
-                    errorWidget: (context, url, error) => _placeholderCard(),
-                  )
-                : _placeholderCard(),
+            ? CachedNetworkImage(
+                imageUrl: url,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => _placeholderCard(),
+                errorWidget: (context, url, error) => _placeholderCard(),
+              )
+            : _placeholderCard(),
       ),
     );
   }

@@ -193,6 +193,25 @@
   "validation_password_rules": "استخدم 8 أحرف على الأقل مع حرف كبير وصغير ورقم ورمز",
   "validation_confirm_password_required": "تأكيد كلمة المرور مطلوب",
   "validation_password_mismatch": "كلمتا المرور غير متطابقتين",
-  "no_route_defined": "لا يوجد مسار محدد لـ {route}"
+  "no_route_defined": "لا يوجد مسار محدد لـ {route}",
+  "visiting_hours": "ساعات الزيارة",
+  "opening_time": "وقت الفتح",
+  "closing_time": "وقت الإغلاق",
+  "gallery_of_antiquity": "معرض الآثار",
+  "discover_more_nearby": "اكتشف المزيد بالقرب منك",
+  "discover_more_in": "اكتشف المزيد في {city}",
+  "narrative_title": "السرد",
+  "narration_ready": "جاهز للسرد",
+  "sentence_progress": "جملة {current}/{total}",
+  "play": "تشغيل",
+  "pause": "إيقاف مؤقت",
+  "resume": "استئناف",
+  "stop": "إيقاف",
+  "loading": "جارٍ التحميل",
+  "suggestion": "اقتراح",
+  "loading_ellipsis": "جارٍ التحميل...",
+  "more_to_explore": "المزيد للاستكشاف",
+  "description_pending": "جارٍ ترجمة الوصف...",
+  "description_unavailable": "الوصف غير متوفر"
 }
 

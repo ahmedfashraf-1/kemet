@@ -24,6 +24,7 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
     required int limit,
     String? city,
     String? kind,
+    String? languageCode,
   }) async {
     try {
       // 1) Always try remote first.
@@ -32,8 +33,12 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
         limit: limit,
         city: city,
         kind: kind,
+        languageCode: languageCode,
       );
-      await localDataSource.cacheLandmarks(remoteLandmarks);
+      await localDataSource.cacheLandmarks(
+        remoteLandmarks,
+        languageCode: languageCode,
+      );
       return Right(remoteLandmarks);
     } on ServerException {
       // 2) If remote fails, fall back to cache.
@@ -42,6 +47,7 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
         limit: limit,
         city: city,
         kind: kind,
+        languageCode: languageCode,
       );
     } catch (_) {
       return _getFromCacheOrFail(
@@ -49,6 +55,7 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
         limit: limit,
         city: city,
         kind: kind,
+        languageCode: languageCode,
       );
     }
   }
@@ -58,10 +65,12 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
     required int limit,
     String? city,
     String? kind,
+    String? languageCode,
   }) async {
     try {
-      List<Landmark> localLandmarks = await localDataSource
-          .getCachedLandmarks();
+      List<Landmark> localLandmarks = await localDataSource.getCachedLandmarks(
+        languageCode: languageCode,
+      );
 
       if (city != null && city.isNotEmpty) {
         localLandmarks = localLandmarks.where((landmark) {
@@ -100,9 +109,15 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
   }
 
   @override
-  Future<Either<Failure, Landmark>> getLandmarkById(String id) async {
+  Future<Either<Failure, Landmark>> getLandmarkById(
+    String id, {
+    String? languageCode,
+  }) async {
     try {
-      final cached = await localDataSource.getCachedLandmarkById(id);
+      final cached = await localDataSource.getCachedLandmarkById(
+        id,
+        languageCode: languageCode,
+      );
       if (cached != null) {
         return Right(cached);
       }
@@ -112,8 +127,13 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
         return Left(OfflineFailure());
       }
 
-      final remoteLandmark = await remoteDataSource.getLandmarkById(id);
-      await localDataSource.cacheLandmarks([remoteLandmark]);
+      final remoteLandmark = await remoteDataSource.getLandmarkById(
+        id,
+        languageCode: languageCode,
+      );
+      await localDataSource.cacheLandmarks([
+        remoteLandmark,
+      ], languageCode: languageCode);
       return Right(remoteLandmark);
     } on ServerException {
       return Left(ServerFailure());

@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
@@ -15,6 +17,7 @@ import 'package:kemet/features/landmarks/presentation/screens/landmark_details_s
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
+import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
 import 'package:kemet/features/notifications/presentation/widgets/notification_bell_button.dart';
 import 'package:kemet/features/profile/presentation/widgets/profile_avatar_button.dart';
@@ -30,6 +33,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   static const Color _bgColor = Color(0xFF0E0E0E);
   static const Color _goldColor = Color(0xFFD4AF37);
+  static final RegExp _arabicRegex = RegExp(
+    r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]',
+  );
 
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
@@ -56,26 +62,38 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   final Map<String, bool> _favourites = {};
+  final Map<String, String> _localizedDescriptions = {};
+  bool _isLocalizing = false;
+  final Map<String, DateTime> _localizationAttempts = {};
+  final Set<String> _localizingIds = {};
+  Timer? _localizationRetry;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<LandmarksCubit>().getLandmarks(page: 1);
+      final languageCode = context.read<SettingsCubit>().state.localeCode;
+      context.read<LandmarksCubit>().getLandmarks(
+        page: 1,
+        languageCode: languageCode,
+      );
     });
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _localizationRetry?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   void _applyFilters() {
+    final languageCode = context.read<SettingsCubit>().state.localeCode;
     context.read<LandmarksCubit>().applyFilter(
       city: _selectedCity.isEmpty ? null : _selectedCity,
       kind: _selectedCategory.isEmpty ? null : _selectedCategory,
+      languageCode: languageCode,
     );
   }
 
@@ -105,10 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final userId = user.uid;
     if (!mounted) return;
 
-    Navigator.of(context).pushNamed(
-      Routes.profileScreen,
-      arguments: userId,
-    );
+    Navigator.of(context).pushNamed(Routes.profileScreen, arguments: userId);
   }
 
   Future<void> _logout() async {
@@ -123,160 +138,205 @@ class _HomeScreenState extends State<HomeScreen> {
     final bottomSafeArea = MediaQuery.of(context).padding.bottom;
     final shellOverlayClearance = 140.h + bottomSafeArea;
 
-    return Scaffold(
-      backgroundColor: _bgColor,
-      body: Column(
-        children: [
-          _buildTopAppBar(),
-          Expanded(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 18.h),
-                      const HeroSlider(),
-                      SizedBox(height: 24.h),
-                      _buildHeroTitle(),
-                      SizedBox(height: 24.h),
-                      _buildSearchBar(),
-                      SizedBox(height: 18.h),
-                      _buildFilterList(
-                        items: _egyptCities,
-                        selectedValue: _selectedCity,
-                        onSelected: (val) {
-                          setState(
-                            () => _selectedCity = val == 'All' ? '' : val,
-                          );
-                          _applyFilters();
-                        },
-                      ),
-                      SizedBox(height: 16.h),
-                      _buildFilterList(
-                        items: _categories,
-                        selectedValue: _selectedCategory,
-                        onSelected: (val) {
-                          setState(
-                            () => _selectedCategory = val == 'All' ? '' : val,
-                          );
-                          _applyFilters();
-                        },
-                      ),
-                      SizedBox(height: 24.h),
-                    ],
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<SettingsCubit, SettingsState>(
+          listenWhen: (previous, current) =>
+              previous.localeCode != current.localeCode,
+          listener: (context, state) {
+            _localizedDescriptions.clear();
+            _localizationAttempts.clear();
+            _localizingIds.clear();
+            _localizationRetry?.cancel();
+            context.read<LandmarksCubit>().getLandmarks(
+              page: 1,
+              city: _selectedCity.isEmpty ? null : _selectedCity,
+              kind: _selectedCategory.isEmpty ? null : _selectedCategory,
+              languageCode: state.localeCode,
+            );
+          },
+        ),
+        BlocListener<LandmarksCubit, LandmarksState>(
+          listener: (context, state) {
+            if (state is LandmarksLoaded) {
+              _localizeDescriptionsForPage(
+                state,
+                localeCode: context.read<SettingsCubit>().state.localeCode,
+              );
+            }
+          },
+        ),
+      ],
+      child: Scaffold(
+        backgroundColor: _bgColor,
+        body: Column(
+          children: [
+            _buildTopAppBar(),
+            Expanded(
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: 18.h),
+                        const HeroSlider(),
+                        SizedBox(height: 24.h),
+                        _buildHeroTitle(),
+                        SizedBox(height: 24.h),
+                        _buildSearchBar(),
+                        SizedBox(height: 18.h),
+                        _buildFilterList(
+                          items: _egyptCities,
+                          selectedValue: _selectedCity,
+                          onSelected: (val) {
+                            setState(
+                              () => _selectedCity = val == 'All' ? '' : val,
+                            );
+                            _applyFilters();
+                          },
+                        ),
+                        SizedBox(height: 16.h),
+                        _buildFilterList(
+                          items: _categories,
+                          selectedValue: _selectedCategory,
+                          onSelected: (val) {
+                            setState(
+                              () => _selectedCategory = val == 'All' ? '' : val,
+                            );
+                            _applyFilters();
+                          },
+                        ),
+                        SizedBox(height: 24.h),
+                      ],
+                    ),
                   ),
-                ),
 
-                BlocBuilder<LandmarksCubit, LandmarksState>(
-                  builder: (context, state) {
-                    if (state is LandmarksLoading) {
-                      return const SliverFillRemaining(
-                        child: Center(
-                          child: CircularProgressIndicator(color: _goldColor),
-                        ),
-                      );
-                    } else if (state is LandmarksEmpty) {
-                      return SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: Text(
-                            context.tr('no_data'),
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.65),
-                              fontSize: 16.sp,
-                            ),
-                          ),
-                        ),
-                      );
-                    } else if (state is LandmarksError) {
-                      return SliverFillRemaining(
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                state.message,
-                                style: const TextStyle(
-                                  color: Colors.redAccent,
-                                ),
-                              ),
-                              SizedBox(height: 12.h),
-                              SizedBox(
-                                width: 170.w,
-                                child: AnimatedGoldButton(
-                                  text: context.tr('retry'),
-                                  onTap: _applyFilters,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    } else if (state is LandmarksLoaded) {
-                      if (state.landmarks.isEmpty) {
+                  BlocBuilder<LandmarksCubit, LandmarksState>(
+                    builder: (context, state) {
+                      if (state is LandmarksLoading) {
                         return const SliverFillRemaining(
                           child: Center(
+                            child: CircularProgressIndicator(color: _goldColor),
+                          ),
+                        );
+                      } else if (state is LandmarksEmpty) {
+                        return SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(
                             child: Text(
-                              'No landmarks found.',
-                              style: TextStyle(color: Colors.white54),
+                              context.tr('no_data'),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.65),
+                                fontSize: 16.sp,
+                              ),
                             ),
                           ),
                         );
-                      }
+                      } else if (state is LandmarksError) {
+                        return SliverFillRemaining(
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  state.message,
+                                  style: const TextStyle(
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+                                SizedBox(height: 12.h),
+                                SizedBox(
+                                  width: 170.w,
+                                  child: AnimatedGoldButton(
+                                    text: context.tr('retry'),
+                                    onTap: _applyFilters,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      } else if (state is LandmarksLoaded) {
+                        final localeCode = context
+                            .read<SettingsCubit>()
+                            .state
+                            .localeCode;
+                        if (state.landmarks.isEmpty) {
+                          return const SliverFillRemaining(
+                            child: Center(
+                              child: Text(
+                                'No landmarks found.',
+                                style: TextStyle(color: Colors.white54),
+                              ),
+                            ),
+                          );
+                        }
 
-                      return SliverPadding(
-                        padding: EdgeInsets.only(bottom: shellOverlayClearance),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
+                        return SliverPadding(
+                          padding: EdgeInsets.only(
+                            bottom: shellOverlayClearance,
+                          ),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate((
+                              context,
+                              index,
+                            ) {
                               if (index == state.landmarks.length) {
                                 return _buildPagination(
                                   currentPage: state.currentPage,
                                   isLastPage: state.isLastPage,
                                   onPageSelected: (page) {
-                                    context
-                                        .read<LandmarksCubit>()
-                                        .getLandmarks(
-                                          page: page,
-                                          city: state.city,
-                                          kind: state.kind,
-                                          isPagination: true,
-                                        );
+                                    context.read<LandmarksCubit>().getLandmarks(
+                                      page: page,
+                                      city: state.city,
+                                      kind: state.kind,
+                                      languageCode: state.languageCode,
+                                      isPagination: true,
+                                    );
                                   },
                                 );
                               }
 
                               final landmark = state.landmarks[index];
+                              final description = _resolvedDescription(
+                                landmark,
+                                localeCode,
+                              );
                               return Padding(
                                 padding: EdgeInsets.only(bottom: 28.h),
-                                child: _buildLandmarkCard(landmark),
+                                child: _buildLandmarkCard(
+                                  landmark,
+                                  description: description,
+                                ),
                               );
-                            },
-                            childCount: state.landmarks.length + 1,
+                            }, childCount: state.landmarks.length + 1),
                           ),
-                        ),
-                      );
-                    }
-                    return const SliverToBoxAdapter(child: SizedBox.shrink());
-                  },
-                ),
-              ],
+                        );
+                      }
+                      return const SliverToBoxAdapter(child: SizedBox.shrink());
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildTopAppBar() {
-    final avatarLocalPath =
-        context.select((SettingsCubit cubit) => cubit.state.avatarLocalPath);
-    final avatarRemoteUrl =
-        context.select((SettingsCubit cubit) => cubit.state.avatarRemoteUrl);
-    final avatarCacheBuster =
-        context.select((SettingsCubit cubit) => cubit.state.avatarCacheBuster);
+    final avatarLocalPath = context.select(
+      (SettingsCubit cubit) => cubit.state.avatarLocalPath,
+    );
+    final avatarRemoteUrl = context.select(
+      (SettingsCubit cubit) => cubit.state.avatarRemoteUrl,
+    );
+    final avatarCacheBuster = context.select(
+      (SettingsCubit cubit) => cubit.state.avatarCacheBuster,
+    );
 
     return Container(
       color: _bgColor,
@@ -292,8 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
           StreamBuilder<User?>(
             stream: FirebaseAuth.instance.userChanges(),
             builder: (context, snapshot) {
-              final user =
-                  snapshot.data ?? FirebaseAuth.instance.currentUser;
+              final user = snapshot.data ?? FirebaseAuth.instance.currentUser;
               final isGuest = user == null || user.isAnonymous;
               return ProfileAvatarButton(
                 name: user?.displayName ?? 'Guest',
@@ -442,9 +501,7 @@ class _HomeScreenState extends State<HomeScreen> {
               duration: const Duration(milliseconds: 250),
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.mainGold
-                    : AppColors.cardBackground,
+                color: isActive ? AppColors.mainGold : AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(9999),
                 border: Border.all(
                   color: isActive
@@ -595,11 +652,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildLandmarkCard(Landmark landmark) {
+  Widget _buildLandmarkCard(Landmark landmark, {required String description}) {
     final isFav = _favourites[landmark.id] ?? false;
 
-    final imageUrl =
-        landmark.photos.isNotEmpty ? landmark.photos.first.url : '';
+    final imageUrl = landmark.photos.isNotEmpty
+        ? landmark.photos.first.url
+        : '';
     final isAsset = _isAssetPath(imageUrl);
     final isAppUrl = _isAppStorageUrl(imageUrl);
 
@@ -643,21 +701,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                   _buildPlaceholderImage(),
                             )
                           : isAppUrl
-                              ? CachedNetworkImage(
-                                  imageUrl: imageUrl,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) => Container(
-                                    color: const Color(0xFF161616),
-                                    child: const Center(
-                                      child: CircularProgressIndicator(
-                                        color: _goldColor,
-                                      ),
-                                    ),
+                          ? CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: const Color(0xFF161616),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: _goldColor,
                                   ),
-                                  errorWidget: (context, url, error) =>
-                                      _buildPlaceholderImage(),
-                                )
-                              : _buildPlaceholderImage(),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) =>
+                                  _buildPlaceholderImage(),
+                            )
+                          : _buildPlaceholderImage(),
                     ),
                   ),
                   Positioned.fill(
@@ -687,9 +745,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         color: _goldColor.withOpacity(0.18),
                         borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: _goldColor.withOpacity(0.35),
-                        ),
+                        border: Border.all(color: _goldColor.withOpacity(0.35)),
                       ),
                       child: Text(
                         landmark.category.name.toUpperCase(),
@@ -780,7 +836,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     SizedBox(height: 12.h),
                     Text(
-                      landmark.description,
+                      description,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -867,5 +923,267 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _heroTag(String id) => 'landmark-hero-$id';
-}
 
+  String _resolvedDescription(Landmark landmark, String languageCode) {
+    if (languageCode != 'ar') {
+      return landmark.description;
+    }
+
+    final localized = _localizedDescriptions[landmark.id];
+    if (localized != null && _isMostlyArabic(localized)) {
+      return localized;
+    }
+
+    final baseText = landmark.description.trim();
+    if (_isMostlyArabic(baseText)) {
+      return baseText;
+    }
+
+    if (_isUnavailableDescription(baseText)) {
+      return context.tr('description_unavailable');
+    }
+
+    return context.tr('description_pending');
+  }
+
+  Future<void> _localizeDescriptionsForPage(
+    LandmarksLoaded state, {
+    required String localeCode,
+  }) async {
+    if (localeCode != 'ar') {
+      return;
+    }
+
+    if (_isLocalizing) {
+      return;
+    }
+
+    final pending = state.landmarks.where((landmark) {
+      final localized = _localizedDescriptions[landmark.id];
+      if (localized != null && _isMostlyArabic(localized)) {
+        return false;
+      }
+      if (_isMostlyArabic(landmark.description)) {
+        _localizedDescriptions[landmark.id] = landmark.description;
+        return false;
+      }
+      if (_isUnavailableDescription(landmark.description.trim())) {
+        _localizedDescriptions[landmark.id] = context.tr(
+          'description_unavailable',
+        );
+        return false;
+      }
+      return true;
+    }).toList();
+
+    if (pending.isEmpty) {
+      return;
+    }
+
+    _isLocalizing = true;
+    try {
+      final repository = context.read<LandmarksRepository>();
+      final now = DateTime.now();
+      final tasks = pending.map((landmark) async {
+        if (_localizingIds.contains(landmark.id)) {
+          return;
+        }
+
+        final lastAttempt = _localizationAttempts[landmark.id];
+        if (lastAttempt != null && now.difference(lastAttempt).inSeconds < 3) {
+          return;
+        }
+
+        _localizingIds.add(landmark.id);
+        _localizationAttempts[landmark.id] = now;
+        final baseText = landmark.description.trim();
+        if (_isUnavailableDescription(baseText)) {
+          _localizedDescriptions[landmark.id] = context.tr(
+            'description_unavailable',
+          );
+          return;
+        }
+        try {
+          final result = await repository.getLandmarkById(
+            landmark.id,
+            languageCode: 'ar',
+          );
+          final localized = result.fold((_) => null, (item) => item);
+          final arabicFromApi = localized?.description.trim() ?? '';
+          if (_isMostlyArabic(arabicFromApi)) {
+            _localizedDescriptions[landmark.id] = arabicFromApi;
+            return;
+          }
+
+          if (_isUnavailableDescription(arabicFromApi)) {
+            _localizedDescriptions[landmark.id] = context.tr(
+              'description_unavailable',
+            );
+            return;
+          }
+
+          final translated = await _translateToArabic(baseText);
+          if (translated != null && _isMostlyArabic(translated)) {
+            _localizedDescriptions[landmark.id] = translated;
+          }
+        } finally {
+          _localizingIds.remove(landmark.id);
+        }
+      }).toList();
+
+      await Future.wait(tasks);
+      if (mounted) {
+        setState(() {});
+      }
+    } finally {
+      _isLocalizing = false;
+    }
+
+    final stillPending = pending.where((landmark) {
+      final localized = _localizedDescriptions[landmark.id];
+      return localized == null || !_containsArabic(localized);
+    }).isNotEmpty;
+
+    if (stillPending) {
+      _localizationRetry?.cancel();
+      _localizationRetry = Timer(
+        const Duration(seconds: 2),
+        () => _localizeDescriptionsForPage(state, localeCode: localeCode),
+      );
+    }
+  }
+
+  bool _containsArabic(String text) {
+    return _arabicRegex.hasMatch(text);
+  }
+
+  bool _isMostlyArabic(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+    final arabicCount = _countMatches(
+      trimmed,
+      RegExp(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]'),
+    );
+    final latinCount = _countMatches(trimmed, RegExp(r'[A-Za-z]'));
+    final total = arabicCount + latinCount;
+    if (total == 0) {
+      return false;
+    }
+    return arabicCount / total >= 0.4;
+  }
+
+  int _countMatches(String text, RegExp pattern) {
+    return pattern.allMatches(text).length;
+  }
+
+  bool _isUnavailableDescription(String text) {
+    if (text.isEmpty) {
+      return true;
+    }
+    final lowered = text.toLowerCase();
+    return lowered == 'no description available' ||
+        lowered == 'no description provided' ||
+        lowered == 'unknown';
+  }
+
+  Future<String?> _translateToArabic(String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    try {
+      final chunks = _splitIntoChunks(trimmed, maxLength: 900);
+      final buffer = StringBuffer();
+      for (final chunk in chunks) {
+        final translatedChunk = await _translateChunkToArabic(chunk);
+        if (translatedChunk == null) {
+          return null;
+        }
+        if (buffer.isNotEmpty) {
+          buffer.write(' ');
+        }
+        buffer.write(translatedChunk);
+      }
+      final translated = buffer.toString().trim();
+      if (translated.isEmpty || !_isMostlyArabic(translated)) {
+        return null;
+      }
+      return translated;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> _translateChunkToArabic(String chunk) async {
+    final uri = Uri.https('translate.googleapis.com', '/translate_a/single');
+    final response = await http
+        .post(
+          uri,
+          headers: const {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          },
+          body: {
+            'client': 'gtx',
+            'sl': 'en',
+            'tl': 'ar',
+            'dt': 't',
+            'q': chunk,
+          },
+        )
+        .timeout(const Duration(seconds: 6));
+    if (response.statusCode != 200) {
+      return null;
+    }
+
+    final data = json.decode(response.body);
+    if (data is! List || data.isEmpty) {
+      return null;
+    }
+
+    final segments = data[0];
+    if (segments is! List) {
+      return null;
+    }
+
+    final buffer = StringBuffer();
+    for (final segment in segments) {
+      if (segment is List && segment.isNotEmpty && segment[0] is String) {
+        buffer.write(segment[0] as String);
+      }
+    }
+
+    final translated = buffer.toString().trim();
+    if (translated.isEmpty) {
+      return null;
+    }
+    return translated;
+  }
+
+  List<String> _splitIntoChunks(String text, {required int maxLength}) {
+    if (text.length <= maxLength) {
+      return [text];
+    }
+
+    final parts = <String>[];
+    var remaining = text.trim();
+    while (remaining.length > maxLength) {
+      var splitIndex = remaining.lastIndexOf(RegExp(r'[.!?\n]'), maxLength);
+      if (splitIndex <= 0) {
+        splitIndex = remaining.lastIndexOf(' ', maxLength);
+      }
+      if (splitIndex <= 0) {
+        splitIndex = maxLength;
+      }
+      parts.add(remaining.substring(0, splitIndex).trim());
+      remaining = remaining.substring(splitIndex).trim();
+    }
+
+    if (remaining.isNotEmpty) {
+      parts.add(remaining);
+    }
+
+    return parts;
+  }
+}

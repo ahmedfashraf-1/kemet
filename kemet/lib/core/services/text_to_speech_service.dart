@@ -139,10 +139,19 @@ class NarrationTTSController extends ChangeNotifier {
   String _lastLanguage = 'en-US';
   List<String> _sentences = const <String>[];
   List<int> _wordPrefixPerSentence = const <int>[];
+  List<List<int>> _wordStartOffsetsPerSentence = const <List<int>>[];
   List<int> _sentenceDurationsMs = const <int>[];
   int _currentElapsedMs = 0;
   Timer? _progressTimer;
   bool _isCommandInFlight = false;
+  Stopwatch? _utteranceStopwatch;
+  Stopwatch? _playbackStopwatch;
+  int _playbackStartOffsetMs = 0;
+  bool _playbackClockArmed = false;
+  int _activeSentenceIndex = 0;
+  int _activeSentenceWordOffset = 0;
+  int _activeSessionId = 0;
+  String _sourceText = '';
 
   bool get isSpeaking => stateNotifier.value.isPlaying;
   bool get isPaused => stateNotifier.value.isPaused;
@@ -161,6 +170,53 @@ class NarrationTTSController extends ChangeNotifier {
     await _flutterTts.setPitch(1.0);
     await _flutterTts.setVolume(1.0);
     await _flutterTts.setLanguage(_lastLanguage);
+
+    _flutterTts.setStartHandler(() {
+      if (_activeSessionId != _sessionId) {
+        return;
+      }
+      if (_playbackClockArmed && !(_playbackStopwatch?.isRunning ?? false)) {
+        _playbackStopwatch ??= Stopwatch();
+        _playbackStopwatch!
+          ..reset()
+          ..start();
+        _playbackClockArmed = false;
+      }
+      _utteranceStopwatch ??= Stopwatch();
+      _utteranceStopwatch!
+        ..reset()
+        ..start();
+    });
+
+    _flutterTts.setCompletionHandler(() {
+      if (_activeSessionId != _sessionId) {
+        return;
+      }
+
+      final elapsed = _utteranceStopwatch?.elapsedMilliseconds ?? 0;
+      if (_activeSentenceWordOffset == 0 &&
+          _activeSentenceIndex < _sentenceDurationsMs.length) {
+        _sentenceDurationsMs[_activeSentenceIndex] = elapsed.clamp(0, 600000);
+        _updateState(totalTime: Duration(milliseconds: _totalDurationMs()));
+      }
+    });
+
+    _flutterTts.setProgressHandler((text, startOffset, endOffset, word) {
+      if (_activeSessionId != _sessionId || !isSpeaking) {
+        return;
+      }
+
+      final wordIndexInUtterance = _wordIndexForOffset(text, startOffset);
+      _currentSentenceIndex = _activeSentenceIndex;
+      _currentWordIndex =
+          _wordPrefixForSentence(_activeSentenceIndex) +
+          _activeSentenceWordOffset +
+          wordIndexInUtterance;
+      _updateState(
+        currentSentenceIndex: _currentSentenceIndex,
+        currentWordIndex: _currentWordIndex,
+      );
+    });
 
     _flutterTts.setErrorHandler((message) {
       debugPrint('NarrationTTSService error: $message');
@@ -194,6 +250,57 @@ class NarrationTTSController extends ChangeNotifier {
     }
   }
 
+  Future<void> playFromPosition(String text, Duration position) async {
+    if (_isCommandInFlight) {
+      return;
+    }
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+
+    _isCommandInFlight = true;
+    try {
+      await init();
+      final normalized = trimmed.replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (_sentences.isEmpty || _sourceText != normalized) {
+        await _prepareNarration(trimmed);
+      }
+
+      final clampedMs = position.inMilliseconds.clamp(
+        0,
+        totalTime.inMilliseconds,
+      );
+      final sentenceIndex = _sentenceIndexForElapsed(clampedMs);
+      final sentenceStart = _sentenceStartForIndex(sentenceIndex);
+      final elapsedIntoSentence = (clampedMs - sentenceStart).clamp(0, 600000);
+      final wordOffset = _wordOffsetForElapsed(
+        sentenceIndex,
+        elapsedIntoSentence,
+      );
+
+      _pausedSentenceIndex = sentenceIndex;
+      _currentSentenceIndex = sentenceIndex;
+      _currentWordIndex = _wordPrefixForSentence(sentenceIndex) + wordOffset;
+      _currentElapsedMs = clampedMs;
+
+      _updateState(
+        currentSentenceIndex: _currentSentenceIndex,
+        currentWordIndex: _currentWordIndex,
+        currentTime: Duration(milliseconds: _currentElapsedMs),
+      );
+
+      await _playFromSentence(
+        sentenceIndex,
+        resetState: false,
+        startPosition: Duration(milliseconds: clampedMs),
+        startWordOffset: wordOffset,
+      );
+    } finally {
+      _isCommandInFlight = false;
+    }
+  }
+
   Future<void> pause() async {
     if (!isSpeaking) {
       return;
@@ -205,6 +312,9 @@ class NarrationTTSController extends ChangeNotifier {
     try {
       _sessionId++;
       _stopProgressTimer();
+      _utteranceStopwatch?.stop();
+      _playbackStopwatch?.stop();
+      _playbackClockArmed = false;
       await _flutterTts.stop();
     } catch (_) {
       // Some engines may already have stopped; preserve progress either way.
@@ -227,10 +337,20 @@ class NarrationTTSController extends ChangeNotifier {
     _isCommandInFlight = true;
     try {
       await init();
+      final sentenceStart = _sentenceStartForIndex(_pausedSentenceIndex);
+      final elapsedIntoSentence = (_currentElapsedMs - sentenceStart).clamp(
+        0,
+        600000,
+      );
+      final wordOffset = _wordOffsetForElapsed(
+        _pausedSentenceIndex,
+        elapsedIntoSentence,
+      );
       await _playFromSentence(
         _pausedSentenceIndex,
         resetState: false,
         startPosition: Duration(milliseconds: _currentElapsedMs),
+        startWordOffset: wordOffset,
       );
     } finally {
       _isCommandInFlight = false;
@@ -240,6 +360,10 @@ class NarrationTTSController extends ChangeNotifier {
   Future<void> stop() async {
     _sessionId++;
     _stopProgressTimer();
+    _utteranceStopwatch?.stop();
+    _playbackStopwatch?.stop();
+    _playbackStartOffsetMs = 0;
+    _playbackClockArmed = false;
     await _flutterTts.stop();
     _currentSentenceIndex = 0;
     _currentWordIndex = 0;
@@ -268,17 +392,22 @@ class NarrationTTSController extends ChangeNotifier {
     if (_sentences.isEmpty) {
       return;
     }
-
     final clampedMs = targetTime.inMilliseconds.clamp(
       0,
       totalTime.inMilliseconds,
     );
     final clamped = Duration(milliseconds: clampedMs);
     final sentenceIndex = _sentenceIndexForElapsed(clampedMs);
+    final sentenceStart = _sentenceStartForIndex(sentenceIndex);
+    final elapsedIntoSentence = (clampedMs - sentenceStart).clamp(0, 600000);
+    final wordOffset = _wordOffsetForElapsed(
+      sentenceIndex,
+      elapsedIntoSentence,
+    );
 
     _pausedSentenceIndex = sentenceIndex;
     _currentSentenceIndex = sentenceIndex;
-    _currentWordIndex = _wordPrefixForSentence(sentenceIndex);
+    _currentWordIndex = _wordPrefixForSentence(sentenceIndex) + wordOffset;
     _currentElapsedMs = clampedMs;
 
     _updateState(
@@ -289,12 +418,16 @@ class NarrationTTSController extends ChangeNotifier {
 
     if (isSpeaking) {
       _sessionId++;
+      _activeSessionId = _sessionId;
       _stopProgressTimer();
+      _playbackStopwatch?.stop();
+      _playbackClockArmed = false;
       await _flutterTts.stop();
       await _playFromSentence(
         sentenceIndex,
         resetState: false,
         startPosition: clamped,
+        startWordOffset: wordOffset,
       );
       return;
     }
@@ -311,10 +444,16 @@ class NarrationTTSController extends ChangeNotifier {
     );
     final clamped = Duration(milliseconds: clampedMs);
     final sentenceIndex = _sentenceIndexForElapsed(clampedMs);
+    final sentenceStart = _sentenceStartForIndex(sentenceIndex);
+    final elapsedIntoSentence = (clampedMs - sentenceStart).clamp(0, 600000);
+    final wordOffset = _wordOffsetForElapsed(
+      sentenceIndex,
+      elapsedIntoSentence,
+    );
 
     _pausedSentenceIndex = sentenceIndex;
     _currentSentenceIndex = sentenceIndex;
-    _currentWordIndex = _wordPrefixForSentence(sentenceIndex);
+    _currentWordIndex = _wordPrefixForSentence(sentenceIndex) + wordOffset;
     _currentElapsedMs = clampedMs;
 
     _updateState(
@@ -344,6 +483,7 @@ class NarrationTTSController extends ChangeNotifier {
 
   Future<void> _prepareNarration(String rawText) async {
     final normalized = rawText.replaceAll(RegExp(r'\s+'), ' ').trim();
+    _sourceText = normalized;
     final baseSentences = _splitSentences(normalized);
     final processedSentences = baseSentences
         .map(_preprocessForNarration)
@@ -352,6 +492,9 @@ class NarrationTTSController extends ChangeNotifier {
 
     _sentences = processedSentences;
     _wordPrefixPerSentence = _buildWordPrefixes(processedSentences);
+    _wordStartOffsetsPerSentence = processedSentences
+        .map(_buildWordStartOffsets)
+        .toList(growable: false);
     _sentenceDurationsMs = _buildSentenceDurations(processedSentences);
     _totalWords = _wordPrefixPerSentence.isNotEmpty
         ? _wordPrefixPerSentence.last + _countWords(processedSentences.last)
@@ -382,6 +525,7 @@ class NarrationTTSController extends ChangeNotifier {
     int startIndex, {
     required bool resetState,
     required Duration startPosition,
+    int startWordOffset = 0,
   }) async {
     if (_sentences.isEmpty) {
       return;
@@ -391,12 +535,15 @@ class NarrationTTSController extends ChangeNotifier {
     await _flutterTts.stop();
 
     _currentSentenceIndex = startIndex.clamp(0, _sentences.length - 1);
-    _currentWordIndex = _wordPrefixForSentence(_currentSentenceIndex);
+    _currentWordIndex =
+        _wordPrefixForSentence(_currentSentenceIndex) + startWordOffset;
     _pausedSentenceIndex = _currentSentenceIndex;
     _currentElapsedMs = startPosition.inMilliseconds.clamp(
       0,
       totalTime.inMilliseconds,
     );
+    _startPlaybackClock(_currentElapsedMs);
+    _activeSentenceWordOffset = startWordOffset;
     _updateState(
       isPlaying: true,
       isPaused: false,
@@ -405,13 +552,17 @@ class NarrationTTSController extends ChangeNotifier {
       currentTime: Duration(milliseconds: _currentElapsedMs),
     );
     _startProgressTimer();
+    _activeSessionId = session;
 
     for (var i = _currentSentenceIndex; i < _sentences.length; i++) {
       if (session != _sessionId) {
         return;
       }
 
+      final isFirstSentence = i == startIndex;
       final sentence = _sentences[i];
+      final startWordIndex = isFirstSentence ? startWordOffset : 0;
+      final utterance = _sentenceTextFromWordIndex(i, startWordIndex);
       final language = _detectLanguage(sentence);
       if (language != _lastLanguage) {
         await _flutterTts.setLanguage(language);
@@ -419,26 +570,33 @@ class NarrationTTSController extends ChangeNotifier {
       }
 
       _currentSentenceIndex = i;
-      _currentWordIndex = _wordPrefixForSentence(i);
+      _currentWordIndex = _wordPrefixForSentence(i) + startWordIndex;
+      _activeSentenceIndex = i;
+      _activeSentenceWordOffset = startWordIndex;
       _updateState(
         currentSentenceIndex: _currentSentenceIndex,
         currentWordIndex: _currentWordIndex,
       );
 
-      await _flutterTts.speak(sentence);
+      await _flutterTts.speak(utterance);
     }
 
     if (session == _sessionId) {
+      final actualElapsedMs =
+          _playbackStartOffsetMs +
+          (_playbackStopwatch?.elapsedMilliseconds ?? 0);
+      if (actualElapsedMs > 0) {
+        _currentElapsedMs = actualElapsedMs;
+      }
       _stopProgressTimer();
       _currentSentenceIndex = _sentences.length - 1;
       _currentWordIndex = _totalWords > 0 ? _totalWords - 1 : 0;
-      _currentElapsedMs = totalTime.inMilliseconds;
       _updateState(
         isPlaying: false,
         isPaused: false,
         currentSentenceIndex: _currentSentenceIndex,
         currentWordIndex: _currentWordIndex,
-        currentTime: totalTime,
+        currentTime: Duration(milliseconds: _currentElapsedMs),
       );
       if (resetState) {
         _pausedSentenceIndex = 0;
@@ -479,6 +637,12 @@ class NarrationTTSController extends ChangeNotifier {
       runningCount += _countWords(sentence);
     }
     return prefixes;
+  }
+
+  List<int> _buildWordStartOffsets(String sentence) {
+    return RegExp(
+      r'\S+',
+    ).allMatches(sentence).map((match) => match.start).toList(growable: false);
   }
 
   List<int> _buildSentenceDurations(List<String> sentences) {
@@ -532,24 +696,37 @@ class NarrationTTSController extends ChangeNotifier {
 
   void _startProgressTimer() {
     _stopProgressTimer();
-    _progressTimer = Timer.periodic(const Duration(milliseconds: 300), (timer) {
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 120), (timer) {
       if (!isSpeaking) {
         return;
       }
 
-      final nextElapsed = (_currentElapsedMs + 300).clamp(
-        0,
-        totalTime.inMilliseconds,
-      );
-      _currentElapsedMs = nextElapsed;
+      if (!(_playbackStopwatch?.isRunning ?? false)) {
+        return;
+      }
+
+      if (_playbackStopwatch != null) {
+        final elapsed = _playbackStopwatch!.elapsedMilliseconds;
+        final nextElapsed = _playbackStartOffsetMs + elapsed;
+        _currentElapsedMs = nextElapsed < 0 ? 0 : nextElapsed;
+      } else {
+        final nextElapsed = _currentElapsedMs + 120;
+        _currentElapsedMs = nextElapsed < 0 ? 0 : nextElapsed;
+      }
+
+      if (_currentElapsedMs > totalTime.inMilliseconds) {
+        // Keep totalTime fixed to the precomputed duration estimate.
+      }
 
       _updateState(currentTime: Duration(milliseconds: _currentElapsedMs));
-
-      if (_currentElapsedMs >= totalTime.inMilliseconds &&
-          totalTime != Duration.zero) {
-        timer.cancel();
-      }
     });
+  }
+
+  void _startPlaybackClock(int startOffsetMs) {
+    _playbackStartOffsetMs = startOffsetMs;
+    _playbackStopwatch ??= Stopwatch();
+    _playbackStopwatch!.reset();
+    _playbackClockArmed = true;
   }
 
   void _stopProgressTimer() {
@@ -565,6 +742,72 @@ class NarrationTTSController extends ChangeNotifier {
       0,
       _wordPrefixPerSentence.length - 1,
     )];
+  }
+
+  int _wordOffsetForElapsed(int sentenceIndex, int elapsedIntoSentenceMs) {
+    if (_sentenceDurationsMs.isEmpty ||
+        sentenceIndex >= _sentenceDurationsMs.length ||
+        sentenceIndex < 0) {
+      return 0;
+    }
+
+    final wordCount = sentenceIndex < _wordStartOffsetsPerSentence.length
+        ? _wordStartOffsetsPerSentence[sentenceIndex].length
+        : 0;
+    if (wordCount <= 1) {
+      return 0;
+    }
+
+    final durationMs = _sentenceDurationsMs[sentenceIndex];
+    if (durationMs <= 0) {
+      return 0;
+    }
+
+    final ratio = elapsedIntoSentenceMs / durationMs;
+    return (ratio * wordCount).floor().clamp(0, wordCount - 1);
+  }
+
+  int _wordIndexForOffset(String text, int startOffset) {
+    final matches = RegExp(r'\S+').allMatches(text).toList(growable: false);
+    if (matches.isEmpty) {
+      return 0;
+    }
+    for (var i = 0; i < matches.length; i++) {
+      final match = matches[i];
+      if (startOffset <= match.start || startOffset < match.end) {
+        return i;
+      }
+    }
+    return matches.length - 1;
+  }
+
+  String _sentenceTextFromWordIndex(int sentenceIndex, int wordOffset) {
+    if (sentenceIndex >= _sentences.length || sentenceIndex < 0) {
+      return '';
+    }
+
+    final sentence = _sentences[sentenceIndex];
+    if (wordOffset <= 0) {
+      return sentence;
+    }
+
+    if (sentenceIndex >= _wordStartOffsetsPerSentence.length) {
+      return sentence;
+    }
+
+    final offsets = _wordStartOffsetsPerSentence[sentenceIndex];
+    if (offsets.isEmpty || wordOffset >= offsets.length) {
+      return sentence;
+    }
+
+    return sentence.substring(offsets[wordOffset]);
+  }
+
+  int _totalDurationMs() {
+    if (_sentenceDurationsMs.isEmpty) {
+      return 0;
+    }
+    return _sentenceDurationsMs.fold<int>(0, (sum, value) => sum + value);
   }
 
   void _updateState({
