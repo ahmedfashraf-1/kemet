@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/services/text_to_speech_service.dart';
 
 class LandmarkBottomNavBar extends StatelessWidget {
   const LandmarkBottomNavBar({
@@ -9,6 +10,8 @@ class LandmarkBottomNavBar extends StatelessWidget {
     this.activeIndex = 1,
     this.bottomInset = 0,
     this.onReviews,
+    this.onForumTap,
+    this.onMapTap,
     this.onAudioTap,
     this.showReviews = true,
   });
@@ -16,6 +19,8 @@ class LandmarkBottomNavBar extends StatelessWidget {
   final int activeIndex;
   final double bottomInset;
   final VoidCallback? onReviews;
+  final VoidCallback? onForumTap;
+  final VoidCallback? onMapTap;
 
   final VoidCallback? onAudioTap;
   final bool showReviews;
@@ -53,8 +58,13 @@ class LandmarkBottomNavBar extends StatelessWidget {
                   _navIcon(
                     icon: Icons.forum_outlined,
                     isActive: activeIndex == 0,
+                    onTap: onForumTap,
                   ),
-                  _primaryNavIcon(icon: Icons.map, isActive: activeIndex == 1),
+                  _primaryNavIcon(
+                    icon: Icons.map,
+                    isActive: activeIndex == 1,
+                    onTap: onMapTap,
+                  ),
                   _navIcon(
                     icon: Icons.headphones,
                     isActive: activeIndex == 2,
@@ -80,60 +90,128 @@ class LandmarkBottomNavBar extends StatelessWidget {
     required bool isActive,
     VoidCallback? onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedScale(
-        scale: isActive ? 1.08 : 1.0,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-        child: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.transparent,
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: AppColors.mainGold.withOpacity(0.25),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : [],
-          ),
-          child: Icon(
-            icon,
-            color: isActive ? AppColors.mainGold : AppColors.darkGold,
-            size: 22,
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: AnimatedScale(
+          scale: isActive ? 1.08 : 1.0,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.transparent,
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: AppColors.mainGold.withOpacity(0.25),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Icon(
+              icon,
+              color: isActive ? AppColors.mainGold : AppColors.darkGold,
+              size: 22,
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _primaryNavIcon({required IconData icon, required bool isActive}) {
-    return AnimatedScale(
-      scale: isActive ? 1.08 : 1.0,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-      child: Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [Color(0xFFEBC07E), Color(0xFFC59D5F)],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.mainGold.withOpacity(0.35),
-              blurRadius: 14,
-              offset: const Offset(0, 8),
+  Widget _audioNavIcon() {
+    final tts = NarrationTTSController.instance;
+    return AnimatedBuilder(
+      animation: tts,
+      builder: (context, _) {
+        final isPlaying = tts.isSpeaking;
+        final isPaused = tts.isPaused;
+
+        return Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onAudioTap,
+            child: AnimatedScale(
+              scale: (isPlaying || isPaused) ? 1.08 : 1.0,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.transparent,
+                  boxShadow: (isPlaying || isPaused)
+                      ? [
+                          BoxShadow(
+                            color: AppColors.mainGold.withValues(alpha: 0.25),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Icon(
+                  isPlaying
+                      ? Icons.pause
+                      : (isPaused ? Icons.play_arrow : Icons.volume_up),
+                  color: (isPlaying || isPaused)
+                      ? AppColors.mainGold
+                      : AppColors.darkGold,
+                  size: 22,
+                ),
+              ),
             ),
-          ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _primaryNavIcon({
+    required IconData icon,
+    required bool isActive,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: AnimatedScale(
+          scale: isActive ? 1.08 : 1.0,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFFEBC07E), Color(0xFFC59D5F)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.mainGold.withOpacity(0.35),
+                  blurRadius: 14,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: AppColors.textDarkOnGold),
+          ),
         ),
-        child: Icon(icon, color: AppColors.textDarkOnGold),
       ),
     );
   }

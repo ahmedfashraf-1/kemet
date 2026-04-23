@@ -25,6 +25,7 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
     String? city,
     String? kind,
     String? query,
+    String? languageCode,
   }) async {
     final hasQuery = query != null && query.trim().isNotEmpty;
     if (hasQuery) {
@@ -41,8 +42,12 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
         limit: limit,
         city: city,
         kind: kind,
+        languageCode: languageCode,
       );
-      await localDataSource.cacheLandmarks(remoteLandmarks);
+      await localDataSource.cacheLandmarks(
+        remoteLandmarks,
+        languageCode: languageCode,
+      );
       return Right(remoteLandmarks);
     } on ServerException {
       // 2) If remote fails, fall back to cache.
@@ -51,6 +56,7 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
         limit: limit,
         city: city,
         kind: kind,
+        languageCode: languageCode,
       );
     } catch (_) {
       return _getFromCacheOrFail(
@@ -58,6 +64,7 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
         limit: limit,
         city: city,
         kind: kind,
+        languageCode: languageCode,
       );
     }
   }
@@ -95,10 +102,12 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
     required int limit,
     String? city,
     String? kind,
+    String? languageCode,
   }) async {
     try {
-      List<Landmark> localLandmarks = await localDataSource
-          .getCachedLandmarks();
+      List<Landmark> localLandmarks = await localDataSource.getCachedLandmarks(
+        languageCode: languageCode,
+      );
 
       if (city != null && city.isNotEmpty) {
         localLandmarks = localLandmarks.where((landmark) {
@@ -137,25 +146,48 @@ class LandmarksRepositoryImpl implements LandmarksRepository {
   }
 
   @override
-  Future<Either<Failure, Landmark>> getLandmarkById(String id) async {
+  Future<Either<Failure, Landmark>> getLandmarkById(
+    String id, {
+    String? languageCode,
+  }) async {
     try {
-      final cached = await localDataSource.getCachedLandmarkById(id);
-      if (cached != null) {
+      final cached = await localDataSource.getCachedLandmarkById(
+        id,
+        languageCode: languageCode,
+      );
+      if (cached != null && !_isPlaceholderDescription(cached.description)) {
         return Right(cached);
       }
 
       final bool isConnected = await networkInfo.isConnected;
+      if (cached != null && !isConnected) {
+        return Right(cached);
+      }
       if (!isConnected) {
         return Left(OfflineFailure());
       }
 
-      final remoteLandmark = await remoteDataSource.getLandmarkById(id);
-      await localDataSource.cacheLandmarks([remoteLandmark]);
+      final remoteLandmark = await remoteDataSource.getLandmarkById(
+        id,
+        languageCode: languageCode,
+      );
+      await localDataSource.cacheLandmarks([
+        remoteLandmark,
+      ], languageCode: languageCode);
       return Right(remoteLandmark);
     } on ServerException {
       return Left(ServerFailure());
     } catch (_) {
       return Left(ServerFailure());
     }
+  }
+
+  bool _isPlaceholderDescription(String text) {
+    final lowered = text.trim().toLowerCase();
+    return lowered.isEmpty ||
+        lowered == 'no description available' ||
+        lowered == 'no description provided' ||
+        lowered == 'unknown' ||
+        lowered == 'description not available';
   }
 }

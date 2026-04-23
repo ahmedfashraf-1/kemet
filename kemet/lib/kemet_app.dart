@@ -31,7 +31,6 @@ class KemetApp extends StatelessWidget {
   final AppRouter appRouter;
   final SharedPreferences sharedPreferences;
   final GlobalKey<NavigatorState> navigatorKey;
-  
 
   const KemetApp({
     super.key,
@@ -73,8 +72,12 @@ class KemetApp extends StatelessWidget {
 
         RepositoryProvider<LandmarksRepository>(
           create: (context) => LandmarksRepositoryImpl(
-            remoteDataSource: LandmarkRemoteDataSourceImpl(client: http.Client()),
-            localDataSource: LandmarkLocalDataSourceImpl(sharedPreferences: sharedPreferences),
+            remoteDataSource: LandmarkRemoteDataSourceImpl(
+              client: http.Client(),
+            ),
+            localDataSource: LandmarkLocalDataSourceImpl(
+              sharedPreferences: sharedPreferences,
+            ),
             networkInfo: NetworkInfoImpl(InternetConnectionChecker.instance),
           ),
         ),
@@ -114,6 +117,7 @@ class KemetApp extends StatelessWidget {
               return MaterialApp(
                 debugShowCheckedModeBanner: false,
                 navigatorKey: navigatorKey,
+                navigatorObservers: [routeObserver],
                 home: const SplashView(),
                 onGenerateRoute: appRouter.generateRoute,
                 theme: _buildLightTheme(),

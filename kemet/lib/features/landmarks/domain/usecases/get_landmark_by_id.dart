@@ -8,8 +8,7 @@ class GetLandmarkByIdUseCase {
 
   const GetLandmarkByIdUseCase(this.repository);
 
-  Future<Either<Failure, Landmark>> call(String id) {
-    return repository.getLandmarkById(id);
+  Future<Either<Failure, Landmark>> call(String id, {String? languageCode}) {
+    return repository.getLandmarkById(id, languageCode: languageCode);
   }
 }
-

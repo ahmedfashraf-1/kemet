@@ -17,6 +17,7 @@ class LandmarksLoaded extends LandmarksState {
   final String? city;
   final String? kind;
   final String? query;
+  final String languageCode;
   final bool isLastPage;
 
   const LandmarksLoaded({
@@ -25,6 +26,7 @@ class LandmarksLoaded extends LandmarksState {
     this.city,
     this.kind,
     this.query,
+    this.languageCode = 'en',
     this.isLastPage = false,
   });
 
@@ -35,6 +37,7 @@ class LandmarksLoaded extends LandmarksState {
     city,
     kind,
     query,
+    languageCode,
     isLastPage,
   ];
 }

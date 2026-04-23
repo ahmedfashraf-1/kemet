@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 
 class LandmarkInfoCard extends StatelessWidget {
@@ -36,7 +37,7 @@ class LandmarkInfoCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'VISITING HOURS',
+                  context.tr('visiting_hours'),
                   style: GoogleFonts.notoSerif(
                     fontSize: 10,
                     letterSpacing: 2.2,
@@ -45,9 +46,9 @@ class LandmarkInfoCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                _row('Opening Time', landmark.openingTime),
+                _row(context.tr('opening_time'), landmark.openingTime),
                 const SizedBox(height: 14),
-                _row('Closing Time', landmark.closingTime),
+                _row(context.tr('closing_time'), landmark.closingTime),
               ],
             ),
           ],

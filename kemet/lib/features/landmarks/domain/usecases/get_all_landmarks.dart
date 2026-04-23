@@ -14,6 +14,7 @@ class GetAllLandmarksUsecase {
     String? city,
     String? kind,
     String? query,
+    String? languageCode,
   }) async {
     return await repository.getAllLandmarks(
       page: page,
@@ -21,6 +22,7 @@ class GetAllLandmarksUsecase {
       city: city,
       kind: kind,
       query: query,
+      languageCode: languageCode,
     );
   }
 }

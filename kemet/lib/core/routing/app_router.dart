@@ -42,7 +42,6 @@ import 'package:kemet/features/profile/presentation/di/profile_di.dart';
 // import 'package:kemet/features/home/presentation/screens/home_screen.dart';
 import 'package:kemet/features/settings/presentation/screens/settings_screen.dart';
 import 'package:kemet/features/notifications/presentation/screens/notification_details_screen.dart';
-import 'package:kemet/features/tts/presentation/screens/listen_demo_screen.dart';
 
 //landmarks
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
@@ -55,6 +54,9 @@ import 'package:kemet/features/favorite/domain/usecases/toggle_favorite_usecase.
 import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
 import 'package:kemet/features/favorite/presentation/screens/favorites_page.dart';
 import 'package:kemet/features/favorite/domain/repositories/favorites_repository.dart';
+final RouteObserver<PageRoute<dynamic>> routeObserver =
+    RouteObserver<PageRoute<dynamic>>();
+
 class AppRouter {
   Route generateRoute(RouteSettings setting) {
     switch (setting.name) {
@@ -88,9 +90,9 @@ class AppRouter {
           setting,
         );
 
-// msh mst5dmenha pas ll zaman 
+      // msh mst5dmenha pas ll zaman
       case Routes.notificationDetails:
-    //  return _fadeDominantFromRight(const NotificationsScreen(), setting);
+        //  return _fadeDominantFromRight(const NotificationsScreen(), setting);
         final args = setting.arguments is Map<String, dynamic>
             ? setting.arguments as Map<String, dynamic>
             : const <String, dynamic>{};
@@ -102,12 +104,10 @@ class AppRouter {
           setting,
         );
 
-  
       // const mtgesh m3 statefulwidget
       case Routes.notificationsScreen:
         return _fadeDominantFromRight(NotificationsScreen(), setting);
-        // return _fadeDominantFromRight(const NotificationsScreen(), setting);
-           
+      // return _fadeDominantFromRight(const NotificationsScreen(), setting);
 
       case Routes.mainShell:
         return _fadeDominantFromRight(
@@ -136,12 +136,6 @@ class AppRouter {
       case Routes.favoritesScreen:
         return _fadeDominantFromRight(
           const FavoritesPage(),
-          setting,
-        );
-
-      case Routes.listenDemoScreen:
-        return _fadeDominantFromRight(
-          const ListenDemoScreen(),
           setting,
         );
 
@@ -179,9 +173,8 @@ class AppRouter {
         final userIdArg = setting.arguments;
         if (userIdArg is! String || userIdArg.isEmpty) {
           return MaterialPageRoute(
-            builder: (_) => const Scaffold(
-              body: Center(child: Text('Invalid user data')),
-            ),
+            builder: (_) =>
+                const Scaffold(body: Center(child: Text('Invalid user data'))),
           );
         }
         return _fadeDominantFromRight(
@@ -196,9 +189,8 @@ class AppRouter {
         final userIdArg = setting.arguments;
         if (userIdArg is! String || userIdArg.isEmpty) {
           return MaterialPageRoute(
-            builder: (_) => const Scaffold(
-              body: Center(child: Text('Invalid user data')),
-            ),
+            builder: (_) =>
+                const Scaffold(body: Center(child: Text('Invalid user data'))),
           );
         }
         return _fadeDominantFromRight(
@@ -263,25 +255,25 @@ class AppRouter {
   // --------------------- Fade Dominant Transitions ---------------------
 
   AuthCubit _buildAuthCubit(BuildContext context) {
-  final repository = context.read<AuthRepository>();
-  return AuthCubit(
-    signIn: SignInUseCase(repository),
-    signUp: SignUpUseCase(repository),
-    signInWithGoogle: SignInWithGoogleUseCase(repository),
-    sendPasswordReset: SendPasswordResetUseCase(repository),
-    sendVerificationEmail: SendVerificationEmailUseCase(repository),
-    checkEmailVerified: CheckEmailVerifiedUseCase(repository),
-    signOut: SignOutUseCase(repository),
-    deleteAccount: DeleteAccountUseCase(repository), // ← السطر الجديد
-  );
-}
+    final repository = context.read<AuthRepository>();
+    return AuthCubit(
+      signIn: SignInUseCase(repository),
+      signUp: SignUpUseCase(repository),
+      signInWithGoogle: SignInWithGoogleUseCase(repository),
+      sendPasswordReset: SendPasswordResetUseCase(repository),
+      sendVerificationEmail: SendVerificationEmailUseCase(repository),
+      checkEmailVerified: CheckEmailVerifiedUseCase(repository),
+      signOut: SignOutUseCase(repository),
+      deleteAccount: DeleteAccountUseCase(repository), // ← السطر الجديد
+    );
+  }
 
   // Fade dominant + slight slide from right
   PageRouteBuilder _fadeDominantFromRight(Widget page, RouteSettings settings) {
     return PageRouteBuilder(
       settings: settings,
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, animation, __, child) {
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
         const beginOffset = Offset(0.2, 0.0); // Slide خفيف جدًا
         const endOffset = Offset.zero;
         final offsetTween = Tween(
@@ -313,8 +305,8 @@ class AppRouter {
   ) {
     return PageRouteBuilder(
       settings: settings,
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, animation, __, child) {
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
         const beginOffset = Offset(0.0, 0.2); // Slide خفيف جدًا من تحت
         const endOffset = Offset.zero;
         final offsetTween = Tween(

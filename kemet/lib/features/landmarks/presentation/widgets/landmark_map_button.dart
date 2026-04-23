@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LandmarkMapButton extends StatelessWidget {
@@ -76,7 +77,7 @@ class LandmarkMapButton extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'EXPLORE LOCATION',
+                          context.tr('landmark_map_heading'),
                           style: GoogleFonts.notoSerif(
                             fontSize: 10,
                             letterSpacing: 2.2,
@@ -85,7 +86,9 @@ class LandmarkMapButton extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'View $city on interactive map',
+                          context
+                              .tr('landmark_map_subtitle')
+                              .replaceFirst('{city}', city),
                           style: GoogleFonts.notoSerif(
                             fontSize: 16,
                             fontStyle: FontStyle.italic,

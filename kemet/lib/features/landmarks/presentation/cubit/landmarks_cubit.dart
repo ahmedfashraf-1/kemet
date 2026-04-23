@@ -19,6 +19,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
     String? city,
     String? kind,
     String? query,
+    String? languageCode,
     bool isPagination = false,
   }) async {
     if (!isPagination) {
@@ -31,6 +32,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
       city: city,
       kind: kind,
       query: query,
+      languageCode: languageCode,
     );
 
     failureOrLandmarks.fold(
@@ -52,6 +54,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
             city: city,
             kind: kind,
             query: query,
+            languageCode: languageCode ?? 'en',
             isLastPage: isLastPage,
           ),
         );
@@ -68,6 +71,7 @@ class LandmarksCubit extends Cubit<LandmarksState> {
           city: currentState.city,
           kind: currentState.kind,
           query: currentState.query,
+          languageCode: currentState.languageCode,
           isPagination: true,
         );
       }
@@ -83,14 +87,26 @@ class LandmarksCubit extends Cubit<LandmarksState> {
           city: currentState.city,
           kind: currentState.kind,
           query: currentState.query,
+          languageCode: currentState.languageCode,
           isPagination: true,
         );
       }
     }
   }
 
-  void applyFilter({String? city, String? kind, String? query}) {
-    getLandmarks(page: 1, city: city, kind: kind, query: query);
+  void applyFilter({
+    String? city,
+    String? kind,
+    String? query,
+    String? languageCode,
+  }) {
+    getLandmarks(
+      page: 1,
+      city: city,
+      kind: kind,
+      query: query,
+      languageCode: languageCode,
+    );
   }
 
   List<Landmark> _applyTitleSearch(List<Landmark> items, String? query) {
