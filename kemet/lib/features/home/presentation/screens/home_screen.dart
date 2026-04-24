@@ -8,7 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
-import 'package:kemet/core/services/arabic_translation_service.dart';
+import 'package:kemet/core/services/arabic_local_description_service.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
@@ -1042,16 +1042,12 @@ class _HomeScreenState extends State<HomeScreen> {
       return originalDescription;
     }
 
-    final localized = _translatedCache[originalDescription];
+    final localized = _translatedCache[landmark.id];
     if (localized != null && localized.isNotEmpty) {
       return localized;
     }
 
     if (_localizingIds.contains(landmark.id)) {
-      return originalDescription;
-    }
-
-    if (ArabicTranslationService.instance.isMostlyArabic(originalDescription)) {
       return originalDescription;
     }
 
@@ -1072,23 +1068,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final pending = state.landmarks.where((landmark) {
+      final localized = _translatedCache[landmark.id];
+      if (localized != null && localized.isNotEmpty) {
+        return false;
+      }
+
+      if (localeCode == 'ar') {
+        return true;
+      }
+
       final originalDescription = landmark.description;
       if (_isUnavailableDescription(originalDescription)) {
         return false;
       }
-      final localized = _translatedCache[originalDescription];
-      if (localized != null && localized.isNotEmpty) {
-        return false;
-      }
-      final baseText = originalDescription.trim();
-      if (localeCode == 'ar') {
-        if (ArabicTranslationService.instance.isMostlyArabic(baseText)) {
-          return false;
-        }
-        return true;
-      }
 
-      return _isUnavailableDescription(baseText);
+      return _isUnavailableDescription(originalDescription.trim());
     }).toList();
 
     if (pending.isEmpty) {
@@ -1113,8 +1107,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _localizingIds.add(landmark.id);
         _localizationAttempts[landmark.id] = now;
         try {
-          final originalDescription = landmark.description;
-          final baseText = originalDescription.trim();
           if (localeCode != 'ar') {
             final result = await repository.getLandmarkById(
               landmark.id,
@@ -1122,29 +1114,16 @@ class _HomeScreenState extends State<HomeScreen> {
             );
             final localized = result.fold((_) => null, (item) => item);
             final resolved = localized?.description.trim() ?? '';
-            updates[originalDescription] = _isUnavailableDescription(resolved)
+            updates[landmark.id] = _isUnavailableDescription(resolved)
                 ? context.tr('description_unavailable')
                 : resolved;
             continue;
           }
 
-          if (ArabicTranslationService.instance.isMostlyArabic(baseText)) {
-            updates[originalDescription] = originalDescription;
-            continue;
-          }
-
-          final sourceText = _isUnavailableDescription(baseText)
-              ? await _fetchArabicSourceText(repository, landmark.id)
-              : originalDescription;
-
-          if (sourceText.isEmpty) {
-            continue;
-          }
-
-          final translated = await ArabicTranslationService.instance
-              .translateToArabic(sourceText, cacheKey: originalDescription);
-          if (translated != null && translated.isNotEmpty) {
-            updates[originalDescription] = translated;
+          final localDescription = await ArabicLocalDescriptionService.instance
+              .getDescriptionForXid(landmark.id);
+          if (localDescription != null && localDescription.isNotEmpty) {
+            updates[landmark.id] = localDescription;
           }
         } finally {
           _localizingIds.remove(landmark.id);
@@ -1161,8 +1140,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final stillPending = pending.where((landmark) {
-      final originalDescription = landmark.description;
-      final localized = _translatedCache[originalDescription];
+      final localized = _translatedCache[landmark.id];
       return localized == null || localized.isEmpty;
     }).isNotEmpty;
 
@@ -1183,17 +1161,5 @@ class _HomeScreenState extends State<HomeScreen> {
     return lowered == 'no description available' ||
         lowered == 'no description provided' ||
         lowered == 'unknown';
-  }
-
-  Future<String> _fetchArabicSourceText(
-    LandmarksRepository repository,
-    String landmarkId,
-  ) async {
-    final result = await repository.getLandmarkById(
-      landmarkId,
-      languageCode: 'en',
-    );
-    final landmark = result.fold((_) => null, (item) => item);
-    return landmark?.description.trim() ?? '';
   }
 }

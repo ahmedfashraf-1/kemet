@@ -59,6 +59,7 @@ flutter:
   assets:
     - .env
     - images/
+    - assets/landmarks_full.json
     - assets/l10n/
 
 flutter_icons:

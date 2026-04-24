@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/routing/app_router.dart';
-import 'package:kemet/core/services/arabic_translation_service.dart';
+import 'package:kemet/core/services/arabic_local_description_service.dart';
 import 'package:kemet/core/widgets/join_kemet_dialog.dart';
 import 'package:kemet/core/utils/share_service.dart';
 import 'package:kemet/core/routing/routes.dart';
@@ -41,7 +41,6 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
   String _descriptionText = '';
   String? _descriptionLocaleCode;
   bool _isResolvingDescription = false;
-  Timer? _descriptionRetry;
   DateTime? _lastDescriptionAttempt;
 
   @override
@@ -75,7 +74,7 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     routeObserver.unsubscribe(this);
-    _descriptionRetry?.cancel();
+
     _ttsService.stop();
     super.dispose();
   }
@@ -102,26 +101,14 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
 
   Future<void> _resolveLocalizedDescription() async {
     final localeCode = Localizations.localeOf(context).languageCode;
-    final currentText = _descriptionText.trim();
-    final needsRefresh =
-        _descriptionLocaleCode != localeCode ||
-        (localeCode == 'ar' &&
-            !ArabicTranslationService.instance.isMostlyArabic(currentText));
+    final needsRefresh = _descriptionLocaleCode != localeCode;
     if (!needsRefresh || _isResolvingDescription) {
-      if (needsRefresh && _isResolvingDescription) {
-        _descriptionRetry?.cancel();
-        _descriptionRetry = Timer(
-          const Duration(milliseconds: 250),
-          _resolveLocalizedDescription,
-        );
-      }
       return;
     }
 
     _descriptionLocaleCode = localeCode;
     final baseText = widget.landmark.description.trim();
     if (localeCode != 'ar') {
-      _descriptionRetry?.cancel();
       if (mounted) {
         setState(() {
           _descriptionText = baseText;
@@ -159,16 +146,6 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
       return;
     }
 
-    if (ArabicTranslationService.instance.isMostlyArabic(baseText)) {
-      if (mounted) {
-        setState(() {
-          _descriptionText = baseText;
-        });
-      }
-      unawaited(_ttsService.preparePreview(_descriptionText));
-      return;
-    }
-
     _isResolvingDescription = true;
     try {
       final now = DateTime.now();
@@ -178,60 +155,18 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
       }
       _lastDescriptionAttempt = now;
 
-      final repository = context.read<LandmarksRepository>();
-      final result = await repository.getLandmarkById(
-        widget.landmark.id,
-        languageCode: 'ar',
-      );
-      final localized = result.fold((_) => null, (landmark) => landmark);
-      final arabicFromApi = localized?.description.trim() ?? '';
-      if (ArabicTranslationService.instance.isMostlyArabic(arabicFromApi)) {
-        if (mounted) {
-          setState(() {
-            _descriptionText = arabicFromApi;
-          });
-        }
-        unawaited(_ttsService.preparePreview(_descriptionText));
-        return;
-      }
+      final localDescription = await ArabicLocalDescriptionService.instance
+          .getDescriptionForXid(widget.landmark.id);
+      final resolved = (localDescription ?? '').trim();
 
-      final sourceText = _isUnavailableDescription(baseText)
-          ? await _fetchEnglishDescription(repository, widget.landmark.id)
-          : baseText;
-
-      if (sourceText.isNotEmpty && mounted && _descriptionText.isEmpty) {
+      if (mounted) {
         setState(() {
-          _descriptionText = sourceText;
+          _descriptionText = resolved.isNotEmpty ? resolved : baseText;
         });
       }
-
-      final translated = sourceText.isEmpty
-          ? null
-          : await ArabicTranslationService.instance.translateToArabic(
-              sourceText,
-              cacheKey: sourceText,
-            );
-      if (translated != null && mounted) {
-        setState(() {
-          _descriptionText = translated;
-        });
-        unawaited(_ttsService.preparePreview(_descriptionText));
-      } else if (sourceText.isNotEmpty && mounted) {
-        setState(() {
-          _descriptionText = sourceText;
-        });
-      }
+      unawaited(_ttsService.preparePreview(_descriptionText));
     } finally {
       _isResolvingDescription = false;
-    }
-
-    if (mounted &&
-        !ArabicTranslationService.instance.isMostlyArabic(_descriptionText)) {
-      _descriptionRetry?.cancel();
-      _descriptionRetry = Timer(
-        const Duration(seconds: 2),
-        _resolveLocalizedDescription,
-      );
     }
   }
 
@@ -242,18 +177,6 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
         lowered == 'no description provided' ||
         lowered == 'unknown' ||
         lowered == 'description not available';
-  }
-
-  Future<String> _fetchEnglishDescription(
-    LandmarksRepository repository,
-    String landmarkId,
-  ) async {
-    final result = await repository.getLandmarkById(
-      landmarkId,
-      languageCode: 'en',
-    );
-    final landmark = result.fold((_) => null, (item) => item);
-    return landmark?.description.trim() ?? '';
   }
 
   @override
