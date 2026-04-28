@@ -130,6 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           localPath: pickedFile.path,
           remoteUrl: remoteUrl,
         );
+        await context.read<ProfileCubit>().loadProfile(widget.userId);
       } catch (settingsError, settingsStack) {
         debugPrint('Non-fatal settings cache update failed: $settingsError');
         debugPrintStack(stackTrace: settingsStack);
@@ -490,12 +491,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     final avatarLocalPath = context.select(
       (SettingsCubit cubit) => cubit.state.avatarLocalPath,
     );
-    final avatarRemoteUrl = context.select(
-      (SettingsCubit cubit) => cubit.state.avatarRemoteUrl,
-    );
-    final avatarCacheBuster = context.select(
-      (SettingsCubit cubit) => cubit.state.avatarCacheBuster,
-    );
     final localFile = isOwnProfile
         ? (_image ??
               ((avatarLocalPath != null &&
@@ -504,10 +499,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ? File(avatarLocalPath)
                   : null))
         : null;
-    final effectiveRemoteAvatarUrl = isOwnProfile
-        ? (avatarRemoteUrl ?? profile.avatarUrl)
-        : profile.avatarUrl;
-    final effectiveAvatarCacheBuster = isOwnProfile ? avatarCacheBuster : 0;
+    final effectivePhotoUrl = profile.photoUrl?.trim().isNotEmpty == true
+        ? profile.photoUrl!.trim()
+        : null;
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -518,8 +512,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: ProfileCoverWidget(
               name: displayName,
               imageFile: localFile,
-              avatarRemoteUrl: effectiveRemoteAvatarUrl,
-              avatarCacheBuster: effectiveAvatarCacheBuster,
+                photoUrl: effectivePhotoUrl,
               onEditProfileImage: isOwnProfile ? pickProfileImage : () {},
               isEditable: isOwnProfile,
             ),

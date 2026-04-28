@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kemet/features/auth/domain/usecases/delete_account_use_case.dart';
 import 'package:kemet/features/notifications/data/datasources/local_notification.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -48,6 +49,7 @@ class AuthCubit extends Cubit<AuthState> {
         final user = await _signIn(email, password);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('is_logged_in', true);
+        await _syncCurrentUserId(prefs);
         final verified = await _checkEmailVerified();
         if (verified) {
     await LocalNotificationService.instance.showWelcomeNotification(
@@ -77,6 +79,7 @@ class AuthCubit extends Cubit<AuthState> {
   
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_logged_in', true);
+      await _syncCurrentUserId(prefs);
       await _sendVerificationEmail();
       emit(const AuthNeedsEmailVerification());
     } catch (e) {
@@ -96,6 +99,7 @@ class AuthCubit extends Cubit<AuthState> {
       );
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('is_logged_in', true);
+        await _syncCurrentUserId(prefs);
         emit(AuthAuthenticated(user));
       } else {
         emit(const AuthInitial());
@@ -177,5 +181,13 @@ Future<void> deleteAccount() async {
     emit(AuthError(e.toString()));
   }
 }
-  
+
+  Future<void> _syncCurrentUserId(SharedPreferences prefs) async {
+    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+    if (firebaseUid == null || firebaseUid.isEmpty) {
+      return;
+    }
+    await prefs.setString('current_user_id', firebaseUid);
+  }
+
 }

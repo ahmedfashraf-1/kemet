@@ -5,6 +5,7 @@ class ProfileCoverWidget extends StatefulWidget {
   final String name;
   final String? location;
   final File? imageFile;
+  final String? photoUrl;
   final String? avatarRemoteUrl;
   final int avatarCacheBuster;
   final VoidCallback onEditProfileImage;
@@ -15,6 +16,7 @@ class ProfileCoverWidget extends StatefulWidget {
     required this.name,
     this.location,
     this.imageFile,
+    this.photoUrl,
     this.avatarRemoteUrl,
     this.avatarCacheBuster = 0,
     required this.onEditProfileImage,
@@ -32,18 +34,9 @@ class _ProfileCoverWidgetState extends State<ProfileCoverWidget> {
     final avatarSize = 118.0;
     final topInset = MediaQuery.of(context).padding.top;
     final effectiveImage = widget.imageFile;
+    final effectivePhotoUrl = _normalizeUrl(widget.photoUrl);
     final hasRemote = widget.avatarRemoteUrl != null &&
         widget.avatarRemoteUrl!.trim().isNotEmpty;
-    final ImageProvider? avatarProvider = effectiveImage != null
-        ? FileImage(effectiveImage)
-        : (hasRemote
-            ? NetworkImage(
-                _cacheBustUrl(
-                  widget.avatarRemoteUrl!.trim(),
-                  widget.avatarCacheBuster,
-                ),
-              )
-            : const AssetImage('images/logo.png'));
     final totalHeight = coverHeight + (avatarSize / 2) - 8;
 
     return SizedBox(
@@ -160,8 +153,27 @@ class _ProfileCoverWidgetState extends State<ProfileCoverWidget> {
                         padding: const EdgeInsets.all(3.2),
                         child: CircleAvatar(
                           backgroundColor: const Color(0xFF1E1A0A),
-                          backgroundImage: avatarProvider,
-                          child: null,
+                            backgroundImage: effectiveImage != null
+                                ? FileImage(effectiveImage)
+                                : effectivePhotoUrl != null
+                                    ? NetworkImage(effectivePhotoUrl)
+                                    : (hasRemote
+                                        ? NetworkImage(
+                                            _cacheBustUrl(
+                                              widget.avatarRemoteUrl!.trim(),
+                                              widget.avatarCacheBuster,
+                                            ),
+                                          )
+                                        : const AssetImage('images/logo.png')),
+                            child: effectiveImage == null &&
+                                    effectivePhotoUrl == null &&
+                                    !hasRemote
+                                ? const Icon(
+                                    Icons.person,
+                                    color: Color(0xFFC9A84C),
+                                    size: 28,
+                                  )
+                                : null,
                         ),
                       ),
                     ),
@@ -214,5 +226,11 @@ class _ProfileCoverWidgetState extends State<ProfileCoverWidget> {
     }
     final separator = url.contains('?') ? '&' : '?';
     return '$url${separator}t=$cacheBuster';
+  }
+
+  String? _normalizeUrl(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 }

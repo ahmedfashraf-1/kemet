@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 class ProfileAvatarButton extends StatelessWidget {
   final String name;
   final String email;
+  final String? photoUrl;
   final String? avatarLocalPath;
   final String? avatarRemoteUrl;
   final int avatarCacheBuster;
@@ -16,6 +17,7 @@ class ProfileAvatarButton extends StatelessWidget {
     super.key,
     required this.name,
     required this.email,
+    this.photoUrl,
     this.avatarLocalPath,
     this.avatarRemoteUrl,
     this.avatarCacheBuster = 0,
@@ -54,6 +56,7 @@ class ProfileAvatarButton extends StatelessWidget {
           child: _PopupHeader(
             name: name,
             email: email,
+            photoUrl: photoUrl,
             avatarLocalPath: avatarLocalPath,
             avatarRemoteUrl: avatarRemoteUrl,
             avatarCacheBuster: avatarCacheBuster,
@@ -121,6 +124,7 @@ class ProfileAvatarButton extends StatelessWidget {
             ),
             child: _AvatarCircle(
               name: name,
+              photoUrl: photoUrl,
               avatarLocalPath: avatarLocalPath,
               avatarRemoteUrl: avatarRemoteUrl,
               avatarCacheBuster: avatarCacheBuster,
@@ -154,6 +158,7 @@ class ProfileAvatarButton extends StatelessWidget {
 class _PopupHeader extends StatelessWidget {
   final String name;
   final String email;
+  final String? photoUrl;
   final String? avatarLocalPath;
   final String? avatarRemoteUrl;
   final int avatarCacheBuster;
@@ -162,6 +167,7 @@ class _PopupHeader extends StatelessWidget {
   const _PopupHeader({
     required this.name,
     required this.email,
+    this.photoUrl,
     this.avatarLocalPath,
     this.avatarRemoteUrl,
     this.avatarCacheBuster = 0,
@@ -197,6 +203,7 @@ class _PopupHeader extends StatelessWidget {
             ),
             child: _AvatarCircle(
               name: name,
+              photoUrl: photoUrl,
               avatarLocalPath: avatarLocalPath,
               avatarRemoteUrl: avatarRemoteUrl,
               avatarCacheBuster: avatarCacheBuster,
@@ -239,6 +246,7 @@ class _PopupHeader extends StatelessWidget {
 
 class _AvatarCircle extends StatelessWidget {
   final String name;
+  final String? photoUrl;
   final String? avatarLocalPath;
   final String? avatarRemoteUrl;
   final int avatarCacheBuster;
@@ -248,6 +256,7 @@ class _AvatarCircle extends StatelessWidget {
 
   const _AvatarCircle({
     required this.name,
+    required this.photoUrl,
     required this.avatarLocalPath,
     required this.avatarRemoteUrl,
     required this.avatarCacheBuster,
@@ -259,7 +268,8 @@ class _AvatarCircle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isGuest) {
-      return const Center(
+      return const CircleAvatar(
+        backgroundColor: Color(0xFF1E1A0A),
         child: Icon(
           Icons.person,
           color: Color(0xFFD4AF37),
@@ -268,34 +278,31 @@ class _AvatarCircle extends StatelessWidget {
       );
     }
 
+    final normalizedPhotoUrl = _normalizeUrl(photoUrl);
+    if (normalizedPhotoUrl != null) {
+      return CircleAvatar(
+        backgroundColor: const Color(0xFF1E1A0A),
+        backgroundImage: NetworkImage(normalizedPhotoUrl),
+      );
+    }
+
     final hasLocal = avatarLocalPath != null &&
         avatarLocalPath!.isNotEmpty &&
         File(avatarLocalPath!).existsSync();
 
     if (hasLocal) {
-      return ClipOval(
-        child: Image.file(
-          File(avatarLocalPath!),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          alignment: Alignment.center,
-        ),
+      return CircleAvatar(
+        backgroundColor: const Color(0xFF1E1A0A),
+        backgroundImage: FileImage(File(avatarLocalPath!)),
       );
     }
 
     final hasRemote = avatarRemoteUrl != null && avatarRemoteUrl!.isNotEmpty;
     if (hasRemote) {
       final cacheBustedUrl = _cacheBustUrl(avatarRemoteUrl!, avatarCacheBuster);
-      return ClipOval(
-        child: Image.network(
-          cacheBustedUrl,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          alignment: Alignment.center,
-          errorBuilder: (_, __, ___) => _fallbackInitial(),
-        ),
+      return CircleAvatar(
+        backgroundColor: const Color(0xFF1E1A0A),
+        backgroundImage: NetworkImage(cacheBustedUrl),
       );
     }
 
@@ -303,9 +310,11 @@ class _AvatarCircle extends StatelessWidget {
   }
 
   Widget _fallbackInitial() {
-    return Center(
+    final userInitial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'A';
+    return CircleAvatar(
+      backgroundColor: const Color(0xFF1E1A0A),
       child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : 'A',
+        userInitial,
         style: TextStyle(
           color: const Color(0xFFC9A84C),
           fontSize: fontSize,
@@ -313,6 +322,12 @@ class _AvatarCircle extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String? _normalizeUrl(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   String _cacheBustUrl(String url, int cacheBuster) {

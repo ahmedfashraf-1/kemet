@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
@@ -36,6 +37,7 @@ import 'package:kemet/features/reviews/presentation/cubit/reviews_cubit.dart';
 import 'package:kemet/features/reviews/presentation/screens/reviews_screen.dart';
 import 'package:kemet/features/reviews/presentation/cubit/user_reviews_cubit.dart';
 import 'package:kemet/features/reviews/presentation/screens/user_reviews_screen.dart';
+import 'package:kemet/features/chatbot/presentation/screens/chatbot_screen.dart';
 import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:kemet/features/profile/presentation/di/profile_di.dart';
@@ -48,12 +50,8 @@ import 'package:kemet/features/landmarks/domain/repositories/landmarks_repositor
 import 'package:kemet/features/landmarks/domain/usecases/get_all_landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
 
-//fav
-import 'package:kemet/features/favorite/domain/usecases/get_favorites_usecase.dart';
-import 'package:kemet/features/favorite/domain/usecases/toggle_favorite_usecase.dart';
-import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
 import 'package:kemet/features/favorite/presentation/screens/favorites_page.dart';
-import 'package:kemet/features/favorite/domain/repositories/favorites_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 final RouteObserver<PageRoute<dynamic>> routeObserver =
     RouteObserver<PageRoute<dynamic>>();
 
@@ -165,6 +163,32 @@ class AppRouter {
               ),
             ),
             child: ReviewsScreen(landmark: landmarkArg),
+          ),
+          setting,
+        );
+
+      case Routes.chatbotScreen:
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null || currentUser.isAnonymous) {
+          return _fadeDominantFromRight(
+            BlocProvider(create: _buildAuthCubit, child: const LoginView()),
+            setting,
+          );
+        }
+
+        final routeUserId = currentUser.uid;
+        final requestedUserId = setting.arguments is String
+            ? setting.arguments as String
+            : null;
+        debugPrint(
+          '[CHATBOT] route opened with firebase_uid=$routeUserId'
+          '${requestedUserId == null ? '' : ' (requested=$requestedUserId)'}',
+        );
+
+        return _fadeDominantFromRight(
+          _ChatbotBootstrap(
+            userId: routeUserId,
+            child: const ChatbotScreen(),
           ),
           setting,
         );
@@ -331,3 +355,48 @@ class AppRouter {
     );
   }
 }
+
+class _ChatbotBootstrap extends StatefulWidget {
+  const _ChatbotBootstrap({required this.userId, required this.child});
+
+  final String userId;
+  final Widget child;
+
+  @override
+  State<_ChatbotBootstrap> createState() => _ChatbotBootstrapState();
+}
+
+class _ChatbotBootstrapState extends State<_ChatbotBootstrap> {
+  late final Future<void> _syncFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncFuture = _syncCurrentUserId();
+  }
+
+  Future<void> _syncCurrentUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('current_user_id', widget.userId);
+    debugPrint('[CHATBOT] synced current_user_id=${widget.userId}');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _syncFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        return widget.child;
+      },
+    );
+  }
+}
+

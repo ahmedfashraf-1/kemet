@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -421,16 +422,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTopAppBar() {
-    final avatarLocalPath = context.select(
-      (SettingsCubit cubit) => cubit.state.avatarLocalPath,
-    );
-    final avatarRemoteUrl = context.select(
-      (SettingsCubit cubit) => cubit.state.avatarRemoteUrl,
-    );
-    final avatarCacheBuster = context.select(
-      (SettingsCubit cubit) => cubit.state.avatarCacheBuster,
-    );
-
     return Container(
       color: _bgColor,
       padding: EdgeInsets.only(
@@ -447,15 +438,37 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (context, snapshot) {
               final user = snapshot.data ?? FirebaseAuth.instance.currentUser;
               final isGuest = user == null || user.isAnonymous;
-              return ProfileAvatarButton(
-                name: user?.displayName ?? 'Guest',
-                email: user?.email ?? '',
-                avatarLocalPath: avatarLocalPath,
-                avatarRemoteUrl: avatarRemoteUrl,
-                avatarCacheBuster: avatarCacheBuster,
-                isGuest: isGuest,
-                onViewProfile: _openProfile,
-                onLogout: _logout,
+              if (isGuest) {
+                return ProfileAvatarButton(
+                  name: 'Guest',
+                  email: '',
+                  isGuest: true,
+                  onViewProfile: _openProfile,
+                  onLogout: _logout,
+                );
+              }
+
+              return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .snapshots(),
+                builder: (context, userDocSnapshot) {
+                  final data = userDocSnapshot.data?.data();
+                  final photoUrl = _readPhotoUrl(data);
+                  debugPrint('USER IMAGE: $photoUrl');
+
+                  return ProfileAvatarButton(
+                    name: user.displayName?.trim().isNotEmpty == true
+                        ? user.displayName!.trim()
+                        : 'User',
+                    email: user.email ?? '',
+                    photoUrl: photoUrl,
+                    isGuest: false,
+                    onViewProfile: _openProfile,
+                    onLogout: _logout,
+                  );
+                },
               );
             },
           ),
@@ -1006,6 +1019,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  String? _readPhotoUrl(Map<String, dynamic>? data) {
+    final raw = data?['photoUrl'];
+    if (raw is! String) {
+      return null;
+    }
+    final photoUrl = raw.trim();
+    return photoUrl.isEmpty ? null : photoUrl;
   }
 
   String _heroTag(String id) => 'landmark-hero-$id';

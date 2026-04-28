@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MainShell extends StatefulWidget {
   final Widget child;
@@ -30,6 +32,25 @@ class _MainShellState extends State<MainShell> {
       if (!mounted) return;
       setState(() => _currentIndex = 0);
     }
+  }
+
+  Future<void> _openChatbot() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || currentUser.isAnonymous) {
+      debugPrint('[CHATBOT] blocked open: unauthenticated user');
+      if (!mounted) return;
+      await Navigator.of(context).pushNamed(Routes.LoginView);
+      return;
+    }
+
+    final uid = currentUser.uid;
+    debugPrint('[CHATBOT] opening chatbot with user_id=$uid');
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('current_user_id', uid);
+
+    if (!mounted) return;
+    await Navigator.of(context).pushNamed(Routes.chatbotScreen, arguments: uid);
   }
 
   @override
@@ -60,7 +81,7 @@ class _MainShellState extends State<MainShell> {
               ],
             ),
             child: MaterialButton(
-              onPressed: () {},
+              onPressed: _openChatbot,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(9999),
               ),
