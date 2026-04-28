@@ -26,40 +26,48 @@ class ProfileCubit extends Cubit<ProfileState> {
   Future<void> loadProfile(String userId) async {
     emit(ProfileLoading());
 
-    
-    final results = await Future.wait([
-      getProfile(userId),
-      getRecentTrips(userId),
-      getMyReviews(userId),
-      getFavoritePlaces(userId),
-    ]);
+    try {
+      final profileResult = await getProfile(userId);
+      final recentPlacesResult = await getRecentTrips(userId);
+      final reviewsResult = await getMyReviews(userId, limit: 3);
+      final favoritesResult = await getFavoritePlaces(userId);
 
-    final profileResult       = results[0];
-    final recentPlacesResult  = results[1];
-    final reviewsResult       = results[2];
-    final favoritesResult     = results[3];
+      profileResult.fold(
+        (_) => emit(ProfileError('Could not load profile information')),
+        (profile) {
+          final recentTrips = recentPlacesResult.fold(
+            (_) => <Landmark>[],
+            (data) => data,
+          );
+          final reviews = reviewsResult.fold(
+            (_) => <Review>[],
+            (data) => data,
+          );
+          final favoritePlaces = favoritesResult.fold(
+            (_) => <Favorite>[],
+            (data) => data,
+          );
 
-    
-    profileResult.fold(
-      (failure) => emit(ProfileError()),
-      (profile) => emit(ProfileLoaded(
-        profile: profile as ProfileEntity,
-        recentTrips: (recentPlacesResult as dynamic)
-            .getOrElse(() => <Landmark>[]) as List<Landmark>,
-        reviews: (reviewsResult as dynamic)
-            .getOrElse(() => <Review>[]) as List<Review>,
-        favoritePlaces: (favoritesResult as dynamic)
-            .getOrElse(() => <Favorite>[]) as List<Favorite>,
-      )),
-    );
+          emit(
+            ProfileLoaded(
+              profile: profile,
+              recentTrips: recentTrips,
+              reviews: reviews,
+              favoritePlaces: favoritePlaces,
+            ),
+          );
+        },
+      );
+    } catch (_) {
+      emit(ProfileError('Could not load profile information'));
+    }
   }
 
   Future<void> logout() async {
     final result = await logoutUseCase();
     result.fold(
-      (failure) => emit(ProfileError()),
+      (_) => emit(ProfileError('Logout failed')),
       (_)       => emit(ProfileLoggedOut()),
     );
   }
 }
-

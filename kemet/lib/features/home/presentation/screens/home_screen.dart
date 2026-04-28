@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -7,17 +8,19 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
+import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/core/services/arabic_local_description_service.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
+import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
 import 'package:kemet/features/notifications/presentation/widgets/notification_bell_button.dart';
-import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
-import 'package:kemet/features/profile/presentation/di/profile_di.dart';
-import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:kemet/features/profile/presentation/widgets/profile_avatar_button.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 
@@ -56,27 +59,38 @@ class _HomeScreenState extends State<HomeScreen> {
     'island',
   ];
 
-  final Map<String, bool> _favourites = {};
+  final Map<String, String> _translatedCache = {};
+  bool _isLocalizing = false;
+  final Map<String, DateTime> _localizationAttempts = {};
+  final Set<String> _localizingIds = {};
+  Timer? _localizationRetry;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<LandmarksCubit>().getLandmarks(page: 1);
+      final languageCode = context.read<SettingsCubit>().state.localeCode;
+      context.read<LandmarksCubit>().getLandmarks(
+        page: 1,
+        languageCode: languageCode,
+      );
     });
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _localizationRetry?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   void _applyFilters() {
-    context.read<LandmarksCubit>().applyFilter(
+    final languageCode = context.read<SettingsCubit>().state.localeCode;
+    context.read<LandmarksCubit>().getLandmarks(
       city: _selectedCity.isEmpty ? null : _selectedCity,
       kind: _selectedCategory.isEmpty ? null : _selectedCategory,
+      languageCode: languageCode,
     );
   }
 
@@ -105,9 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFF0F0C06),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: const Color(0xFFD4AF37).withOpacity(0.3),
-            ),
+            border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFFD4AF37).withOpacity(0.08),
@@ -198,16 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final userId = user.uid;
     if (!mounted) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (_) => getIt<ProfileCubit>(),
-          child: ProfileScreen(userId: userId),
-        ),
-      ),
-    );
+    Navigator.of(context).pushNamed(Routes.profileScreen, arguments: userId);
   }
 
   Future<void> _logout() async {
@@ -222,161 +225,203 @@ class _HomeScreenState extends State<HomeScreen> {
     final bottomSafeArea = MediaQuery.of(context).padding.bottom;
     final shellOverlayClearance = 140.h + bottomSafeArea;
 
-    return Scaffold(
-      backgroundColor: _bgColor,
-      body: Column(
-        children: [
-          _buildTopAppBar(),
-          Expanded(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 18.h),
-                      const HeroSlider(),
-                      SizedBox(height: 24.h),
-                      _buildHeroTitle(),
-                      SizedBox(height: 24.h),
-                      _buildSearchBar(),
-                      SizedBox(height: 18.h),
-                      _buildFilterList(
-                        items: _egyptCities,
-                        selectedValue: _selectedCity,
-                        onSelected: (val) {
-                          setState(
-                            () => _selectedCity = val == 'All' ? '' : val,
-                          );
-                          _applyFilters();
-                        },
-                      ),
-                      SizedBox(height: 16.h),
-                      _buildFilterList(
-                        items: _categories,
-                        selectedValue: _selectedCategory,
-                        onSelected: (val) {
-                          setState(
-                            () => _selectedCategory = val == 'All' ? '' : val,
-                          );
-                          _applyFilters();
-                        },
-                      ),
-                      SizedBox(height: 24.h),
-                    ],
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<SettingsCubit, SettingsState>(
+          listenWhen: (previous, current) =>
+              previous.localeCode != current.localeCode,
+          listener: (context, state) {
+            _translatedCache.clear();
+            _localizationAttempts.clear();
+            _localizingIds.clear();
+            _localizationRetry?.cancel();
+            context.read<LandmarksCubit>().getLandmarks(
+              page: 1,
+              city: _selectedCity.isEmpty ? null : _selectedCity,
+              kind: _selectedCategory.isEmpty ? null : _selectedCategory,
+              languageCode: state.localeCode,
+            );
+          },
+        ),
+        BlocListener<LandmarksCubit, LandmarksState>(
+          listener: (context, state) {
+            if (state is LandmarksLoaded) {
+              _localizeDescriptionsForPage(
+                state,
+                localeCode: context.read<SettingsCubit>().state.localeCode,
+              );
+            }
+          },
+        ),
+      ],
+      child: Scaffold(
+        backgroundColor: _bgColor,
+        body: Column(
+          children: [
+            _buildTopAppBar(),
+            Expanded(
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: 18.h),
+                        const HeroSlider(),
+                        SizedBox(height: 24.h),
+                        _buildHeroTitle(),
+                        SizedBox(height: 24.h),
+                        _buildSearchBar(),
+                        SizedBox(height: 18.h),
+                        _buildFilterList(
+                          items: _egyptCities,
+                          selectedValue: _selectedCity,
+                          onSelected: (val) {
+                            setState(
+                              () => _selectedCity = val == 'All' ? '' : val,
+                            );
+                            _applyFilters();
+                          },
+                        ),
+                        SizedBox(height: 16.h),
+                        _buildFilterList(
+                          items: _categories,
+                          selectedValue: _selectedCategory,
+                          onSelected: (val) {
+                            setState(
+                              () => _selectedCategory = val == 'All' ? '' : val,
+                            );
+                            _applyFilters();
+                          },
+                        ),
+                        SizedBox(height: 24.h),
+                      ],
+                    ),
                   ),
-                ),
 
-                BlocBuilder<LandmarksCubit, LandmarksState>(
-                  builder: (context, state) {
-                    if (state is LandmarksLoading) {
-                      return const SliverFillRemaining(
-                        child: Center(
-                          child: CircularProgressIndicator(color: _goldColor),
-                        ),
-                      );
-                    } else if (state is LandmarksEmpty) {
-                      return SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: Text(
-                            context.tr('no_data'),
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.65),
-                              fontSize: 16.sp,
-                            ),
-                          ),
-                        ),
-                      );
-                    } else if (state is LandmarksError) {
-                      return SliverFillRemaining(
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                state.message,
-                                style: const TextStyle(
-                                  color: Colors.redAccent,
-                                ),
-                              ),
-                              SizedBox(height: 12.h),
-                              SizedBox(
-                                width: 170.w,
-                                child: AnimatedGoldButton(
-                                  text: context.tr('retry'),
-                                  onTap: _applyFilters,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    } else if (state is LandmarksLoaded) {
-                      if (state.landmarks.isEmpty) {
+                  BlocBuilder<LandmarksCubit, LandmarksState>(
+                    builder: (context, state) {
+                      if (state is LandmarksLoading) {
                         return const SliverFillRemaining(
                           child: Center(
+                            child: CircularProgressIndicator(color: _goldColor),
+                          ),
+                        );
+                      } else if (state is LandmarksEmpty) {
+                        return SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(
                             child: Text(
-                              'No landmarks found.',
-                              style: TextStyle(color: Colors.white54),
+                              context.tr('no_data'),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.65),
+                                fontSize: 16.sp,
+                              ),
                             ),
                           ),
                         );
-                      }
+                      } else if (state is LandmarksError) {
+                        return SliverFillRemaining(
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  state.message,
+                                  style: const TextStyle(
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+                                SizedBox(height: 12.h),
+                                SizedBox(
+                                  width: 170.w,
+                                  child: AnimatedGoldButton(
+                                    text: context.tr('retry'),
+                                    onTap: _applyFilters,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      } else if (state is LandmarksLoaded) {
+                        final localeCode = context
+                            .read<SettingsCubit>()
+                            .state
+                            .localeCode;
+                        final visibleLandmarks = state.landmarks
+                            .where(
+                              (landmark) => !_isUnavailableDescription(
+                                landmark.description,
+                              ),
+                            )
+                            .toList();
+                        if (visibleLandmarks.isEmpty) {
+                          return const SliverFillRemaining(
+                            child: Center(
+                              child: Text(
+                                'No landmarks found.',
+                                style: TextStyle(color: Colors.white54),
+                              ),
+                            ),
+                          );
+                        }
 
-                      return SliverPadding(
-                        padding: EdgeInsets.only(bottom: shellOverlayClearance),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              if (index == state.landmarks.length) {
+                        return SliverPadding(
+                          padding: EdgeInsets.only(
+                            bottom: shellOverlayClearance,
+                          ),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate((
+                              context,
+                              index,
+                            ) {
+                              if (index == visibleLandmarks.length) {
                                 return _buildPagination(
                                   currentPage: state.currentPage,
                                   isLastPage: state.isLastPage,
                                   onPageSelected: (page) {
-                                    context
-                                        .read<LandmarksCubit>()
-                                        .getLandmarks(
-                                          page: page,
-                                          city: state.city,
-                                          kind: state.kind,
-                                          isPagination: true,
-                                        );
+                                    context.read<LandmarksCubit>().getLandmarks(
+                                      page: page,
+                                      city: state.city,
+                                      kind: state.kind,
+                                      languageCode: state.languageCode,
+                                      isPagination: true,
+                                    );
                                   },
                                 );
                               }
 
-                              final landmark = state.landmarks[index];
+                              final landmark = visibleLandmarks[index];
+                              final description = _resolvedDescription(
+                                landmark,
+                                localeCode,
+                              );
                               return Padding(
                                 padding: EdgeInsets.only(bottom: 28.h),
-                                child: _buildLandmarkCard(landmark),
+                                child: _buildLandmarkCard(
+                                  landmark,
+                                  description: description,
+                                ),
                               );
-                            },
-                            childCount: state.landmarks.length + 1,
+                            }, childCount: visibleLandmarks.length + 1),
                           ),
-                        ),
-                      );
-                    }
-                    return const SliverToBoxAdapter(child: SizedBox.shrink());
-                  },
-                ),
-              ],
+                        );
+                      }
+                      return const SliverToBoxAdapter(child: SizedBox.shrink());
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildTopAppBar() {
-    final avatarLocalPath =
-        context.select((SettingsCubit cubit) => cubit.state.avatarLocalPath);
-    final avatarRemoteUrl =
-        context.select((SettingsCubit cubit) => cubit.state.avatarRemoteUrl);
-    final avatarCacheBuster =
-        context.select((SettingsCubit cubit) => cubit.state.avatarCacheBuster);
-
     return Container(
       color: _bgColor,
       padding: EdgeInsets.only(
@@ -391,18 +436,39 @@ class _HomeScreenState extends State<HomeScreen> {
           StreamBuilder<User?>(
             stream: FirebaseAuth.instance.userChanges(),
             builder: (context, snapshot) {
-              final user =
-                  snapshot.data ?? FirebaseAuth.instance.currentUser;
+              final user = snapshot.data ?? FirebaseAuth.instance.currentUser;
               final isGuest = user == null || user.isAnonymous;
-              return ProfileAvatarButton(
-                name: user?.displayName ?? 'Guest',
-                email: user?.email ?? '',
-                avatarLocalPath: avatarLocalPath,
-                avatarRemoteUrl: avatarRemoteUrl,
-                avatarCacheBuster: avatarCacheBuster,
-                isGuest: isGuest,
-                onViewProfile: _openProfile,
-                onLogout: _logout,
+              if (isGuest) {
+                return ProfileAvatarButton(
+                  name: 'Guest',
+                  email: '',
+                  isGuest: true,
+                  onViewProfile: _openProfile,
+                  onLogout: _logout,
+                );
+              }
+
+              return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .snapshots(),
+                builder: (context, userDocSnapshot) {
+                  final data = userDocSnapshot.data?.data();
+                  final photoUrl = _readPhotoUrl(data);
+                  debugPrint('USER IMAGE: $photoUrl');
+
+                  return ProfileAvatarButton(
+                    name: user.displayName?.trim().isNotEmpty == true
+                        ? user.displayName!.trim()
+                        : 'User',
+                    email: user.email ?? '',
+                    photoUrl: photoUrl,
+                    isGuest: false,
+                    onViewProfile: _openProfile,
+                    onLogout: _logout,
+                  );
+                },
               );
             },
           ),
@@ -541,9 +607,7 @@ class _HomeScreenState extends State<HomeScreen> {
               duration: const Duration(milliseconds: 250),
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.mainGold
-                    : AppColors.cardBackground,
+                color: isActive ? AppColors.mainGold : AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(9999),
                 border: Border.all(
                   color: isActive
@@ -694,16 +758,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildLandmarkCard(Landmark landmark) {
-    final isFav = _favourites[landmark.id] ?? false;
+  Widget _buildLandmarkCard(Landmark landmark, {required String description}) {
+    final favoritesState = context.watch<FavoritesCubit>().state;
+    final isFav = favoritesState is FavoritesLoaded
+        ? favoritesState.favoriteIds.contains(landmark.id)
+        : false;
 
-    final imageUrl =
-        landmark.photos.isNotEmpty ? landmark.photos.first.url : '';
-    final parsedUri = Uri.tryParse(imageUrl);
+    final imageUrl = landmark.photos.isNotEmpty
+        ? landmark.photos.first.url
+        : '';
+    final isAsset = _isAssetPath(imageUrl);
+    final isAppUrl = _isAppStorageUrl(imageUrl);
     final hasValidNetworkUrl =
-        imageUrl.isNotEmpty &&
-        parsedUri != null &&
-        (parsedUri.scheme == 'http' || parsedUri.scheme == 'https');
+        imageUrl.isNotEmpty && !isAsset && !isAppUrl && _isHttpUrl(imageUrl);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -752,6 +819,21 @@ class _HomeScreenState extends State<HomeScreen> {
                               errorWidget: (context, url, error) =>
                                   _buildPlaceholderImage(),
                             )
+                          : isAppUrl
+                          ? CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: const Color(0xFF161616),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: _goldColor,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) =>
+                                  _buildPlaceholderImage(),
+                            )
                           : _buildPlaceholderImage(),
                     ),
                   ),
@@ -782,9 +864,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         color: _goldColor.withOpacity(0.18),
                         borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: _goldColor.withOpacity(0.35),
-                        ),
+                        border: Border.all(color: _goldColor.withOpacity(0.35)),
                       ),
                       child: Text(
                         landmark.category.name.toUpperCase(),
@@ -801,11 +881,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     top: 12.h,
                     right: 12.w,
                     child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _favourites[landmark.id] = !isFav;
-                        });
-                      },
+                      onTap: () =>
+                          context.read<FavoritesCubit>().toggle(landmark.id),
                       child: Container(
                         width: 48.w,
                         height: 48.w,
@@ -875,7 +952,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     SizedBox(height: 12.h),
                     Text(
-                      landmark.description,
+                      description,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -932,13 +1009,179 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPlaceholderImage() {
-    return Container(
-      color: const Color(0xFF1A1A1A),
-      child: Center(
-        child: Icon(Icons.landscape, color: _goldColor, size: 60),
+    return Image.asset(
+      'images/heroScreen.png',
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: const Color(0xFF1A1A1A),
+        child: Center(
+          child: Icon(Icons.landscape, color: _goldColor, size: 60),
+        ),
       ),
     );
   }
 
+  String? _readPhotoUrl(Map<String, dynamic>? data) {
+    final raw = data?['photoUrl'];
+    if (raw is! String) {
+      return null;
+    }
+    final photoUrl = raw.trim();
+    return photoUrl.isEmpty ? null : photoUrl;
+  }
+
   String _heroTag(String id) => 'landmark-hero-$id';
+
+  bool _isAssetPath(String value) {
+    return value.startsWith('images/') || value.startsWith('assets/');
+  }
+
+  bool _isAppStorageUrl(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null) {
+      return false;
+    }
+    if (uri.scheme == 'gs') {
+      return true;
+    }
+    final host = uri.host.toLowerCase();
+    return host.contains('firebasestorage.googleapis.com') ||
+        host.contains('storage.googleapis.com');
+  }
+
+  bool _isHttpUrl(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null || !uri.hasAbsolutePath) {
+      return false;
+    }
+    return uri.scheme == 'http' || uri.scheme == 'https';
+  }
+
+  String _resolvedDescription(Landmark landmark, String languageCode) {
+    final originalDescription = landmark.description;
+
+    if (languageCode != 'ar') {
+      return originalDescription;
+    }
+
+    final localized = _translatedCache[landmark.id];
+    if (localized != null && localized.isNotEmpty) {
+      return localized;
+    }
+
+    if (_localizingIds.contains(landmark.id)) {
+      return originalDescription;
+    }
+
+    return originalDescription;
+  }
+
+  Future<void> _localizeDescriptionsForPage(
+    LandmarksLoaded state, {
+    required String localeCode,
+  }) async {
+    if (_isLocalizing) {
+      _localizationRetry?.cancel();
+      _localizationRetry = Timer(
+        const Duration(milliseconds: 500),
+        () => _localizeDescriptionsForPage(state, localeCode: localeCode),
+      );
+      return;
+    }
+
+    final pending = state.landmarks.where((landmark) {
+      final localized = _translatedCache[landmark.id];
+      if (localized != null && localized.isNotEmpty) {
+        return false;
+      }
+
+      if (localeCode == 'ar') {
+        return true;
+      }
+
+      final originalDescription = landmark.description;
+      if (_isUnavailableDescription(originalDescription)) {
+        return false;
+      }
+
+      return _isUnavailableDescription(originalDescription.trim());
+    }).toList();
+
+    if (pending.isEmpty) {
+      return;
+    }
+
+    _isLocalizing = true;
+    try {
+      final repository = context.read<LandmarksRepository>();
+      final now = DateTime.now();
+      final updates = <String, String>{};
+      for (final landmark in pending) {
+        if (_localizingIds.contains(landmark.id)) {
+          continue;
+        }
+
+        final lastAttempt = _localizationAttempts[landmark.id];
+        if (lastAttempt != null && now.difference(lastAttempt).inSeconds < 3) {
+          continue;
+        }
+
+        _localizingIds.add(landmark.id);
+        _localizationAttempts[landmark.id] = now;
+        try {
+          if (localeCode != 'ar') {
+            final result = await repository.getLandmarkById(
+              landmark.id,
+              languageCode: localeCode,
+            );
+            final localized = result.fold((_) => null, (item) => item);
+            final resolved = localized?.description.trim() ?? '';
+            updates[landmark.id] = _isUnavailableDescription(resolved)
+                ? context.tr('description_unavailable')
+                : resolved;
+            continue;
+          }
+
+          final localDescription = await ArabicLocalDescriptionService.instance
+              .getDescriptionForXid(landmark.id);
+          if (localDescription != null && localDescription.isNotEmpty) {
+            updates[landmark.id] = localDescription;
+          }
+        } finally {
+          _localizingIds.remove(landmark.id);
+        }
+      }
+
+      if (updates.isNotEmpty && mounted) {
+        setState(() {
+          _translatedCache.addAll(updates);
+        });
+      }
+    } finally {
+      _isLocalizing = false;
+    }
+
+    final stillPending = pending.where((landmark) {
+      final localized = _translatedCache[landmark.id];
+      return localized == null || localized.isEmpty;
+    }).isNotEmpty;
+
+    if (stillPending) {
+      _localizationRetry?.cancel();
+      _localizationRetry = Timer(
+        const Duration(seconds: 2),
+        () => _localizeDescriptionsForPage(state, localeCode: localeCode),
+      );
+    }
+  }
+
+  bool _isUnavailableDescription(String text) {
+    if (text.isEmpty) {
+      return true;
+    }
+    final lowered = text.toLowerCase();
+    return lowered == 'no description available' ||
+        lowered == 'no description provided' ||
+        lowered == 'unknown';
+  }
 }

@@ -7,7 +7,12 @@ abstract class ReviewsRepository {
     String landmarkId,
   );
 
+  Stream<List<Review>> watchReviewsForLandmark(String landmarkId);
+
   Future<Either<Failure, Review>> addReview(Review review);
 
-  Future<Either<Failure, Unit>> deleteReview(String reviewId);
+  Future<Either<Failure, Unit>> deleteReview({
+    required String reviewId,
+    required String userId,
+  });
 }

@@ -3,15 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 
 class DiscoverMoreSection extends StatefulWidget {
-  const DiscoverMoreSection({
-    super.key,
-    required this.landmark,
-  });
+  const DiscoverMoreSection({super.key, required this.landmark});
 
   final Landmark landmark;
 
@@ -48,8 +46,11 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
               children: [
                 Text(
                   cityLabel == null
-                      ? 'Discover More Nearby'
-                      : 'Discover More in $cityLabel',
+                      ? context.tr('discover_more_nearby')
+                      : context.tr(
+                          'discover_more_in',
+                          args: {'city': cityLabel},
+                        ),
                   style: GoogleFonts.notoSerif(
                     fontSize: 22,
                     fontStyle: FontStyle.italic,
@@ -92,8 +93,8 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
                   itemBuilder: (context, index) {
                     final card = _discoverCard(
                       displayItems[index],
-                      isLoading: snapshot.connectionState ==
-                          ConnectionState.waiting,
+                      isLoading:
+                          snapshot.connectionState == ConnectionState.waiting,
                     );
                     return _wrapClickableCard(
                       context,
@@ -117,10 +118,12 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
     }
 
     final repository = context.read<LandmarksRepository>();
+    final languageCode = Localizations.localeOf(context).languageCode;
     final firstBatch = await repository.getAllLandmarks(
       page: 1,
       limit: 12,
       city: city,
+      languageCode: languageCode,
     );
 
     final collected = <Landmark>[];
@@ -131,6 +134,7 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
         page: 2,
         limit: 12,
         city: city,
+        languageCode: languageCode,
       );
       collected.addAll(_filterUnique(secondBatch, collected));
     }
@@ -138,10 +142,7 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
     return collected.take(4).toList();
   }
 
-  List<Landmark> _filterUnique(
-    dynamic response,
-    List<Landmark> existing,
-  ) {
+  List<Landmark> _filterUnique(dynamic response, List<Landmark> existing) {
     if (response == null) {
       return [];
     }
@@ -172,10 +173,7 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
     return trimmed;
   }
 
-  Widget _discoverCard(
-    Landmark? suggestion, {
-    required bool isLoading,
-  }) {
+  Widget _discoverCard(Landmark? suggestion, {required bool isLoading}) {
     final url = suggestion?.photos.isNotEmpty == true
         ? suggestion!.photos.first.url
         : null;
@@ -211,8 +209,10 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
               children: [
                 Text(
                   isPlaceholder
-                      ? (isLoading ? 'LOADING' : 'SUGGESTION')
-                      : suggestion!.category.name.toUpperCase(),
+                      ? (isLoading
+                            ? context.tr('loading').toUpperCase()
+                            : context.tr('suggestion').toUpperCase())
+                      : suggestion.category.name.toUpperCase(),
                   style: GoogleFonts.notoSerif(
                     fontSize: 10,
                     letterSpacing: 2.0,
@@ -222,8 +222,10 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
                 const SizedBox(height: 6),
                 Text(
                   isPlaceholder
-                      ? (isLoading ? 'Loading...' : 'More to explore')
-                      : suggestion!.name,
+                      ? (isLoading
+                            ? context.tr('loading_ellipsis')
+                            : context.tr('more_to_explore'))
+                      : suggestion.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.notoSerif(
@@ -251,10 +253,9 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
 
     return GestureDetector(
       onTap: () {
-        Navigator.of(context).pushNamed(
-          Routes.landmarkDetails,
-          arguments: suggestion,
-        );
+        Navigator.of(
+          context,
+        ).pushNamed(Routes.landmarkDetails, arguments: suggestion);
       },
       child: card,
     );

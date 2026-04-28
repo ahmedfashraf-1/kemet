@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
+import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/core/widgets/join_kemet_dialog.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/reviews/domain/entities/review.dart';
 import 'package:kemet/features/reviews/presentation/cubit/reviews_cubit.dart';
@@ -19,14 +21,15 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   int _selectedRating = 0;
   bool _isSubmitting = false;
   bool _isDeleting = false;
-  List<Review> _cachedReviews = const [];
+  List<Review> _latestReviews = const [];
+  late final Stream<List<Review>> _reviewsStream;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ReviewsCubit>().getReviewsForLandmark(widget.landmark.id);
-    });
+    _reviewsStream =
+        context.read<ReviewsCubit>().watchReviewsForLandmark(widget.landmark.id);
+    debugPrint('ReviewsScreen landmarkId: ${widget.landmark.id}');
   }
 
   @override
@@ -37,6 +40,11 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUserId = currentUser?.uid;
+    final isGuest = currentUser == null || currentUser.isAnonymous;
+    final canPostReview = !isGuest;
+
     return Theme(
       data: Theme.of(context).copyWith(
         brightness: Brightness.dark,
@@ -73,82 +81,95 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
             ),
           ),
         ),
-        body: BlocConsumer<ReviewsCubit, ReviewsState>(
+        body: BlocListener<ReviewsCubit, ReviewsState>(
           listener: (context, state) {
+            if (!mounted) {
+              return;
+            }
             if (state is ReviewsError) {
+              if (_isSubmitting) {
+                setState(() => _isSubmitting = false);
+              }
+              if (_isDeleting) {
+                setState(() => _isDeleting = false);
+              }
               if (_isSubmitting || _isDeleting) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(state.message)));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message)),
+                );
               }
             }
+            if (state is ReviewsLoaded && _isSubmitting) {
+              _commentController.clear();
+              _selectedRating = 0;
+              setState(() => _isSubmitting = false);
+            }
           },
-          builder: (context, state) {
-            final reviews = _extractReviews(state);
-            final isLoading = state is ReviewsLoading;
-            final hasCached = _cachedReviews.isNotEmpty;
-            final isBlockingLoading = isLoading && !hasCached;
-            final errorMessage = state is ReviewsError && !hasCached
-                ? state.message
-                : null;
-            final isBusy = isBlockingLoading || _isSubmitting;
-            final currentUserId = context
-                .read<AuthRepository>()
-                .currentUser
-                ?.id;
-
-            return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                children: [
-                  _buildHeroSection(),
-                  Transform.translate(
-                    offset: const Offset(0, -40),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Column(
-                        children: [
-                          _buildRatingSummary(reviews, isBlockingLoading),
-                          const SizedBox(height: 32),
-                          _buildRateSection(isBusy),
-                          const SizedBox(height: 48),
-                          _buildReviewsHeader(),
-                          const SizedBox(height: 24),
-                          _buildReviewsBody(
-                            reviews: reviews,
-                            isLoading: isBlockingLoading,
-                            errorMessage: errorMessage,
-                            currentUserId: currentUserId,
-                          ),
-                          const SizedBox(height: 40),
-                          //_buildLoadMoreButton(isLoading || _isSubmitting),
-                          const SizedBox(height: 40),
-                        ],
+          child: StreamBuilder<List<Review>>(
+            stream: _reviewsStream,
+            builder: (context, snapshot) {
+              final reviews = snapshot.data ?? const <Review>[];
+              _latestReviews = reviews;
+              final isLoading =
+                  snapshot.connectionState == ConnectionState.waiting;
+              final isBlockingLoading = isLoading && reviews.isEmpty;
+              final errorMessage = snapshot.hasError
+                  ? 'Failed to load reviews.'
+                  : null;
+              final isBusy = isBlockingLoading || _isSubmitting;
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  children: [
+                    _buildHeroSection(),
+                    Transform.translate(
+                      offset: const Offset(0, -40),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Column(
+                          children: [
+                            _buildProtectedSection(
+                              child: _buildRatingSummary(
+                                reviews,
+                                isBlockingLoading,
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                            _buildRateSection(isBusy, canPostReview),
+                            const SizedBox(height: 48),
+                            _buildReviewersStrip(reviews, currentUserId),
+                            const SizedBox(height: 24),
+                            _buildReviewsHeader(),
+                            const SizedBox(height: 24),
+                            _buildReviewsBody(
+                              reviews: reviews,
+                              isLoading: isBlockingLoading,
+                              errorMessage: errorMessage,
+                              currentUserId: currentUserId,
+                            ),
+                            const SizedBox(height: 40),
+                            //_buildLoadMoreButton(isLoading || _isSubmitting),
+                            const SizedBox(height: 40),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          },
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
-  }
-
-  List<Review> _extractReviews(ReviewsState state) {
-    if (state is ReviewsLoaded) {
-      _cachedReviews = state.reviews;
-      return state.reviews;
-    }
-    return _cachedReviews;
   }
 
   Widget _buildHeroSection() {
     final heroUrl = widget.landmark.photos.isNotEmpty
         ? widget.landmark.photos.first.url
         : '';
-    final hasValidUrl = _isValidNetworkUrl(heroUrl);
+    final isAsset = _isAssetPath(heroUrl);
+    final isAppUrl = _isAppStorageUrl(heroUrl);
 
     return SizedBox(
       height: 400,
@@ -156,19 +177,20 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (hasValidUrl)
-            Image.network(heroUrl, fit: BoxFit.cover)
+          if (isAsset)
+            Image.asset(
+              heroUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _buildLandmarkPlaceholder(),
+            )
+          else if (isAppUrl)
+            Image.network(
+              heroUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _buildLandmarkPlaceholder(),
+            )
           else
-            Container(
-              color: ReviewsPalette.surfaceHigh,
-              child: const Center(
-                child: Icon(
-                  Icons.account_balance,
-                  size: 90,
-                  color: ReviewsPalette.primaryGold,
-                ),
-              ),
-            ),
+            _buildLandmarkPlaceholder(),
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -326,8 +348,9 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     );
   }
 
-  Widget _buildRateSection(bool isLoading) {
-    return Container(
+  Widget _buildRateSection(bool isLoading, bool canPost) {
+    return _buildProtectedSection(
+      child: Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: ReviewsPalette.surfaceHigh,
@@ -355,7 +378,9 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 child: GestureDetector(
                   onTap: isLoading
                       ? null
-                      : () => setState(() => _selectedRating = starIndex),
+                      : () => _requireAuth(context, () {
+                            setState(() => _selectedRating = starIndex);
+                          }),
                   child: Icon(
                     isFilled ? Icons.star : Icons.star_border,
                     color: ReviewsPalette.darkGold,
@@ -369,6 +394,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           TextField(
             controller: _commentController,
             maxLines: 4,
+            readOnly: !canPost,
+            onTap: canPost ? null : () => _requireAuth(context, () {}),
             style: const TextStyle(color: ReviewsPalette.textMain),
             decoration: InputDecoration(
               hintText: 'Write your experience...',
@@ -401,7 +428,9 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 ],
               ),
               child: ElevatedButton(
-                onPressed: isLoading ? null : _submitReview,
+                onPressed: isLoading
+                    ? null
+                    : () => _requireAuth(context, _submitReview),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
@@ -427,45 +456,109 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           ),
         ],
       ),
+      ),
     );
   }
 
   Widget _buildReviewsHeader() {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: ReviewsPalette.divider.withOpacity(0.3)),
+    return _buildProtectedSection(
+      child: Container(
+        padding: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: ReviewsPalette.divider.withOpacity(0.3)),
+          ),
+        ),
+        child: Column(
+          // crossAxisAlignment.start تجعل العناصر تبدأ من جهة اليسار
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // السطر الأول: العنوان الأيسر
+            const Text(
+              'Visitor Experiences',
+              style: TextStyle(fontSize: 26, color: ReviewsPalette.textMain),
+            ),
+
+            // مسافة عمودية صغيرة ومناسبة (4 بكسل) لجعل السطرين متقاربين
+            const SizedBox(height: 4),
+
+            // السطر الثاني: النص الفرعي الأيمن
+            // استخدمنا Align لمحاذاة هذا النص تحديداً إلى جهة اليمين
+            Align(
+              alignment: Alignment.centerRight,
+              child: const Text(
+                'LATEST REVIEWS',
+                style: TextStyle(
+                  fontSize: 10,
+                  letterSpacing: 2.0,
+                  color: ReviewsPalette.textMuted,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-      child: Column(
-        // crossAxisAlignment.start تجعل العناصر تبدأ من جهة اليسار
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // السطر الأول: العنوان الأيسر
-          const Text(
-            'Visitor Experiences',
-            style: TextStyle(fontSize: 26, color: ReviewsPalette.textMain),
-          ),
+    );
+  }
 
-          // مسافة عمودية صغيرة ومناسبة (4 بكسل) لجعل السطرين متقاربين
-          const SizedBox(height: 4),
+  Widget _buildReviewersStrip(List<Review> reviews, String? currentUserId) {
+    final uniqueReviewers = <String, Review>{};
+    for (final review in reviews) {
+      uniqueReviewers.putIfAbsent(review.userId, () => review);
+    }
 
-          // السطر الثاني: النص الفرعي الأيمن
-          // استخدمنا Align لمحاذاة هذا النص تحديداً إلى جهة اليمين
-          Align(
-            alignment: Alignment.centerRight,
-            child: const Text(
-              'LATEST REVIEWS',
+    if (uniqueReviewers.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final reviewers = uniqueReviewers.values.toList();
+
+    return _buildProtectedSection(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: ReviewsPalette.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: ReviewsPalette.divider.withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'REVIEWERS',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 12,
                 letterSpacing: 2.0,
                 color: ReviewsPalette.textMuted,
                 fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 74,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: reviewers.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 16),
+                itemBuilder: (context, index) {
+                  final review = reviewers[index];
+                  return _ReviewerAvatar(
+                    key: ValueKey('reviewer-${review.userId}'),
+                    imageUrl: review.userImage,
+                    username: review.username,
+                    onTap: () => _requireAuth(
+                      context,
+                      () => _openProfile(review.userId),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -531,119 +624,121 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     required Review review,
     required String? currentUserId,
   }) {
-    final displayName = _displayName(review.userId, review.username);
     final timeAgo = _formatTimeAgo(review.createdAt);
     final roundedRating = review.rating.round().clamp(1, 5);
     final isOwner = currentUserId != null && review.userId == currentUserId;
 
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: ReviewsPalette.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.transparent),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: ReviewsPalette.darkGold.withOpacity(0.3),
-                width: 2,
+    return _buildProtectedSection(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: ReviewsPalette.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.transparent),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ReviewerAvatar(
+              key: ValueKey('reviewer-${review.userId}-${review.id}'),
+              imageUrl: review.userImage,
+              username: review.username,
+              onTap: () => _requireAuth(
+                context,
+                () => _openProfile(review.userId),
               ),
+              size: 56,
+              borderWidth: 2,
             ),
-            child: const Icon(
-              Icons.person,
-              color: ReviewsPalette.textMuted,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        displayName,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          color: ReviewsPalette.textMain,
-                          fontWeight: FontWeight.w500,
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _requireAuth(
+                            context,
+                            () => _openProfile(review.userId),
+                          ),
+                          child: Text(
+                            review.username,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              color: ReviewsPalette.textMain,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(width: 8),
+                      Row(
+                        children: [
+                          if (isOwner)
+                            IconButton(
+                              onPressed: _isDeleting
+                                  ? null
+                                  : () => _deleteReview(review),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: ReviewsPalette.textMuted,
+                                size: 18,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          const SizedBox(width: 6),
+                          Text(
+                            timeAgo,
+                            style: TextStyle(
+                              fontSize: 10,
+                              letterSpacing: 0.5,
+                              color: ReviewsPalette.textMuted.withOpacity(0.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: List.generate(
+                      5,
+                      (index) => Icon(
+                        index < roundedRating ? Icons.star : Icons.star_border,
+                        color: index < roundedRating
+                            ? ReviewsPalette.primaryGold
+                            : ReviewsPalette.textMuted.withOpacity(0.2),
+                        size: 14,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Row(
-                      children: [
-                        if (isOwner)
-                          IconButton(
-                            onPressed: _isDeleting
-                                ? null
-                                : () => _deleteReview(review),
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: ReviewsPalette.textMuted,
-                              size: 18,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        const SizedBox(width: 6),
-                        Text(
-                          timeAgo,
-                          style: TextStyle(
-                            fontSize: 10,
-                            letterSpacing: 0.5,
-                            color: ReviewsPalette.textMuted.withOpacity(0.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: List.generate(
-                    5,
-                    (index) => Icon(
-                      index < roundedRating ? Icons.star : Icons.star_border,
-                      color: index < roundedRating
-                          ? ReviewsPalette.primaryGold
-                          : ReviewsPalette.textMuted.withOpacity(0.2),
-                      size: 14,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    review.comment,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: ReviewsPalette.textMuted,
+                      height: 1.6,
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  review.comment,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: ReviewsPalette.textMuted,
-                    height: 1.6,
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Future<void> _deleteReview(Review review) async {
-    final currentUser = context.read<AuthRepository>().currentUser;
-    if (currentUser == null || currentUser.id != review.userId) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || currentUser.uid != review.userId) {
       return;
     }
     final shouldDelete = await showDialog<bool>(
@@ -683,15 +778,27 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     if (shouldDelete != true) {
       return;
     }
+    final reviewsCubit = context.read<ReviewsCubit>();
     setState(() => _isDeleting = true);
-    await context.read<ReviewsCubit>().deleteReview(
-      reviewId: review.id,
-      landmarkId: review.landmarkId,
-    );
-    if (!mounted) {
-      return;
+    try {
+      await reviewsCubit.deleteReview(
+        reviewId: review.id,
+        landmarkId: review.landmarkId,
+        userId: review.userId,
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to delete review.')),
+      );
+    } finally {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isDeleting = false);
     }
-    setState(() => _isDeleting = false);
   }
 
   /*
@@ -719,17 +826,28 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   }
 */
   Future<void> _submitReview() async {
-    final currentUser = context.read<AuthRepository>().currentUser;
+    if (_isSubmitting) {
+      return;
+    }
+    if (_isGuest()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must login first to post a review')),
+      );
+      showJoinKemetDialog(context);
+      return;
+    }
+    final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in to add a review.')),
+        const SnackBar(content: Text('You must login first to post a review')),
       );
+      showJoinKemetDialog(context);
       return;
     }
 
-    final hasExistingReview = _cachedReviews.any(
+    final hasExistingReview = _latestReviews.any(
       (review) =>
-          review.userId == currentUser.id &&
+          review.userId == currentUser.uid &&
           review.landmarkId == widget.landmark.id,
     );
     if (hasExistingReview) {
@@ -750,41 +868,75 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     }
 
     FocusScope.of(context).unfocus();
+    final reviewsCubit = context.read<ReviewsCubit>();
     setState(() => _isSubmitting = true);
 
     final review = Review(
       id: '',
-      userId: currentUser.id,
-      username: currentUser.username,
+      userId: currentUser.uid,
+      username: currentUser.displayName?.trim().isNotEmpty == true
+          ? currentUser.displayName!.trim()
+          : (currentUser.email?.split('@').first ?? 'User'),
+      userImage: null,
       landmarkId: widget.landmark.id,
+      landmarkName: widget.landmark.name,
       comment: comment,
       rating: _selectedRating.toDouble(),
       createdAt: DateTime.now(),
     );
 
-    await context.read<ReviewsCubit>().addReview(review);
-    if (!mounted) {
-      return;
+    debugPrint('Submitting review for landmarkId: ${review.landmarkId}');
+
+    try {
+      await reviewsCubit.addReview(review);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to post review.')),
+      );
+    } finally {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isSubmitting = false);
     }
-    final latestState = context.read<ReviewsCubit>().state;
-    if (latestState is ReviewsLoaded) {
-      _commentController.clear();
-      _selectedRating = 0;
-    }
-    setState(() => _isSubmitting = false);
   }
 
-  bool _isValidNetworkUrl(String value) {
+  bool _isAssetPath(String value) {
+    return value.startsWith('images/') || value.startsWith('assets/');
+  }
+
+  bool _isAppStorageUrl(String value) {
     final uri = Uri.tryParse(value);
-    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+    if (uri == null) {
+      return false;
+    }
+    if (uri.scheme == 'gs') {
+      return true;
+    }
+    final host = uri.host.toLowerCase();
+    return host.contains('firebasestorage.googleapis.com') ||
+        host.contains('storage.googleapis.com');
   }
 
-  String _displayName(String userId, String reviewUsername) {
-    if (reviewUsername.trim().isNotEmpty) {
-      return reviewUsername.trim();
-    }
 
-    return 'Registered User';
+  Widget _buildLandmarkPlaceholder() {
+    return Image.asset(
+      'images/heroScreen.png',
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: ReviewsPalette.surfaceHigh,
+        child: const Center(
+          child: Icon(
+            Icons.account_balance,
+            size: 90,
+            color: ReviewsPalette.primaryGold,
+          ),
+        ),
+      ),
+    );
   }
 
   String _formatTimeAgo(DateTime createdAt) {
@@ -804,6 +956,180 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     final weeks = (diff.inDays / 7).floor();
     return '$weeks WEEKS AGO';
   }
+
+  void _openProfile(String userId) {
+    if (userId.isEmpty) {
+      return;
+    }
+    requireAuthOrShowDialog(
+      context,
+      isGuest: _isGuest(),
+      debugLabel: 'reviewer-open-profile-$userId',
+      action: () {
+        Navigator.of(context).pushNamed(Routes.profileScreen, arguments: userId);
+      },
+    );
+  }
+
+  bool _isGuest() {
+    final user = FirebaseAuth.instance.currentUser;
+    return user == null || user.isAnonymous;
+  }
+
+  void _requireAuth(BuildContext context, VoidCallback action) {
+    requireAuthOrShowDialog(
+      context,
+      isGuest: _isGuest(),
+      debugLabel: 'reviews-auth-guard',
+      action: action,
+    );
+  }
+
+  Widget _buildProtectedSection({required Widget child}) {
+    final isGuest = _isGuest();
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: isGuest
+          ? () => requireAuthOrShowDialog(
+                context,
+                isGuest: true,
+                debugLabel: 'reviews-protected-section',
+                action: () {},
+              )
+          : null,
+      child: isGuest ? IgnorePointer(child: child) : child,
+    );
+  }
+
+}
+
+class _ReviewerAvatar extends StatelessWidget {
+  const _ReviewerAvatar({
+    super.key,
+    required this.imageUrl,
+    required this.username,
+    required this.onTap,
+    this.size = 48,
+    this.borderWidth = 1.5,
+  });
+
+  final String? imageUrl;
+  final String username;
+  final VoidCallback onTap;
+  final double size;
+  final double borderWidth;
+
+  static const String _placeholderAsset = 'images/logo.png';
+
+  String? _sanitizeUserImageUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return null;
+
+    if (url.contains('googleusercontent.com')) return null;
+
+    if (_isAssetPath(url) || _isAppStorageUrl(url) || url.startsWith('http')) {
+      return url;
+    }
+
+    return null;
+  }
+
+  bool _isAssetPath(String value) {
+    return value.startsWith('images/') || value.startsWith('assets/');
+  }
+
+  bool _isAppStorageUrl(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null) {
+      return false;
+    }
+    if (uri.scheme == 'gs') {
+      return true;
+    }
+    final host = uri.host.toLowerCase();
+    return host.contains('firebasestorage.googleapis.com') ||
+        host.contains('storage.googleapis.com');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _buildAvatar(
+      photoUrl: _sanitizeUserImageUrl(imageUrl) ?? '',
+      displayName: username.trim().isNotEmpty ? username.trim() : 'User',
+    );
+  }
+
+  Widget _buildAvatar({
+    required String photoUrl,
+    required String displayName,
+  }) {
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: ReviewsPalette.darkGold.withOpacity(0.3),
+                width: borderWidth,
+              ),
+            ),
+            child: ClipOval(
+              child: photoUrl.isNotEmpty
+                  ? Image.network(
+                      photoUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                    )
+                  : _buildPlaceholder(),
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: size + 8,
+            child: Text(
+              displayName.isNotEmpty ? displayName : 'User',
+              style: const TextStyle(
+                color: ReviewsPalette.textMuted,
+                fontSize: 10,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Image.asset(
+      _placeholderAsset,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _buildInitials('?'),
+    );
+  }
+
+  Widget _buildInitials(String initials) {
+    return Container(
+      color: ReviewsPalette.surfaceHigh,
+      child: Center(
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: ReviewsPalette.primaryGold,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
 }
 
 class ReviewsPalette {

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarkphotos.dart';
 
 class LandmarkGallery extends StatelessWidget {
@@ -22,7 +23,7 @@ class LandmarkGallery extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  'Gallery of Antiquity',
+                  context.tr('gallery_of_antiquity'),
                   style: GoogleFonts.notoSerif(
                     fontSize: 22,
                     color: AppColors.textPrimary,
@@ -70,12 +71,19 @@ class LandmarkGallery extends StatelessWidget {
   }
 
   Widget _galleryCard(String url) {
-    final hasValidUrl = _isValidNetworkUrl(url);
+    final isAsset = _isAssetPath(url);
+    final isAppUrl = _isAppStorageUrl(url);
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
       child: SizedBox(
         width: 220,
-        child: hasValidUrl
+        child: isAsset
+            ? Image.asset(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _placeholderCard(),
+              )
+            : isAppUrl
             ? CachedNetworkImage(
                 imageUrl: url,
                 fit: BoxFit.cover,
@@ -88,19 +96,34 @@ class LandmarkGallery extends StatelessWidget {
   }
 
   Widget _placeholderCard() {
-    return Container(
-      width: 220,
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(18),
+    return Image.asset(
+      'images/heroScreen.png',
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        width: 220,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Icon(Icons.landscape, color: AppColors.mainGold, size: 48),
       ),
-      child: Icon(Icons.landscape, color: AppColors.mainGold, size: 48),
     );
   }
 
-  bool _isValidNetworkUrl(String url) {
+  bool _isAssetPath(String url) {
+    return url.startsWith('images/') || url.startsWith('assets/');
+  }
+
+  bool _isAppStorageUrl(String url) {
     final parsed = Uri.tryParse(url);
-    return parsed != null &&
-        (parsed.scheme == 'http' || parsed.scheme == 'https');
+    if (parsed == null) {
+      return false;
+    }
+    if (parsed.scheme == 'gs') {
+      return true;
+    }
+    final host = parsed.host.toLowerCase();
+    return host.contains('firebasestorage.googleapis.com') ||
+        host.contains('storage.googleapis.com');
   }
 }

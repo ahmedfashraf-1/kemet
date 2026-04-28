@@ -10,6 +10,7 @@ import 'package:kemet/features/landmarks/domain/entities/landmarkcategory.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarkphotos.dart';
 import 'package:kemet/features/favorite/domain/entities/favorite.dart';
 import 'package:kemet/features/reviews/domain/entities/review.dart';
+import 'package:kemet/features/reviews/data/models/review_model.dart';
 
 import '../models/profile_model.dart';
 
@@ -19,7 +20,7 @@ import '../models/profile_model.dart';
 abstract class ProfileRemoteDataSource {
   Future<ProfileModel> getProfile(String userId);
   Future<List<Landmark>> getRecentPlaces(String userId);
-  Future<List<Review>> getMyReviews(String userId);
+  Future<List<Review>> getMyReviews(String userId, {int? limit});
   Future<List<Favorite>> getFavoritePlaces(String userId);
   Future<void> logout();
 }
@@ -50,20 +51,30 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   @override
   Future<ProfileModel> getProfile(String userId) async {
     try {
-      final doc =
-          await firestore.collection('users').doc(userId).get();
+      final doc = await firestore.collection('users').doc(userId).get();
 
       if (!doc.exists) throw ServerException();
 
       final data = doc.data()!;
+      final canViewPrivateData = await _canViewPrivateData(userId);
+
+      final recentTrips = (data['recentTrips'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .toList();
+
+      final savedCount = canViewPrivateData
+          ? _extractSavedCount(data)
+          : 0;
+      final reviewsCount = canViewPrivateData
+          ? await _countUserReviews(userId)
+          : 0;
 
       return ProfileModel.fromFirestore(
         id: userId,
         data: data,
-        
-        tripsCount: 0,/// explore or trips ??
-        savedCount: 0,
-        reviewsCount: 0,
+        tripsCount: canViewPrivateData ? recentTrips.length : 0,
+        savedCount: savedCount,
+        reviewsCount: reviewsCount,
       );
     } catch (_) {
       throw ServerException();
@@ -74,6 +85,11 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   @override
   Future<List<Landmark>> getRecentPlaces(String userId) async {
     try {
+      final canViewPrivateData = await _canViewPrivateData(userId);
+      if (!canViewPrivateData) {
+        return [];
+      }
+
       // 1 xids
       final doc = await firestore.collection('users').doc(userId).get();
       final List<dynamic> allXids = doc.data()?['recentTrips'] ?? [];
@@ -110,64 +126,132 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       throw ServerException();
     }
   }
-// Duummy
- @override
-Future<List<Review>> getMyReviews(String userId) async {
-  await Future.delayed(const Duration(milliseconds: 300));
 
-  return [
-    Review(
-      id: 'r1',
-      userId: userId,
-      username: 'Nour',
-      landmarkId: 'karnak_temple',
-      comment: 'Amazing place!',
-      rating: 5.0,
-      createdAt: DateTime(2025, 3),
-    ),
-    Review(
-      id: 'r2',
-      userId: userId,
-      username: 'Nour',
-      landmarkId: 'pyramids_giza',
-      comment: 'Great experience',
-      rating: 4.0,
-      createdAt: DateTime(2025, 1),
-    ),
-  ];
-}
- 
+  @override
+  Future<List<Review>> getMyReviews(String userId, {int? limit}) async {
+    try {
+      final canViewPrivateData = await _canViewPrivateData(userId);
+      if (!canViewPrivateData) {
+        return [];
+      }
 
- // Dummy
+      final snapshot = await firestore
+          .collection('reviews')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      final models = snapshot.docs.map((doc) {
+        final data = doc.data();
+        var model = ReviewModel.fromJson(data, doc.id);
+        if (model.userId.isEmpty) {
+          model = ReviewModel(
+            id: model.id,
+            userId: userId,
+            username: model.username,
+            userImage: model.userImage,
+            landmarkId: model.landmarkId,
+            landmarkName: model.landmarkName,
+            comment: model.comment,
+            rating: model.rating,
+            createdAt: model.createdAt,
+          );
+        }
+        return model;
+      }).toList();
+
+      models.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      final limited = (limit != null && limit > 0)
+          ? models.take(limit).toList()
+          : models;
+
+      return limited.map((model) => model.toEntity()).toList();
+    } catch (_) {
+      throw ServerException();
+    }
+  }
+
+
   @override
   Future<List<Favorite>> getFavoritePlaces(String userId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return [
-      Favorite(
-        id: 'f1',
-        name: 'Ibn Tulun Mosque',
-        location: 'Cairo',
-        icon: '🕌',
-      ),
-      Favorite(
-        id: 'f2',
-        name: 'Ras Mohammed',
-        location: 'Sinai',
-        icon: '🌊',
-      ),
-      Favorite(
-        id: 'f3',
-        name: 'Egyptian Museum',
-        location: 'Cairo',
-        icon: '🏺',
-      ),
-    ];
+    try {
+      final canViewPrivateData = await _canViewPrivateData(userId);
+      if (!canViewPrivateData) {
+        return [];
+      }
+
+      final doc = await firestore.collection('users').doc(userId).get();
+      if (!doc.exists) {
+        return [];
+      }
+
+      final data = doc.data() ?? <String, dynamic>{};
+      final raw = data['favorites'] ?? data['favoritePlaces'] ?? const [];
+      if (raw is! List) {
+        return [];
+      }
+
+      return raw
+          .map((item) {
+            if (item is Map<String, dynamic>) {
+              final id = (item['id'] ?? item['landmarkId'] ?? '').toString();
+              if (id.isEmpty) return null;
+              return Favorite(
+                id: id,
+                name: (item['name'] ?? item['landmarkName'] ?? 'Unknown')
+                    .toString(),
+                location: (item['location'] ?? item['city'] ?? '').toString(),
+                icon: item['icon']?.toString(),
+              );
+            }
+            if (item is String && item.isNotEmpty) {
+              return Favorite(id: item, name: item, location: '', icon: null);
+            }
+            return null;
+          })
+          .whereType<Favorite>()
+          .toList();
+    } catch (_) {
+      throw ServerException();
+    }
   }
 
 
   @override
   Future<void> logout() async {
     await FirebaseAuth.instance.signOut();
+  }
+
+  Future<bool> _canViewPrivateData(String profileUserId) async {
+    final viewerId = FirebaseAuth.instance.currentUser?.uid;
+    if (viewerId == profileUserId && viewerId != null) return true;
+
+    final doc = await firestore.collection('users').doc(profileUserId).get();
+    final data = doc.data();
+    final isPrivate = data?['isPrivate'] == true;
+    return !isPrivate;
+  }
+
+  int _extractSavedCount(Map<String, dynamic> data) {
+    final savedCountRaw = data['savedCount'];
+    if (savedCountRaw is num) {
+      return savedCountRaw.toInt();
+    }
+
+    final favorites = data['favorites'] ?? data['favoritePlaces'];
+    if (favorites is List) {
+      return favorites.length;
+    }
+
+    return 0;
+  }
+
+  Future<int> _countUserReviews(String userId) async {
+    final snapshot = await firestore
+        .collection('reviews')
+        .where('userId', isEqualTo: userId)
+        .get();
+    return snapshot.docs.length;
   }
 
 

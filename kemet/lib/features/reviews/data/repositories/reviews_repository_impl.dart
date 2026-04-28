@@ -36,6 +36,13 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
   }
 
   @override
+  Stream<List<Review>> watchReviewsForLandmark(String landmarkId) {
+    return remoteDatasource
+        .watchReviewsForLandmark(landmarkId)
+        .map((models) => models.map((model) => model.toEntity()).toList());
+  }
+
+  @override
   Future<Either<Failure, Review>> addReview(Review review) async {
     try {
       final model = ReviewModel.fromEntity(review);
@@ -49,9 +56,12 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
   }
 
   @override
-  Future<Either<Failure, Unit>> deleteReview(String reviewId) async {
+  Future<Either<Failure, Unit>> deleteReview({
+    required String reviewId,
+    required String userId,
+  }) async {
     try {
-      await remoteDatasource.deleteReview(reviewId);
+      await remoteDatasource.deleteReview(reviewId, userId);
       return const Right(unit);
     } on ServerException {
       return Left(ServerFailure());

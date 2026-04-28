@@ -38,8 +38,8 @@ class GetMyReviewsUseCase {
   final ProfileRepository repository;
   const GetMyReviewsUseCase(this.repository);
 
-  Future<Either<Failure, List<Review>>> call(String userId) {
-    return repository.getMyReviews(userId);
+  Future<Either<Failure, List<Review>>> call(String userId, {int? limit}) {
+    return repository.getMyReviews(userId, limit: limit);
   }
 }
 

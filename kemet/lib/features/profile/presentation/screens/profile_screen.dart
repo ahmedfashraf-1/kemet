@@ -1,19 +1,30 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/routing/app_router.dart';
+import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/utils/extensions.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
+import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
+import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
+import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
+import 'package:kemet/features/landmarks/domain/usecases/get_landmark_by_id.dart';
+import 'package:kemet/features/reviews/domain/entities/review.dart';
+import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import '../cubit/profile_cubit.dart';
-import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 import '../widgets/profile_cover_widget.dart';
 import '../widgets/profile_stats_widget.dart';
 import '../widgets/profile_widgets.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -24,7 +35,8 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateMixin {
+class _ProfileScreenState extends State<ProfileScreen>
+    with TickerProviderStateMixin, RouteAware {
   static const Color _bgColor = Color(0xFF0E0E0E);
   static const Color _goldColor = Color(0xFFD4AF37);
 
@@ -32,42 +44,233 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   String _displayName = '';
   final ImagePicker _imagePicker = ImagePicker();
   bool _isPickingImage = false;
+  _LandmarkLookupCache? _landmarkLookup;
+  ModalRoute<dynamic>? _route;
 
   late final AnimationController _glowController;
   late final Animation<double> _glowAnim;
 
   Future<void> pickProfileImage() async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null || currentUserId != widget.userId) {
+      if (mounted) {
+        _showToast(
+          context,
+          'You can only edit your own profile image',
+          isError: true,
+        );
+      }
+      return;
+    }
+
     if (_isPickingImage) return;
     _isPickingImage = true;
 
     try {
+      debugPrint(
+        'Profile photo flow started for widget.userId=${widget.userId}',
+      );
       final pickedFile = await _imagePicker.pickImage(
         source: ImageSource.gallery,
       );
 
       if (!mounted || pickedFile == null) {
+        debugPrint('Profile photo pick cancelled or widget disposed.');
+        return;
+      }
+
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      debugPrint(
+        'Current auth user for upload: ${firebaseUser?.uid ?? 'null'}',
+      );
+      if (firebaseUser == null ||
+          firebaseUser.uid.isEmpty ||
+          firebaseUser.isAnonymous) {
+        if (mounted) {
+          _showToast(context, 'Please sign in to update photo', isError: true);
+        }
+        return;
+      }
+
+      if (firebaseUser.uid != widget.userId) {
+        if (mounted) {
+          _showToast(
+            context,
+            'You can edit only your profile photo',
+            isError: true,
+          );
+        }
         return;
       }
 
       final selectedFile = File(pickedFile.path);
+      if (!selectedFile.existsSync()) {
+        debugPrint('Selected image path is not accessible: ${pickedFile.path}');
+        if (mounted) {
+          _showToast(
+            context,
+            'Selected image is not accessible',
+            isError: true,
+          );
+        }
+        return;
+      }
+
+      final remoteUrl = await uploadProfileImage(selectedFile);
+
+      if (!mounted) return;
       setState(() => _image = selectedFile);
       print('Image updated: $_image');
 
       await context.read<SettingsCubit>().setProfileAvatar(
-            localPath: pickedFile.path,
-          );
+        localPath: pickedFile.path,
+      );
+      try {
+        await context.read<SettingsCubit>().setProfileAvatar(
+          localPath: pickedFile.path,
+          remoteUrl: remoteUrl,
+        );
+        await context.read<ProfileCubit>().loadProfile(widget.userId);
+      } catch (settingsError, settingsStack) {
+        debugPrint('Non-fatal settings cache update failed: $settingsError');
+        debugPrintStack(stackTrace: settingsStack);
+      }
 
       if (mounted) {
         _showToast(context, 'Profile photo updated successfully ✦');
+      }
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Auth error during photo upload: ${e.code} ${e.message}');
+      if (mounted) {
+        _showToast(
+          context,
+          'Upload failed: ${_formatUploadError(e)}',
+          isError: true,
+        );
+      }
+    } on FirebaseException catch (e, st) {
+      debugPrint(
+        'Firebase photo upload/save error: code=${e.code} message=${e.message}',
+      );
+      debugPrintStack(stackTrace: st);
+      if (mounted) {
+        _showToast(
+          context,
+          'Upload failed: ${_formatUploadError(e)}',
+          isError: true,
+        );
       }
     } catch (e) {
       debugPrint('Failed to pick image: $e');
       if (mounted) {
         _showToast(context, 'Failed to update photo', isError: true);
+        _showToast(context, 'Upload failed: ${e.toString()}', isError: true);
       }
     } finally {
       _isPickingImage = false;
     }
+  }
+
+  Future<String?> uploadToCloudinary(File imageFile) async {
+    try {
+      final request =
+          http.MultipartRequest(
+              'POST',
+              Uri.parse(
+                'https://api.cloudinary.com/v1_1/datkysjx4/image/upload',
+              ),
+            )
+            ..fields['upload_preset'] = 'kmt_upload'
+            ..files.add(
+              await http.MultipartFile.fromPath('file', imageFile.path),
+            );
+
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        debugPrint(
+          'Cloudinary upload failed: status=${response.statusCode} body=$body',
+        );
+        return null;
+      }
+
+      final data = jsonDecode(body);
+      if (data is! Map<String, dynamic>) {
+        debugPrint('Cloudinary upload failed: invalid response shape');
+        return null;
+      }
+
+      final secureUrl = data['secure_url'] as String?;
+      if (secureUrl == null || secureUrl.trim().isEmpty) {
+        debugPrint('Cloudinary upload failed: secure_url missing');
+        return null;
+      }
+
+      return secureUrl.trim();
+    } catch (e, st) {
+      debugPrint('Cloudinary upload exception: $e');
+      debugPrintStack(stackTrace: st);
+      return null;
+    }
+  }
+
+  Future<String> uploadProfileImage(File file) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-authenticated',
+        message: 'User must be authenticated before uploading a profile photo.',
+      );
+    }
+
+    if (!file.existsSync()) {
+      throw StateError('Selected profile image file does not exist on disk.');
+    }
+
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+    final uploadPath = 'users/$uid/$fileName.jpg';
+
+    print('UID: $uid');
+    print('UPLOAD PATH: $uploadPath');
+
+    final downloadUrl = await uploadToCloudinary(file);
+    if (downloadUrl == null) {
+      throw FirebaseException(
+        plugin: 'cloudinary_upload',
+        code: 'upload-failed',
+        message: 'Cloudinary upload failed: secure_url was not returned.',
+      );
+    }
+
+    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+      'photoUrl': downloadUrl,
+    });
+
+    return downloadUrl;
+  }
+
+  String _formatUploadError(Object error) {
+    if (error is FirebaseAuthException) {
+      final message = error.message?.trim();
+      return message == null || message.isEmpty
+          ? error.code
+          : '${error.code}: $message';
+    }
+
+    if (error is FirebaseException) {
+      if (error.code == 'upload-failed') {
+        return 'Image upload failed. Please try again.';
+      }
+
+      final message = error.message?.trim();
+      return message == null || message.isEmpty
+          ? error.code
+          : '${error.code}: $message';
+    }
+
+    return error.toString();
   }
 
   @override
@@ -91,12 +294,50 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _landmarkLookup ??= _LandmarkLookupCache(
+      GetLandmarkByIdUseCase(context.read<LandmarksRepository>()),
+    );
+    final route = ModalRoute.of(context);
+    if (_route != route) {
+      if (_route is PageRoute<dynamic>) {
+        routeObserver.unsubscribe(this);
+      }
+      _route = route;
+      if (route is PageRoute<dynamic>) {
+        routeObserver.subscribe(this, route);
+      }
+    }
+  }
+
+  @override
+  void didPopNext() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.isAnonymous) {
+      return;
+    }
+    context.read<ProfileCubit>().loadProfile(widget.userId);
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _glowController.dispose();
     super.dispose();
   }
 
   Future<void> _editDisplayName(String currentName) async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null || currentUserId != widget.userId) {
+      _showToast(
+        context,
+        'You can only edit your own profile data',
+        isError: true,
+      );
+      return;
+    }
+
     final parentContext = context;
     final String? savedName = await showDialog<String>(
       context: parentContext,
@@ -223,25 +464,44 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   Widget _buildLoadedView(BuildContext context, ProfileLoaded state) {
     final profile = state.profile;
-    final displayName = _displayName.trim().isNotEmpty
-        ? _displayName
-        : (profile.fullName.trim().isNotEmpty ? profile.fullName : 'Guest');
-    final email = profile.email.trim().isNotEmpty ? profile.email : '-';
+    final isOwnProfile =
+        FirebaseAuth.instance.currentUser?.uid == widget.userId;
+    final isPrivateView = profile.isPrivate && !isOwnProfile;
+    final canViewPrivateData = !isPrivateView;
+    final favoritesState = context.watch<FavoritesCubit>().state;
+    final ownerFavorites = favoritesState is FavoritesLoaded
+        ? favoritesState.favorites
+        : const [];
+    final effectiveSavedCount = isOwnProfile
+        ? ownerFavorites.length
+        : profile.savedCount;
+    final displayName = isPrivateView
+        ? 'Private Account'
+        : (_displayName.trim().isNotEmpty
+              ? _displayName
+              : (profile.fullName.trim().isNotEmpty
+                    ? profile.fullName
+                    : 'Guest'));
+    final email = isPrivateView
+        ? 'This account is private'
+        : (profile.email.trim().isNotEmpty ? profile.email : '-');
     final horizontalPadding = MediaQuery.of(context).size.width < 360
         ? 16.0
         : 24.0;
-    final avatarLocalPath =
-        context.select((SettingsCubit cubit) => cubit.state.avatarLocalPath);
-    final avatarRemoteUrl =
-        context.select((SettingsCubit cubit) => cubit.state.avatarRemoteUrl);
-    final avatarCacheBuster =
-        context.select((SettingsCubit cubit) => cubit.state.avatarCacheBuster);
-    final localFile = _image ??
-        ((avatarLocalPath != null &&
-                avatarLocalPath.isNotEmpty &&
-                File(avatarLocalPath).existsSync())
-            ? File(avatarLocalPath)
-            : null);
+    final avatarLocalPath = context.select(
+      (SettingsCubit cubit) => cubit.state.avatarLocalPath,
+    );
+    final localFile = isOwnProfile
+        ? (_image ??
+              ((avatarLocalPath != null &&
+                      avatarLocalPath.isNotEmpty &&
+                      File(avatarLocalPath).existsSync())
+                  ? File(avatarLocalPath)
+                  : null))
+        : null;
+    final effectivePhotoUrl = profile.photoUrl?.trim().isNotEmpty == true
+        ? profile.photoUrl!.trim()
+        : null;
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -252,9 +512,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             child: ProfileCoverWidget(
               name: displayName,
               imageFile: localFile,
-              avatarRemoteUrl: avatarRemoteUrl,
-              avatarCacheBuster: avatarCacheBuster,
-              onEditProfileImage: pickProfileImage,
+                photoUrl: effectivePhotoUrl,
+              onEditProfileImage: isOwnProfile ? pickProfileImage : () {},
+              isEditable: isOwnProfile,
             ),
           ),
 
@@ -265,57 +525,152 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               children: [
                 SizedBox(height: 72.h),
 
-                _buildNameSection(displayName, email),
+                _buildNameSection(displayName, email, canEdit: isOwnProfile),
 
                 SizedBox(height: 20.h),
 
                 ProfileStatsWidget(
                   trips: profile.tripsCount,
-                  saved: profile.savedCount,
+                  saved: effectiveSavedCount,
                   reviews: profile.reviewsCount,
+                  onExploredTap: canViewPrivateData
+                      ? () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Explored list coming soon.'),
+                            ),
+                          );
+                        }
+                      : null,
+                  onFavoriteTap: isOwnProfile
+                      ? () =>
+                            Navigator.pushNamed(context, Routes.favoritesScreen)
+                      : canViewPrivateData
+                      ? () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Favorites coming soon.'),
+                            ),
+                          );
+                        }
+                      : null,
+                  onReviewsTap: canViewPrivateData
+                      ? () => Navigator.pushNamed(
+                          context,
+                          Routes.userReviewsScreen,
+                          arguments: widget.userId,
+                        )
+                      : null,
                 ),
 
-                // ── Recent Places
-                const ProfileSectionLabel(label: 'RECENT PLACES'),
+                if (!canViewPrivateData) ...[
+                  SizedBox(height: 14.h),
+                  _buildEmptyHint(
+                    'This account is private. Some details are hidden.',
+                  ),
+                  SizedBox(height: 24.h),
+                  if (isOwnProfile) const ProfileSignOutButton(),
+                  SizedBox(height: 24.h),
+                ] else ...[
+                  // ── Recent Places
+                  const ProfileSectionLabel(label: 'RECENT PLACES'),
 
-                _buildRecentPlacesRow(state),
+                  _buildRecentPlacesRow(state),
 
-                // ── My Reviews
-                const ProfileSectionLabel(label: 'MY REVIEWS'),
-                if (state.reviews.isEmpty)
-                  _buildEmptyHint('No reviews yet.')
-                else
-                  ...state.reviews.map(
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: ProfileSectionLabel(label: 'MY REVIEWS'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          Routes.userReviewsScreen,
+                          arguments: widget.userId,
+                        ),
+                        child: Text(
+                          'See all',
+                          style: TextStyle(
+                            color: _goldColor,
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (state.reviews.isEmpty)
+                    _buildEmptyHint('No reviews yet.')
+                  else
+                    ...state.reviews.map(
                       (r) => Padding(
                         padding: EdgeInsets.only(bottom: 6.h),
                         child: ProfileReviewItem(
-                          place: r.landmarkId, // مؤقت لحد ما تجيبي الاسم الحقيقي
+                          place: r.landmarkName.isNotEmpty
+                              ? r.landmarkName
+                              : r.landmarkId,
                           rating: r.rating,
                           date: formatDate(r.createdAt),
                         ),
                       ),
                     ),
 
-                const ProfileSectionLabel(label: 'FAVORITE PLACES'),
-
-                if (state.favoritePlaces.isEmpty)
-                  _buildEmptyHint('No favorites yet.')
-                else
-                  ...state.favoritePlaces.map(
-                    (f) => Padding(
-                      padding: EdgeInsets.only(bottom: 6.h),
-                      child: ProfileSavedItem(
-                        //icon: f.icon,
-                        name: f.name,
-                        location: f.location,
-                        icon: '',
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: ProfileSectionLabel(label: 'FAVORITE PLACES'),
                       ),
-                    ),
+                      if (isOwnProfile)
+                        TextButton(
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            Routes.favoritesScreen,
+                          ),
+                          child: Text(
+                            'See all',
+                            style: TextStyle(
+                              color: _goldColor,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
+                  if ((isOwnProfile ? ownerFavorites : state.favoritePlaces)
+                      .isEmpty)
+                    _buildEmptyHint('No favorites yet.')
+                  else
+                    ...(isOwnProfile
+                            ? ownerFavorites
+                                  .map(
+                                    (landmark) => ProfileSavedItem(
+                                      name: landmark.name,
+                                      location: landmark.city,
+                                      icon: '',
+                                    ),
+                                  )
+                                  .toList()
+                            : state.favoritePlaces
+                                  .map(
+                                    (f) => ProfileSavedItem(
+                                      name: f.name,
+                                      location: f.location,
+                                      icon: '',
+                                    ),
+                                  )
+                                  .toList())
+                        .map(
+                          (item) => Padding(
+                            padding: EdgeInsets.only(bottom: 6.h),
+                            child: item,
+                          ),
+                        ),
 
-                SizedBox(height: 16.h),
-                const ProfileSignOutButton(),
-                SizedBox(height: 24.h),
+                  SizedBox(height: 16.h),
+                  if (isOwnProfile) const ProfileSignOutButton(),
+                  SizedBox(height: 24.h),
+                ],
               ],
             ),
           ),
@@ -326,7 +681,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   // Name Section
 
-  Widget _buildNameSection(String fullName, String email) {
+  Widget _buildNameSection(
+    String fullName,
+    String email, {
+    required bool canEdit,
+  }) {
     return Center(
       child: Column(
         children: [
@@ -350,26 +709,27 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   ),
                 ),
                 SizedBox(width: 6.w),
-                GestureDetector(
-                  onTap: () => _editDisplayName(fullName),
-                  child: Container(
-                    width: 26.w,
-                    height: 26.w,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF19140B),
-                      border: Border.all(
-                        color: AppColors.mainGold.withOpacity(0.42),
-                        width: 0.8,
+                if (canEdit)
+                  GestureDetector(
+                    onTap: () => _editDisplayName(fullName),
+                    child: Container(
+                      width: 26.w,
+                      height: 26.w,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF19140B),
+                        border: Border.all(
+                          color: AppColors.mainGold.withOpacity(0.42),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.edit_outlined,
+                        size: 14,
+                        color: AppColors.mainGold,
                       ),
                     ),
-                    child: const Icon(
-                      Icons.edit_outlined,
-                      size: 14,
-                      color: AppColors.mainGold,
-                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -399,7 +759,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 borderRadius: BorderRadius.circular(20.r),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.mainGold.withOpacity(_glowAnim.value * 0.3),
+                    color: AppColors.mainGold.withOpacity(
+                      _glowAnim.value * 0.3,
+                    ),
                     blurRadius: 12,
                     spreadRadius: 1,
                   ),
@@ -460,6 +822,72 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12.sp),
       ),
     );
+  }
+
+  Widget _buildPrivateAccountNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF13110C),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.mainGold.withOpacity(0.22)),
+      ),
+      child: const Text(
+        'This account is private',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white70,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openLandmarkFromReview(Review review) async {
+    final lookup = _landmarkLookup;
+    if (lookup == null) {
+      return;
+    }
+
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final landmark = await lookup.getLandmark(
+      review.landmarkId,
+      languageCode: languageCode,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    if (landmark == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Landmark details are unavailable.')),
+      );
+      return;
+    }
+
+    Navigator.of(
+      context,
+    ).pushNamed(Routes.landmarkDetails, arguments: landmark);
+  }
+}
+
+class _LandmarkLookupCache {
+  _LandmarkLookupCache(this._getLandmarkByIdUseCase);
+
+  final GetLandmarkByIdUseCase _getLandmarkByIdUseCase;
+  final Map<String, Future<Landmark?>> _landmarkFutures = {};
+
+  Future<Landmark?> getLandmark(String id, {String? languageCode}) {
+    final cacheKey = '${languageCode ?? 'en'}|$id';
+    return _landmarkFutures.putIfAbsent(cacheKey, () async {
+      final result = await _getLandmarkByIdUseCase(
+        id,
+        languageCode: languageCode,
+      );
+      return result.fold((_) => null, (landmark) => landmark);
+    });
   }
 }
 
@@ -579,10 +1007,9 @@ class _EditDisplayNameDialogState extends State<_EditDisplayNameDialog> {
       await user.updateDisplayName(newName);
       await user.reload();
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({'fullName': newName});
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
+        {'fullName': newName},
+      );
 
       if (!mounted) return;
 
@@ -593,7 +1020,11 @@ class _EditDisplayNameDialogState extends State<_EditDisplayNameDialog> {
       setState(() => _isSaving = false);
 
       if (widget.parentContext.mounted) {
-        _showToast(widget.parentContext, 'Failed to update name', isError: true);
+        _showToast(
+          widget.parentContext,
+          'Failed to update name',
+          isError: true,
+        );
       }
     }
   }

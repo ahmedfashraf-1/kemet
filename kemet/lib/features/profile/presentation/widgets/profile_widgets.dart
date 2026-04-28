@@ -1,5 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // Section Label
@@ -264,11 +267,124 @@ class ProfileSignOutButton extends StatelessWidget {
 }
 
 Future<void> _logout(BuildContext context) async {
+  await context.read<SettingsCubit>().clearProfileAvatar();
   await FirebaseAuth.instance.signOut();
 
   Navigator.pushNamedAndRemoveUntil(
     context,
-    '/onLoginScreen',
+    Routes.LoginView,
     (route) => false,
   );
+}
+
+
+// Compact Review Preview Card
+
+class ProfileReviewPreviewCard extends StatelessWidget {
+  const ProfileReviewPreviewCard({
+    super.key,
+    required this.rating,
+    required this.comment,
+    required this.createdAt,
+    this.onTap,
+  });
+
+  final double rating;
+  final String comment;
+  final DateTime createdAt;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F0C0A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.amber.withOpacity(0.2),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFD4AF37).withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _PreviewStars(rating: rating),
+                Text(
+                  _formatMonthYear(createdAt),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.55),
+                    fontSize: 10,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              comment,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatMonthYear(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final month = months[date.month - 1];
+    return '$month ${date.year}';
+  }
+}
+
+class _PreviewStars extends StatelessWidget {
+  const _PreviewStars({required this.rating});
+
+  final double rating;
+
+  @override
+  Widget build(BuildContext context) {
+    final filled = rating.round().clamp(1, 5);
+    return Row(
+      children: List.generate(
+        5,
+        (index) => Icon(
+          index < filled ? Icons.star : Icons.star_border,
+          color: const Color(0xFFD4AF37),
+          size: 12,
+        ),
+      ),
+    );
+  }
 }

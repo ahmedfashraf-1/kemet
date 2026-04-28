@@ -7,7 +7,10 @@ class DeleteReviewUseCase {
 
   DeleteReviewUseCase(this.repository);
 
-  Future<Either<Failure, Unit>> call(String reviewId) async {
-    return repository.deleteReview(reviewId);
+  Future<Either<Failure, Unit>> call({
+    required String reviewId,
+    required String userId,
+  }) async {
+    return repository.deleteReview(reviewId: reviewId, userId: userId);
   }
 }

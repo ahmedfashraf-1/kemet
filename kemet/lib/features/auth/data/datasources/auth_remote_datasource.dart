@@ -182,7 +182,10 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
             'email': user.email,
             'fullName': user.displayName ?? '',
             'createdAt': DateTime.now().toIso8601String(),
+            'isPrivate': false,
           });
+        } else if (!(doc.data()?['isPrivate'] is bool)) {
+          await docRef.set({'isPrivate': false}, SetOptions(merge: true));
         }
 
         await createSessionAfterLogin(user.uid);

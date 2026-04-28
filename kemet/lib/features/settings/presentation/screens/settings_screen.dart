@@ -9,9 +9,6 @@ import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kemet/features/home/presentation/screens/home_screen.dart';
-import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
-import 'package:kemet/features/profile/presentation/di/profile_di.dart';
-import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:kemet/features/settings/presentation/cubit/payment_methods_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/security_cubit.dart';
@@ -65,17 +62,16 @@ class SettingsScreen extends StatelessWidget {
                         title: context.tr('profile'),
                         subtitle: context.tr('profile_subtitle'),
                         onTap: () {
-                            final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => BlocProvider(
-                                  create: (_) => getIt<ProfileCubit>(),
-                                  child: ProfileScreen(userId: userId),
-                                ),
-                              ),
-                            );
-                          },
+                          final userId =
+                              FirebaseAuth.instance.currentUser?.uid ?? '';
+                          if (userId.isEmpty) {
+                            return;
+                          }
+                          Navigator.of(context).pushNamed(
+                            Routes.profileScreen,
+                            arguments: userId,
+                          );
+                        },
                       ),
                       _divider(),
                       _navigableRow(
@@ -194,6 +190,17 @@ class SettingsScreen extends StatelessWidget {
                   SizedBox(height: 10.h),
                   _card(
                     children: [
+                      _toggleRow(
+                        context: context,
+                        icon: Icons.lock_outline,
+                        title: context.tr('private_account'),
+                        subtitle: context.tr('private_account_subtitle'),
+                        value: settingsState.isPrivateAccount,
+                        onChanged: (value) {
+                          context.read<SettingsCubit>().setAccountPrivacy(value);
+                        },
+                      ),
+                      _divider(),
                       _navigableRow(
                         icon: Icons.privacy_tip_outlined,
                         title: context.tr('privacy_policy'),
@@ -675,6 +682,7 @@ Future<void> _showDeleteAccountDialog(BuildContext context) async {
     );
 
     if (shouldLogout == true && context.mounted) {
+      await context.read<SettingsCubit>().clearProfileAvatar();
       await context.read<AuthCubit>().signOut();
       if (context.mounted) {
         Navigator.of(

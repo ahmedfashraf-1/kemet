@@ -14,6 +14,7 @@ class SettingsState extends Equatable {
   final String localeCode;
   final bool locationAccessEnabled;
   final bool isRequestingLocation;
+  final bool isPrivateAccount;
   final String? avatarLocalPath;
   final String? avatarRemoteUrl;
   final int avatarCacheBuster;
@@ -26,6 +27,7 @@ class SettingsState extends Equatable {
     required this.localeCode,
     required this.locationAccessEnabled,
     this.isRequestingLocation = false,
+    this.isPrivateAccount = false,
     this.avatarLocalPath,
     this.avatarRemoteUrl,
     this.avatarCacheBuster = 0,
@@ -39,6 +41,7 @@ class SettingsState extends Equatable {
     String? localeCode,
     bool? locationAccessEnabled,
     bool? isRequestingLocation,
+    bool? isPrivateAccount,
     String? avatarLocalPath,
     String? avatarRemoteUrl,
     int? avatarCacheBuster,
@@ -55,6 +58,7 @@ class SettingsState extends Equatable {
       locationAccessEnabled:
           locationAccessEnabled ?? this.locationAccessEnabled,
       isRequestingLocation: isRequestingLocation ?? this.isRequestingLocation,
+      isPrivateAccount: isPrivateAccount ?? this.isPrivateAccount,
       avatarLocalPath: clearAvatarLocalPath
           ? null
           : (avatarLocalPath ?? this.avatarLocalPath),
@@ -74,6 +78,7 @@ class SettingsState extends Equatable {
     localeCode,
     locationAccessEnabled,
     isRequestingLocation,
+    isPrivateAccount,
     avatarLocalPath,
     avatarRemoteUrl,
     avatarCacheBuster,
@@ -89,36 +94,43 @@ class SettingsCubit extends Cubit<SettingsState> {
   static const String _locationAccessKey    = 'settings_location_access';
   static const String _avatarLocalPathPrefix = 'settings_avatar_local_path_';
   static const String _avatarRemoteUrlPrefix = 'settings_avatar_remote_url_';
-  static const String _avatarCacheBusterPrefix = 'settings_avatar_cache_buster_';
+  static const String _avatarCacheBusterPrefix =
+      'settings_avatar_cache_buster_';
+  static const String _isPrivateAccountPrefix = 'settings_is_private_account_';
 
   final SharedPreferences sharedPreferences;
 
   SettingsCubit({required this.sharedPreferences})
-      : super(
-          SettingsState(
-            pushNotificationsEnabled:
-                sharedPreferences.getBool(_pushNotificationsKey) ?? true,
-            emailUpdatesEnabled:
-                sharedPreferences.getBool(_emailUpdatesKey) ?? false,
-            soundEnabled: sharedPreferences.getBool(_soundKey) ?? true,
-            darkModeEnabled: sharedPreferences.getBool(_darkModeKey) ?? true,
-            localeCode: _normalizeLocaleCode(
-              sharedPreferences.getString(_localeKey),
-            ),
-            locationAccessEnabled:
-                sharedPreferences.getBool(_locationAccessKey) ?? true,
-            avatarLocalPath: sharedPreferences.getString(
-              _avatarLocalPathKey(_activeUserKey),
-            ),
-            avatarRemoteUrl: sharedPreferences.getString(
-              _avatarRemoteUrlKey(_activeUserKey),
-            ),
-            avatarCacheBuster: sharedPreferences.getInt(
-              _avatarCacheBusterKey(_activeUserKey),
-            ) ??
-                0,
+    : super(
+        SettingsState(
+          pushNotificationsEnabled:
+              sharedPreferences.getBool(_pushNotificationsKey) ?? true,
+          emailUpdatesEnabled:
+              sharedPreferences.getBool(_emailUpdatesKey) ?? false,
+          soundEnabled: sharedPreferences.getBool(_soundKey) ?? true,
+          darkModeEnabled: sharedPreferences.getBool(_darkModeKey) ?? true,
+          localeCode: _normalizeLocaleCode(
+            sharedPreferences.getString(_localeKey),
           ),
-        );
+          locationAccessEnabled:
+              sharedPreferences.getBool(_locationAccessKey) ?? true,
+          avatarLocalPath: sharedPreferences.getString(
+            _avatarLocalPathKey(_activeUserKey),
+          ),
+          avatarRemoteUrl: sharedPreferences.getString(
+            _avatarRemoteUrlKey(_activeUserKey),
+          ),
+          avatarCacheBuster:
+              sharedPreferences.getInt(_avatarCacheBusterKey(_activeUserKey)) ??
+              0,
+        isPrivateAccount: sharedPreferences.getBool(
+                  _isPrivateAccountKey(_activeUserKey),
+                ) ??
+                false,
+          ),
+        ) {
+    _loadPrivacyFromFirestore();
+      }
 
   static String get _activeUserKey =>
       FirebaseAuth.instance.currentUser?.uid ?? 'guest';
@@ -131,6 +143,9 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   static String _avatarCacheBusterKey(String userKey) =>
       '$_avatarCacheBusterPrefix$userKey';
+
+  static String _isPrivateAccountKey(String userKey) =>
+      '$_isPrivateAccountPrefix$userKey';
 
   static String _normalizeLocaleCode(String? localeCode) {
     return localeCode == 'ar' ? 'ar' : 'en';
@@ -203,6 +218,40 @@ class SettingsCubit extends Cubit<SettingsState> {
     final normalized = _normalizeLocaleCode(localeCode);
     emit(state.copyWith(localeCode: normalized));
     await sharedPreferences.setString(_localeKey, normalized);
+  }
+
+  Future<void> setAccountPrivacy(bool isPrivate) async {
+    final userKey = _activeUserKey;
+    emit(state.copyWith(isPrivateAccount: isPrivate));
+    await sharedPreferences.setBool(_isPrivateAccountKey(userKey), isPrivate);
+
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).set({
+        'isPrivate': isPrivate,
+      }, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  Future<void> _loadPrivacyFromFirestore() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      final remotePrivacy = userDoc.data()?['isPrivate'] == true;
+      await sharedPreferences.setBool(
+        _isPrivateAccountKey(_activeUserKey),
+        remotePrivacy,
+      );
+      emit(state.copyWith(isPrivateAccount: remotePrivacy));
+    } catch (_) {}
   }
 
   Future<bool> setLocationAccess(bool enabled) async {
