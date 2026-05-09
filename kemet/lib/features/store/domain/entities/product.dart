@@ -8,7 +8,8 @@ class Product {
   final double price;
   final ProductCategory category;     
   final List<ProductPhoto> photos;    
-  final DateTime createdAt;
+  final bool isAvailable;     
+  final int stock; 
 
   const Product({
     required this.productId,
@@ -17,6 +18,7 @@ class Product {
     required this.price,
     required this.category,
     required this.photos,
-    required this.createdAt,
+    required this.isAvailable,
+    required this.stock,
   });
 }
