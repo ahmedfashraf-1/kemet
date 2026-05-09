@@ -1,33 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kemet/features/store/presentation/cubit/cart_cubit.dart';
+import 'package:kemet/features/store/presentation/screens/cart_screen.dart';
 
 class MainShell extends StatefulWidget {
   final Widget child;
-  const MainShell({super.key, required this.child});
+  final int activeIndex; 
+  const MainShell({super.key, required this.child,this.activeIndex = 0});
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  int _currentIndex = 0;
+  late int _currentIndex;
 
   final List<Map<String, dynamic>> _items = const [
     {'icon': Icons.home_rounded, 'label': 'home'},
     {'icon': Icons.explore_outlined, 'label': 'maps'},
-    {'icon': Icons.settings_outlined, 'label': 'settings'},
+    {'icon': Icons.local_mall_outlined, 'label': 'store'},
+    {'icon': Icons.shopping_cart_outlined, 'label': 'cart'},
+    {'icon': Icons.miscellaneous_services_outlined, 'label': 'settings'},
   ];
+
+  @override
+void initState() {
+  super.initState();
+  _currentIndex = widget.activeIndex;
+}
 
   Future<void> _onItemTap(int index) async {
     setState(() => _currentIndex = index);
-
+     if (index == 0) {
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      Routes.HomeScreen,
+      (route) => false,
+    );
+    return;
+  }
     if (index == 2) {
+      await Navigator.of(context).pushNamed(Routes.storeHome);
+      if (!mounted) return;
+      setState(() => _currentIndex = 0);
+    }
+    if (index == 3) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => BlocProvider.value(
+            value: context.read<CartCubit>(),
+            child: const CartScreen(),
+          ),
+        ),
+      );
+      if (!mounted) return;
+      setState(() => _currentIndex = 0);
+    }
+    
+    if (index == 4) {
       await Navigator.of(context).pushNamed(Routes.settingsScreen);
       if (!mounted) return;
       setState(() => _currentIndex = 0);
