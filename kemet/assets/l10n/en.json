@@ -214,5 +214,7 @@
   "loading_ellipsis": "Loading...",
   "more_to_explore": "More to explore",
   "description_pending": "Translating description...",
-  "description_unavailable": "Description not available"
+  "description_unavailable": "Description not available",
+  "store": "Store"
+
 }

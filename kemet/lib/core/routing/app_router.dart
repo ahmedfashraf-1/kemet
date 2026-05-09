@@ -49,6 +49,19 @@ import 'package:kemet/features/notifications/presentation/screens/notification_d
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 import 'package:kemet/features/landmarks/domain/usecases/get_all_landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
+import 'package:kemet/features/store/domain/repositories/cart_repository_impl.dart';
+import 'package:kemet/features/store/domain/usecases/add_to_cart_usecase.dart';
+import 'package:kemet/features/store/domain/usecases/cart_usecases.dart';
+
+import 'package:kemet/features/store/presentation/screens/store_home_screen.dart';
+import 'package:kemet/features/store/presentation/cubit/products_cubit.dart';
+import 'package:kemet/features/store/presentation/cubit/cart_cubit.dart';
+import 'package:kemet/features/store/data/repositories/store_repository_impl.dart';
+import 'package:kemet/features/store/domain/usecases/get_products_usecase.dart';
+import 'package:kemet/features/store/data/datasources/store_datasource.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+
 
 import 'package:kemet/features/favorite/presentation/screens/favorites_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -83,7 +96,7 @@ class AppRouter {
                 context.read<LandmarksRepository>(),
               ),
             ),
-            child: const MainShell(child: HomeScreen()),
+            child: const MainShell(child: HomeScreen(), activeIndex: 0),
           ),
           setting,
         );
@@ -257,7 +270,36 @@ class AppRouter {
           BlocProvider(create: _buildAuthCubit, child: const RegisterView()),
           setting,
         );
-
+case Routes.storeHome:
+  return _fadeDominantFromRight(
+    MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => ProductsCubit(
+            GetProductsUseCase(
+              StoreRepositoryImpl(
+                StoreDataSourceImpl(FirebaseFirestore.instance),
+              ),
+            ),
+          )..getProducts(),
+        ),
+        BlocProvider(
+          create: (_) {
+            final repo = CartRepositoryImpl();
+            return CartCubit(
+              getCart: GetCartUseCase(repo),
+              addToCart: AddToCartUseCase(repo),
+              updateQuantity: UpdateQuantityUseCase(repo),
+              removeFromCart: RemoveFromCartUseCase(repo),
+              clearCart: ClearCartUseCase(repo),
+            )..loadCart();
+          },
+        ),
+      ],
+      child: const MainShell(child: StoreHomeScreen(), activeIndex: 2),
+    ),
+    setting,
+  );
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
