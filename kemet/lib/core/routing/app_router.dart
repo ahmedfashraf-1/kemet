@@ -49,7 +49,7 @@ import 'package:kemet/features/notifications/presentation/screens/notification_d
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 import 'package:kemet/features/landmarks/domain/usecases/get_all_landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
-import 'package:kemet/features/store/domain/repositories/cart_repository_impl.dart';
+import 'package:kemet/features/store/data/repositories/cart_repository_impl.dart';
 import 'package:kemet/features/store/domain/usecases/add_to_cart_usecase.dart';
 import 'package:kemet/features/store/domain/usecases/cart_usecases.dart';
 
@@ -283,18 +283,7 @@ case Routes.storeHome:
             ),
           )..getProducts(),
         ),
-        BlocProvider(
-          create: (_) {
-            final repo = CartRepositoryImpl();
-            return CartCubit(
-              getCart: GetCartUseCase(repo),
-              addToCart: AddToCartUseCase(repo),
-              updateQuantity: UpdateQuantityUseCase(repo),
-              removeFromCart: RemoveFromCartUseCase(repo),
-              clearCart: ClearCartUseCase(repo),
-            )..loadCart();
-          },
-        ),
+        
       ],
       child: const MainShell(child: StoreHomeScreen(), activeIndex: 2),
     ),

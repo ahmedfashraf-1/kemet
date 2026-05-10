@@ -1,7 +1,7 @@
-import 'package:kemet/features/store/domain/entities/cart_repository.dart';
+import 'package:kemet/features/store/domain/repositories/cart_repository.dart';
 
 import '../entities/cart.dart';
-import '../repositories/cart_repository_impl.dart';
+import '../../data/repositories/cart_repository_impl.dart';
 
 class GetCartUseCase {
   final CartRepository repository;

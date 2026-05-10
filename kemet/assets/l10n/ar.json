@@ -214,7 +214,28 @@
   "loading_ellipsis": "جارٍ التحميل...",
   "more_to_explore": "المزيد للاستكشاف",
   "description_pending": "جارٍ ترجمة الوصف...",
-  "description_unavailable": "الوصف غير متوفر",
-  "store": "المتجر"
-}
+  "store": "المتجر",
+  "cart": "السلة",
+  "add_to_cart": "أضف للسلة",
+  "checkout": "الدفع",
+  "your_cart": "سلتك",
+  "empty_cart": "سلتك فارغة",
+  "total": "الإجمالي",
+  "subtotal": "المجموع",
+  "shipping": "الشحن",
+  "tax": "الضريبة",
+  "quantity": "الكمية",
+  "remove": "إزالة",
+  "all_products": "كل المنتجات",
+  "categories": "الفئات",
+  "view_all": "عرض الكل",
+  "no_products_found": "لا توجد منتجات",
+  "something_went_wrong": "حدث خطأ ما",
+  "items": "منتجات",
+  "item": "منتج",
+  "in_stock": "متوفر",
+  "out_of_stock": "غير متوفر",
+  "free_shipping": "شحن مجاني",
+  "secure_checkout": "دفع آمن"
+  }
 

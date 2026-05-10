@@ -128,7 +128,6 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
                             letterSpacing: 1,
                           ),
                         ),
-                        
                         Text(
                           '${filtered.length} item${filtered.length != 1 ? 's' : ''}',
                           style: GoogleFonts.inter(
@@ -166,15 +165,6 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
                                   ),
                                 ),
                               ),
-                              onAddToCart: (qty) => context
-                                  .read<CartCubit>()
-                                  .add(filtered[index], qty),
-                              onUpdateQuantity: (qty) => context
-                                  .read<CartCubit>()
-                                  .update(filtered[index].productId, qty),
-                              onRemoveFromCart: () => context
-                                  .read<CartCubit>()
-                                  .remove(filtered[index].productId),
                             ),
                             childCount: filtered.length,
                           ),
@@ -279,15 +269,11 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
           Text('Something went wrong',
               style: GoogleFonts.cinzel(
                   fontSize: 16.sp, color: AppColors.textSecondary)),
-          SizedBox(height: 16.h),
-     
         ],
       ),
     );
   }
 }
-
-// ── Categories Header ─────────────────────────────────────────────────────────
 
 class _CategoriesHeaderDelegate extends SliverPersistentHeaderDelegate {
   final List<String> categories;
@@ -324,21 +310,13 @@ class _CategoriesHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.categories != categories;
 }
 
-// ── Product Card ──────────────────────────────────────────────────────────────
-
 class _ProductCard extends StatefulWidget {
   final Product product;
   final VoidCallback onTap;
-  final void Function(int quantity) onAddToCart;
-  final void Function(int quantity) onUpdateQuantity;
-  final VoidCallback onRemoveFromCart;
 
   const _ProductCard({
     required this.product,
     required this.onTap,
-    required this.onAddToCart,
-    required this.onUpdateQuantity,
-    required this.onRemoveFromCart,
   });
 
   @override
@@ -347,7 +325,7 @@ class _ProductCard extends StatefulWidget {
 
 class _ProductCardState extends State<_ProductCard>
     with SingleTickerProviderStateMixin {
-  late AnimationController _pressController; 
+  late AnimationController _pressController;
 
   @override
   void initState() {
@@ -377,7 +355,6 @@ class _ProductCardState extends State<_ProductCard>
       onTapDown: (_) => _pressController.reverse(),
       onTapUp: (_) {
         _pressController.forward();
-        // الضغط على الكارد كله بيروح للديتيلز
         widget.onTap();
       },
       onTapCancel: () => _pressController.forward(),
@@ -416,13 +393,11 @@ class _ProductCardState extends State<_ProductCard>
                                 child: Center(
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color:
-                                        AppColors.mainGold.withOpacity(0.5),
+                                    color: AppColors.mainGold.withOpacity(0.5),
                                   ),
                                 ),
                               ),
-                              errorWidget: (_, __, ___) =>
-                                  _buildPlaceholder(),
+                              errorWidget: (_, __, ___) => _buildPlaceholder(),
                             )
                           : _buildPlaceholder(),
                     ),
@@ -435,8 +410,7 @@ class _ProductCardState extends State<_ProductCard>
                         decoration: BoxDecoration(
                           color: AppColors.screenBackground.withOpacity(0.85),
                           borderRadius: BorderRadius.circular(6.r),
-                          border:
-                              Border.all(color: AppColors.subtleGoldBorder),
+                          border: Border.all(color: AppColors.subtleGoldBorder),
                         ),
                         child: Text(
                           product.category.categoryName.toUpperCase(),
@@ -455,8 +429,8 @@ class _ProductCardState extends State<_ProductCard>
               Expanded(
                 flex: 3,
                 child: Padding(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 12.w, vertical: 10.h),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -472,22 +446,15 @@ class _ProductCardState extends State<_ProductCard>
                           height: 1.3,
                         ),
                       ),
-                  Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    Expanded(
-      child: Text(
-        '${product.price.toStringAsFixed(2)} EGP',
-        overflow: TextOverflow.ellipsis,
-        style: GoogleFonts.inter(
-          fontSize: 12.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.mainGold,
-        ),
-      ),
-    ),
-  ],
-),
+                      Text(
+                        '${product.price.toStringAsFixed(2)} EGP',
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.mainGold,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -498,10 +465,6 @@ class _ProductCardState extends State<_ProductCard>
       ),
     );
   }
-
-
-
-    
 
   Widget _buildPlaceholder() {
     return Container(
