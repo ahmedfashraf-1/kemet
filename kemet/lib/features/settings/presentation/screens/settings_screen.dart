@@ -9,7 +9,10 @@ import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kemet/features/home/presentation/screens/home_screen.dart';
+import 'package:kemet/features/payment/presentation/cubit/payment_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/payment_methods_cubit.dart';
+import 'package:kemet/features/payment/presentation/di/payment_di.dart';
+import 'package:flutter_bloc/src/bloc_provider.dart' as _internal_show;
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/security_cubit.dart';
 import 'package:kemet/features/settings/presentation/screens/about_screen.dart';
@@ -80,11 +83,18 @@ class SettingsScreen extends StatelessWidget {
                         subtitle: context.tr('payment_methods_subtitle'),
                         onTap: () => pushPremiumPage(
                           context,
-                          BlocProvider(
-                            create: (_) => PaymentMethodsCubit(
-                              sharedPreferences:
-                                  context.read<SettingsCubit>().sharedPreferences,
-                            ),
+                          MultiBlocProvider(
+                            providers: [
+                              BlocProvider(
+                                create: (_) => PaymentMethodsCubit(
+                                  sharedPreferences:
+                                      context.read<SettingsCubit>().sharedPreferences,
+                                ),
+                              ),
+                              BlocProvider(
+                                create: (_) => getIt<PaymentCubit>(),
+                              ),
+                            ],
                             child: const PaymentMethodsScreen(),
                           ),
                         ),

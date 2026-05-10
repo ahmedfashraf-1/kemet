@@ -61,10 +61,16 @@ import 'package:kemet/features/store/domain/usecases/get_products_usecase.dart';
 import 'package:kemet/features/store/data/datasources/store_datasource.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
-
 import 'package:kemet/features/favorite/presentation/screens/favorites_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kemet/features/order/presentation/screens/checkout_screen.dart';
+import 'package:kemet/features/order/presentation/screens/order_confirmation_screen.dart';
+import 'package:kemet/features/order/presentation/cubit/checkout_cubit.dart';
+import 'package:kemet/features/order/domain/entities/order.dart'
+    as order_entity;
+import 'package:kemet/features/store/domain/entities/cart.dart';
+import 'package:get_it/get_it.dart';
+
 final RouteObserver<PageRoute<dynamic>> routeObserver =
     RouteObserver<PageRoute<dynamic>>();
 
@@ -145,10 +151,7 @@ class AppRouter {
           setting,
         );
       case Routes.favoritesScreen:
-        return _fadeDominantFromRight(
-          const FavoritesPage(),
-          setting,
-        );
+        return _fadeDominantFromRight(const FavoritesPage(), setting);
 
       case Routes.reviewsScreen:
         final landmarkArg = setting.arguments;
@@ -199,10 +202,7 @@ class AppRouter {
         );
 
         return _fadeDominantFromRight(
-          _ChatbotBootstrap(
-            userId: routeUserId,
-            child: const ChatbotScreen(),
-          ),
+          _ChatbotBootstrap(userId: routeUserId, child: const ChatbotScreen()),
           setting,
         );
 
@@ -270,36 +270,66 @@ class AppRouter {
           BlocProvider(create: _buildAuthCubit, child: const RegisterView()),
           setting,
         );
-case Routes.storeHome:
-  return _fadeDominantFromRight(
-    MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (context) => ProductsCubit(
-            GetProductsUseCase(
-              StoreRepositoryImpl(
-                StoreDataSourceImpl(FirebaseFirestore.instance),
+      case Routes.storeHome:
+        return _fadeDominantFromRight(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider(
+                create: (context) => ProductsCubit(
+                  GetProductsUseCase(
+                    StoreRepositoryImpl(
+                      StoreDataSourceImpl(FirebaseFirestore.instance),
+                    ),
+                  ),
+                )..getProducts(),
               ),
-            ),
-          )..getProducts(),
-        ),
-        BlocProvider(
-          create: (_) {
-            final repo = CartRepositoryImpl();
-            return CartCubit(
-              getCart: GetCartUseCase(repo),
-              addToCart: AddToCartUseCase(repo),
-              updateQuantity: UpdateQuantityUseCase(repo),
-              removeFromCart: RemoveFromCartUseCase(repo),
-              clearCart: ClearCartUseCase(repo),
-            )..loadCart();
-          },
-        ),
-      ],
-      child: const MainShell(child: StoreHomeScreen(), activeIndex: 2),
-    ),
-    setting,
-  );
+              BlocProvider(
+                create: (_) {
+                  final repo = CartRepositoryImpl();
+                  return CartCubit(
+                    getCart: GetCartUseCase(repo),
+                    addToCart: AddToCartUseCase(repo),
+                    updateQuantity: UpdateQuantityUseCase(repo),
+                    removeFromCart: RemoveFromCartUseCase(repo),
+                    clearCart: ClearCartUseCase(repo),
+                  )..loadCart();
+                },
+              ),
+            ],
+            child: const MainShell(child: StoreHomeScreen(), activeIndex: 2),
+          ),
+          setting,
+        );
+
+      case Routes.checkoutScreen:
+        final cartArg = setting.arguments as Cart?;
+        if (cartArg == null) {
+          return MaterialPageRoute(
+            builder: (_) =>
+                const Scaffold(body: Center(child: Text('Invalid cart data'))),
+          );
+        }
+        return _fadeDominantFromRight(
+          BlocProvider<CheckoutCubit>.value(
+            value: GetIt.instance<CheckoutCubit>(),
+            child: CheckoutScreen(cart: cartArg),
+          ),
+          setting,
+        );
+
+      case Routes.orderConfirmation:
+        final orderArg = setting.arguments as order_entity.Order?;
+        if (orderArg == null) {
+          return MaterialPageRoute(
+            builder: (_) =>
+                const Scaffold(body: Center(child: Text('Invalid order data'))),
+          );
+        }
+        return _fadeDominantFromRight(
+          OrderConfirmationScreen(order: orderArg),
+          setting,
+        );
+
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
@@ -431,9 +461,7 @@ class _ChatbotBootstrapState extends State<_ChatbotBootstrap> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
             backgroundColor: Colors.black,
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
         return widget.child;
@@ -441,4 +469,3 @@ class _ChatbotBootstrapState extends State<_ChatbotBootstrap> {
     );
   }
 }
-

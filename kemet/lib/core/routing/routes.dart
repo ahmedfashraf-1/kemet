@@ -17,13 +17,14 @@ class Routes {
   static const String settingsScreen = '/settingsScreen';
   static const String notificationsScreen = '/notifications';
   static const String listenDemoScreen = '/listen-demo';
-  static const String favoritesScreen = '/favorites'; 
-  static const String storeHome = '/store_home'; 
+  static const String favoritesScreen = '/favorites';
+  static const String storeHome = '/store_home';
   static const String cartScreen = '/cart';
   static const String productDetail = '/product-detail';
-
+  static const String checkoutScreen = '/checkout';
+  static const String paymentMethods = '/payment-methods';
+  static const String orderConfirmation = '/order-confirmation';
 
   static const String verifyEmailOtp = '/verify-email-otp';
   static const String forgotPassword = '/forgot-password';
 }
-
