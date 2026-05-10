@@ -12,8 +12,8 @@ import 'package:kemet/features/store/presentation/screens/cart_screen.dart';
 
 class MainShell extends StatefulWidget {
   final Widget child;
-  final int activeIndex; 
-  const MainShell({super.key, required this.child,this.activeIndex = 0});
+  final int activeIndex;
+  const MainShell({super.key, required this.child, this.activeIndex = 0});
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -31,57 +31,58 @@ class _MainShellState extends State<MainShell> {
   ];
 
   @override
-void initState() {
-  super.initState();
-  _currentIndex = widget.activeIndex;
-}
+  void initState() {
+    super.initState();
+    _currentIndex = widget.activeIndex;
+  }
 
   Future<void> _onItemTap(int index) async {
-    setState(() => _currentIndex = index);
-     if (index == 0) {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      Routes.HomeScreen,
-      (route) => false,
-    );
-    return;
-  }
-    if (index == 2) {
-      await Navigator.of(context).pushNamed(Routes.storeHome);
-      if (!mounted) return;
-      setState(() => _currentIndex = 0);
-    }
-    if (index == 3) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => BlocProvider.value(
-            value: context.read<CartCubit>(),
-            child: const CartScreen(),
+    if (index == _currentIndex) return;
+
+    switch (index) {
+      case 0:
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          Routes.HomeScreen,
+          (route) => false,
+        );
+        break;
+
+      case 2:
+        Navigator.of(context).pushReplacementNamed(Routes.storeHome);
+        break;
+
+      case 3:
+        setState(() => _currentIndex = index);
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => BlocProvider.value(
+              value: context.read<CartCubit>(),
+              child: const CartScreen(),
+            ),
           ),
-        ),
-      );
-      if (!mounted) return;
-      setState(() => _currentIndex = 0);
-    }
-    
-    if (index == 4) {
-      await Navigator.of(context).pushNamed(Routes.settingsScreen);
-      if (!mounted) return;
-      setState(() => _currentIndex = 0);
+        );
+        if (!mounted) return;
+        setState(() => _currentIndex = widget.activeIndex);
+        break;
+
+      case 4:
+        setState(() => _currentIndex = index);
+        await Navigator.of(context).pushNamed(Routes.settingsScreen);
+        if (!mounted) return;
+        setState(() => _currentIndex = widget.activeIndex);
+        break;
     }
   }
 
   Future<void> _openChatbot() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null || currentUser.isAnonymous) {
-      debugPrint('[CHATBOT] blocked open: unauthenticated user');
       if (!mounted) return;
       await Navigator.of(context).pushNamed(Routes.LoginView);
       return;
     }
 
     final uid = currentUser.uid;
-    debugPrint('[CHATBOT] opening chatbot with user_id=$uid');
-
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('current_user_id', uid);
 
