@@ -1,5 +1,4 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import '../../domain/entities/product.dart';
 import '../../domain/usecases/add_to_cart_usecase.dart';
 import '../../domain/usecases/cart_usecases.dart';
@@ -67,7 +66,6 @@ class CartCubit extends Cubit<CartState> {
     }
   }
 
-  /// كمية منتج معين في السلة الحالية
   int quantityOf(String productId) {
     if (state is CartLoaded) {
       final items = (state as CartLoaded).cart.items;
@@ -76,4 +74,6 @@ class CartCubit extends Cubit<CartState> {
     }
     return 0;
   }
+
+  bool isInCart(String productId) => quantityOf(productId) > 0;
 }

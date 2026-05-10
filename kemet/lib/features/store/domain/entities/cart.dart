@@ -25,9 +25,9 @@ class Cart {
   const Cart({this.items = const []});
 
   double get subtotal => items.fold(0, (sum, item) => sum + item.totalPrice);
-  double get shippingFee => items.isEmpty ? 0 : 50;
+  bool get hasFreeShipping => subtotal > 500;
+  double get shippingFee => hasFreeShipping ? 0 : (items.isEmpty ? 0 : 50);
   double get tax => subtotal * 0.14;
   double get total => subtotal + shippingFee + tax;
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
-  bool get hasFreeShipping => subtotal > 500;
 }
