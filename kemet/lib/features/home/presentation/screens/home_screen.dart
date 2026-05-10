@@ -11,6 +11,7 @@ import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/services/arabic_local_description_service.dart';
 import 'package:kemet/core/widgets/animated_gold_button.dart';
+import 'package:kemet/features/home/presentation/screens/landmarks_filter.dart';
 import 'package:kemet/features/home/presentation/screens/hero_slider.dart';
 import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
 
@@ -269,32 +270,27 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         SizedBox(height: 18.h),
                         const HeroSlider(),
-                        SizedBox(height: 24.h),
+                        SizedBox(height: 22.h),
                         _buildHeroTitle(),
-                        SizedBox(height: 24.h),
+                        SizedBox(height: 22.h),
                         _buildSearchBar(),
                         SizedBox(height: 18.h),
-                        _buildFilterList(
-                          items: _egyptCities,
-                          selectedValue: _selectedCity,
-                          onSelected: (val) {
-                            setState(
-                              () => _selectedCity = val == 'All' ? '' : val,
-                            );
-                            _applyFilters();
-                          },
-                        ),
-                        SizedBox(height: 16.h),
-                        _buildFilterList(
-                          items: _categories,
-                          selectedValue: _selectedCategory,
-                          onSelected: (val) {
-                            setState(
-                              () => _selectedCategory = val == 'All' ? '' : val,
-                            );
-                            _applyFilters();
-                          },
-                        ),
+                    LandmarksFilter(
+                      cities: _egyptCities,
+                      categories: _categories,
+                      selectedCity: _selectedCity,
+                      selectedCategory: _selectedCategory,
+                      labelBuilder: (ctx, val) => _filterLabel(ctx, val),
+                      onCitySelected: (val) {
+                        setState(() => _selectedCity = val == 'All' ? '' : val);
+                        _applyFilters();
+                      },
+                      onCategorySelected: (val) {
+                        setState(() => _selectedCategory = val == 'All' ? '' : val);
+                        _applyFilters();
+                      },
+                    ),
+                                          
                         SizedBox(height: 24.h),
                       ],
                     ),
@@ -577,60 +573,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFilterList({
-    required List<String> items,
-    required String selectedValue,
-    required Function(String) onSelected,
-  }) {
-    final allItems = ['All', ...items];
-    final activeValue = selectedValue.isEmpty ? 'All' : selectedValue;
-
-    return SizedBox(
-      height: 38.h,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: 24.w),
-        itemCount: allItems.length,
-        separatorBuilder: (_, __) => SizedBox(width: 10.w),
-        itemBuilder: (context, index) {
-          final item = allItems[index];
-          final isActive = activeValue == item;
-
-          return GestureDetector(
-            onTap: () => onSelected(item),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
-              decoration: BoxDecoration(
-                color: isActive ? AppColors.mainGold : AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(9999),
-                border: Border.all(
-                  color: isActive
-                      ? AppColors.mainGold
-                      : AppColors.subtleGoldBorder,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  _filterLabel(context, item).toUpperCase(),
-                  style: GoogleFonts.cinzel(
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                    color: isActive
-                        ? AppColors.textDarkOnGold
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }
