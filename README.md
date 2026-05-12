@@ -399,7 +399,7 @@ flutter run
 
 ---
 
-## 17) Team / Credits
+## 15) Team / Credits
 
 Built as a production-style graduation and portfolio project by the Kemet team.
 
