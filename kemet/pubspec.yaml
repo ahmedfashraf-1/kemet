@@ -23,6 +23,24 @@ dependencies:
   internet_connection_checker: ^3.0.1
   shared_preferences: ^2.2.3
 
+
+  dio: ^5.4.0                   # HTTP client
+  pretty_dio_logger: ^1.3.1     # Request/response logging in debug
+
+
+  # WebView (for iFrame card payment)
+  webview_flutter: ^4.7.0       # WebView widget
+  webview_flutter_android: ^3.16.0
+  webview_flutter_wkwebview: ^3.13.0
+
+  # Connectivity
+  connectivity_plus: ^6.0.0     # Check network status
+
+  # Cryptography (HMAC callback verification)
+  crypto: ^3.0.3
+
+
+
   google_fonts: ^6.2.1
   cupertino_icons: ^1.0.8
   flutter_screenutil: ^5.9.3
