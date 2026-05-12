@@ -388,59 +388,60 @@ class _ProductCardState extends State<_ProductCard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                flex: 5,
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(16.r)),
-                      child: photoUrl != null && photoUrl.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: photoUrl,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => Container(
-                                color: AppColors.inputBackground,
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.mainGold.withOpacity(0.5),
-                                  ),
-                                ),
-                              ),
-                              errorWidget: (_, __, ___) => _buildPlaceholder(),
-                            )
-                          : _buildPlaceholder(),
-                    ),
-                    PositionedDirectional(
-                      top: 10.h,
-                      start: 10.w,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 8.w, vertical: 3.h),
-                        decoration: BoxDecoration(
-                          color: AppColors.screenBackground.withOpacity(0.85),
-                          borderRadius: BorderRadius.circular(6.r),
-                          border: Border.all(color: AppColors.subtleGoldBorder),
-                        ),
-                        child: Builder(builder: (ctx) {
-                          final isArChip = Localizations.localeOf(ctx).languageCode == 'ar';
-                          final catLabel = product.category.localizedName(isArChip ? 'ar' : 'en');
-                          return Text(catLabel.toUpperCase(),
-                            style: GoogleFonts.cinzel(
-                              fontSize: 7.sp,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.mainGold,
-                              letterSpacing: 1,
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+               Expanded(
+                 flex: 5,
+                 child: Stack(
+                   clipBehavior: Clip.none,
+                   children: [
+                     ClipRRect(
+                       borderRadius:
+                           BorderRadius.vertical(top: Radius.circular(16.r)),
+                       child: photoUrl != null && photoUrl.isNotEmpty
+                           ? CachedNetworkImage(
+                               imageUrl: photoUrl,
+                               width: double.infinity,
+                               fit: BoxFit.cover,
+                               placeholder: (_, __) => Container(
+                                 color: AppColors.inputBackground,
+                                 child: Center(
+                                   child: CircularProgressIndicator(
+                                     strokeWidth: 2,
+                                     color: AppColors.mainGold.withOpacity(0.5),
+                                   ),
+                                 ),
+                               ),
+                               errorWidget: (_, __, ___) => _buildPlaceholder(),
+                             )
+                           : _buildPlaceholder(),
+                     ),
+                     PositionedDirectional(
+                       top: 10.h,
+                       start: 10.w,
+                       child: Container(
+                         padding: EdgeInsets.symmetric(
+                             horizontal: 8.w, vertical: 3.h),
+                         decoration: BoxDecoration(
+                           color: AppColors.screenBackground.withOpacity(0.85),
+                           borderRadius: BorderRadius.circular(6.r),
+                           border: Border.all(color: AppColors.subtleGoldBorder),
+                         ),
+                         child: Builder(builder: (ctx) {
+                           final isArChip = Localizations.localeOf(ctx).languageCode == 'ar';
+                           final catLabel = product.category.localizedName(isArChip ? 'ar' : 'en');
+                           return Text(catLabel.toUpperCase(),
+                             style: GoogleFonts.cinzel(
+                               fontSize: 7.sp,
+                               fontWeight: FontWeight.w600,
+                               color: AppColors.mainGold,
+                               letterSpacing: 1,
+                             ),
+                           );
+                         }),
+                       ),
+                     ),
+                   ],
+                 ),
+               ),
               Expanded(
                 flex: 3,
                 child: Padding(

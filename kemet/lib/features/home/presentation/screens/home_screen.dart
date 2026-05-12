@@ -216,6 +216,79 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).pushNamed(Routes.profileScreen, arguments: userId);
   }
 
+  Future<void> _openKemetAi() async {
+    Navigator.of(context).pushNamed(Routes.chatbotScreen);
+  }
+
+  Widget _buildKemetAiFloatingBadge(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openKemetAi,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF2A2113).withOpacity(0.96),
+                const Color(0xFF15100A).withOpacity(0.96),
+              ],
+            ),
+            border: Border.all(
+              color: _goldColor.withOpacity(0.44),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _goldColor.withOpacity(0.22),
+                blurRadius: 24,
+                spreadRadius: 1,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 28.w,
+                height: 28.w,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _goldColor.withOpacity(0.16),
+                ),
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  color: _goldColor,
+                  size: 15.sp,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Text(
+                context.tr('kemet_ai').toUpperCase(),
+                style: GoogleFonts.cinzel(
+                  color: _goldColor,
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.6,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _logout() async {
     await context.read<SettingsCubit>().clearProfileAvatar();
     await FirebaseAuth.instance.signOut();
@@ -259,162 +332,170 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
       child: Scaffold(
         backgroundColor: _bgColor,
-        body: Column(
+        body: Stack(
+          clipBehavior: Clip.none,
           children: [
-            _buildTopAppBar(),
-            Expanded(
-              child: CustomScrollView(
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 18.h),
-                        const HeroSlider(),
-                        SizedBox(height: 22.h),
-                        _buildHeroTitle(),
-                        SizedBox(height: 22.h),
-                        _buildSearchBar(),
-                        SizedBox(height: 18.h),
-                    LandmarksFilter(
-                      cities: _egyptCities,
-                      categories: _categories,
-                      selectedCity: _selectedCity,
-                      selectedCategory: _selectedCategory,
-                      labelBuilder: (ctx, val) => _filterLabel(ctx, val),
-                      onCitySelected: (val) {
-                        setState(() => _selectedCity = val == 'All' ? '' : val);
-                        _applyFilters();
-                      },
-                      onCategorySelected: (val) {
-                        setState(() => _selectedCategory = val == 'All' ? '' : val);
-                        _applyFilters();
-                      },
-                    ),
-                                          
-                        SizedBox(height: 24.h),
-                      ],
-                    ),
-                  ),
-
-                  BlocBuilder<LandmarksCubit, LandmarksState>(
-                    builder: (context, state) {
-                      if (state is LandmarksLoading) {
-                        return const SliverFillRemaining(
-                          child: Center(
-                            child: CircularProgressIndicator(color: _goldColor),
-                          ),
-                        );
-                      } else if (state is LandmarksEmpty) {
-                        return SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Center(
-                            child: Text(
-                              context.tr('no_data'),
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.65),
-                                fontSize: 16.sp,
-                              ),
+            Column(
+              children: [
+                _buildTopAppBar(),
+                Expanded(
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(height: 18.h),
+                            const HeroSlider(),
+                            SizedBox(height: 22.h),
+                            _buildHeroTitle(),
+                            SizedBox(height: 22.h),
+                            _buildSearchBar(),
+                            SizedBox(height: 18.h),
+                            LandmarksFilter(
+                              cities: _egyptCities,
+                              categories: _categories,
+                              selectedCity: _selectedCity,
+                              selectedCategory: _selectedCategory,
+                              labelBuilder: (ctx, val) => _filterLabel(ctx, val),
+                              onCitySelected: (val) {
+                                setState(() => _selectedCity = val == 'All' ? '' : val);
+                                _applyFilters();
+                              },
+                              onCategorySelected: (val) {
+                                setState(() => _selectedCategory = val == 'All' ? '' : val);
+                                _applyFilters();
+                              },
                             ),
-                          ),
-                        );
-                      } else if (state is LandmarksError) {
-                        return SliverFillRemaining(
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  state.message,
-                                  style: const TextStyle(
-                                    color: Colors.redAccent,
+                            SizedBox(height: 24.h),
+                          ],
+                        ),
+                      ),
+                      BlocBuilder<LandmarksCubit, LandmarksState>(
+                        builder: (context, state) {
+                          if (state is LandmarksLoading) {
+                            return const SliverFillRemaining(
+                              child: Center(
+                                child: CircularProgressIndicator(color: _goldColor),
+                              ),
+                            );
+                          } else if (state is LandmarksEmpty) {
+                            return SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: Center(
+                                child: Text(
+                                  context.tr('no_data'),
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.65),
+                                    fontSize: 16.sp,
                                   ),
                                 ),
-                                SizedBox(height: 12.h),
-                                SizedBox(
-                                  width: 170.w,
-                                  child: AnimatedGoldButton(
-                                    text: context.tr('retry'),
-                                    onTap: _applyFilters,
+                              ),
+                            );
+                          } else if (state is LandmarksError) {
+                            return SliverFillRemaining(
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      state.message,
+                                      style: const TextStyle(
+                                        color: Colors.redAccent,
+                                      ),
+                                    ),
+                                    SizedBox(height: 12.h),
+                                    SizedBox(
+                                      width: 170.w,
+                                      child: AnimatedGoldButton(
+                                        text: context.tr('retry'),
+                                        onTap: _applyFilters,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          } else if (state is LandmarksLoaded) {
+                            final localeCode = context
+                                .read<SettingsCubit>()
+                                .state
+                                .localeCode;
+                            final visibleLandmarks = state.landmarks
+                                .where(_hasValidLandmarkImage)
+                                .toList(growable: false);
+                            if (visibleLandmarks.isEmpty) {
+                              return const SliverFillRemaining(
+                                child: Center(
+                                  child: Text(
+                                    'No landmarks found.',
+                                    style: TextStyle(color: Colors.white54),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      } else if (state is LandmarksLoaded) {
-                        final localeCode = context
-                            .read<SettingsCubit>()
-                            .state
-                            .localeCode;
-                        final visibleLandmarks = state.landmarks
-                            .where(_hasValidLandmarkImage)
-                            .toList(growable: false);
-                        if (visibleLandmarks.isEmpty) {
-                          return const SliverFillRemaining(
-                            child: Center(
-                              child: Text(
-                                'No landmarks found.',
-                                style: TextStyle(color: Colors.white54),
-                              ),
-                            ),
-                          );
-                        }
+                              );
+                            }
 
-                        return SliverPadding(
-                          padding: EdgeInsets.only(
-                            bottom: shellOverlayClearance,
-                          ),
-                          sliver: SliverList(
-                            delegate: SliverChildBuilderDelegate((
-                              context,
-                              index,
-                            ) {
-                              if (index == visibleLandmarks.length) {
-                                return _buildPagination(
-                                  currentPage: state.currentPage,
-                                  isLastPage: state.isLastPage,
-                                  onPageSelected: (page) {
-                                    context.read<LandmarksCubit>().getLandmarks(
-                                      page: page,
-                                      city: state.city,
-                                      kind: state.kind,
-                                      languageCode: state.languageCode,
-                                      isPagination: true,
+                            return SliverPadding(
+                              padding: EdgeInsets.only(
+                                bottom: shellOverlayClearance,
+                              ),
+                              sliver: SliverList(
+                                delegate: SliverChildBuilderDelegate((
+                                  context,
+                                  index,
+                                ) {
+                                  if (index == visibleLandmarks.length) {
+                                    return _buildPagination(
+                                      currentPage: state.currentPage,
+                                      isLastPage: state.isLastPage,
+                                      onPageSelected: (page) {
+                                        context.read<LandmarksCubit>().getLandmarks(
+                                          page: page,
+                                          city: state.city,
+                                          kind: state.kind,
+                                          languageCode: state.languageCode,
+                                          isPagination: true,
+                                        );
+                                      },
                                     );
-                                  },
-                                );
-                              }
+                                  }
 
-                              final landmark = visibleLandmarks[index];
-                              final imageUrl = _firstValidLandmarkImageUrl(
-                                landmark,
-                              );
-                              if (imageUrl == null) {
-                                return const SizedBox.shrink();
-                              }
-                              final description = _resolvedDescription(
-                                landmark,
-                                localeCode,
-                              );
-                              return Padding(
-                                padding: EdgeInsets.only(bottom: 28.h),
-                                child: _buildLandmarkCard(
-                                  landmark,
-                                  imageUrl: imageUrl,
-                                  description: description,
-                                ),
-                              );
-                            }, childCount: visibleLandmarks.length + 1),
-                          ),
-                        );
-                      }
-                      return const SliverToBoxAdapter(child: SizedBox.shrink());
-                    },
+                                  final landmark = visibleLandmarks[index];
+                                  final imageUrl = _firstValidLandmarkImageUrl(
+                                    landmark,
+                                  );
+                                  if (imageUrl == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final description = _resolvedDescription(
+                                    landmark,
+                                    localeCode,
+                                  );
+                                  return Padding(
+                                    padding: EdgeInsets.only(bottom: 28.h),
+                                    child: _buildLandmarkCard(
+                                      landmark,
+                                      imageUrl: imageUrl,
+                                      description: description,
+                                    ),
+                                  );
+                                }, childCount: visibleLandmarks.length + 1),
+                              ),
+                            );
+                          }
+                          return const SliverToBoxAdapter(child: SizedBox.shrink());
+                        },
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
+            PositionedDirectional(
+              end: 18.w,
+              bottom: 28.h,
+              child: _buildKemetAiFloatingBadge(context),
             ),
           ],
         ),
@@ -719,11 +800,14 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24.w),
+          padding: EdgeInsets.only(
+            left: 24.w,
+            right: 24.w,
+          ),
           child: GestureDetector(
             onTap: () => _openLandmarkDetails(landmark),
             child: Container(
-              clipBehavior: Clip.antiAlias,
+              clipBehavior: Clip.none,
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.03),
                 borderRadius: BorderRadius.circular(26.r),
@@ -748,6 +832,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Stack(
+                    clipBehavior: Clip.none,
                     children: [
                       AspectRatio(
                         aspectRatio: 16 / 10,

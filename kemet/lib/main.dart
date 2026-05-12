@@ -61,7 +61,7 @@ Future<void> main() async {
   // Schedule re-engagement alarm every 1 minute for test validation.
   await AndroidAlarmManager.cancel(0);
   final isAlarmScheduled = await AndroidAlarmManager.periodic(
-    const Duration(minutes: 1),
+    const Duration(hours: 24),
     0,
     fireReEngagementNotification,
     wakeup: true,
