@@ -444,6 +444,7 @@ class _ImageSlider extends StatelessWidget {
 
     return Stack(
       fit: StackFit.expand,
+      clipBehavior: Clip.none,
       children: [
         PageView.builder(
           controller: controller,

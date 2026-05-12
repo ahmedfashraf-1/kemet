@@ -86,17 +86,17 @@ class _MainShellState extends State<MainShell> {
 
       setState(() => _currentIndex = widget.activeIndex);
       break;
+
   }
 }
 
-  // Chatbot button removed as per localization/feature decision.
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
       body: widget.child,
-      // Chatbot floating button removed
+      // Kemet AI is now available from the bottom navigation
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.screenBackground.withOpacity(0.92),
@@ -116,31 +116,36 @@ class _MainShellState extends State<MainShell> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(_items.length, (index) {
             final isActive = _currentIndex == index;
-            return GestureDetector(
-              onTap: () => _onItemTap(index),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _items[index]['icon'] as IconData,
-                    color: isActive
-                        ? AppColors.mainGold
-                        : AppColors.textSecondary,
-                    size: 24.sp,
-                  ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    context.tr(_items[index]['label'] as String),
-                    style: GoogleFonts.cinzel(
-                      fontSize: 9.sp,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => _onItemTap(index),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _items[index]['icon'] as IconData,
                       color: isActive
                           ? AppColors.mainGold
                           : AppColors.textSecondary,
+                      size: 24.sp,
                     ),
-                  ),
-                ],
+                    SizedBox(height: 4.h),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        context.tr(_items[index]['label'] as String),
+                        style: GoogleFonts.cinzel(
+                          fontSize: 9.sp,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                          color: isActive
+                              ? AppColors.mainGold
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           }),
