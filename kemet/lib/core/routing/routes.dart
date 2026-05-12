@@ -17,10 +17,9 @@ class Routes {
   static const String settingsScreen = '/settingsScreen';
   static const String notificationsScreen = '/notifications';
   static const String listenDemoScreen = '/listen-demo';
-  static const String favoritesScreen = '/favorites'; // ← ضيف ده
-
+  static const String favoritesScreen = '/favorites';
+  static const String map = '/map';
 
   static const String verifyEmailOtp = '/verify-email-otp';
   static const String forgotPassword = '/forgot-password';
 }
-

@@ -177,21 +177,6 @@ class NotificationService {
     );
   }
 
-  // Future<void> _saveToFirestore(RemoteMessage message) async {
-  //   try {
-  //     final userId = _auth.currentUser?.uid;
-  //     if (userId == null) return;
-  //     if (message.notification == null) return;
-  //     await _firestore.collection('notifications').add({
-  //       'userId': userId,
-  //       'title': message.notification?.title ?? '',
-  //       'body': message.notification?.body ?? '',
-  //       'isRead': false,
-  //       'createdAt': FieldValue.serverTimestamp(),
-  //     });
-  //   } catch (_) {}
-  // }
-
 
   Future<void> _saveToFirestore(RemoteMessage message) async {
   final msgId = message.messageId;

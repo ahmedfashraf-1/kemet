@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/core/utils/extensions.dart';
+import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MainShell extends StatefulWidget {
@@ -26,6 +29,10 @@ class _MainShellState extends State<MainShell> {
 
   Future<void> _onItemTap(int index) async {
     setState(() => _currentIndex = index);
+
+
+    if (index == 1) 
+          context.pushNamed(Routes.map);
 
     if (index == 2) {
       await Navigator.of(context).pushNamed(Routes.settingsScreen);

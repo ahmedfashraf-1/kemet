@@ -51,7 +51,7 @@ class LocalNotificationService {
 
     // all setting in obj. to send plugin
     const initSettings = InitializationSettings(android: androidSettings);
-   await _plugin.initialize(initSettings);
+   //await _plugin.initialize(initSettings);
        await _plugin.initialize(
        initSettings,
        onDidReceiveNotificationResponse: _onNotificationTap,

@@ -16,6 +16,9 @@ import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/presentation/screens/forgot_password_view.dart';
 import 'package:kemet/features/auth/presentation/screens/verify_email_otp_view.dart';
 import 'package:kemet/features/home/presentation/screens/home_screen.dart';
+import 'package:kemet/features/maps/domain/usecases/map_usecases.dart';
+import 'package:kemet/features/maps/presentation/cubit/map_cubit.dart';
+import 'package:kemet/features/maps/presentation/screens/map_screen.dart';
 import 'package:kemet/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen1_view.dart';
 import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen2_view.dart';
@@ -209,6 +212,21 @@ class AppRouter {
           setting,
         );
 
+      case Routes.map:
+          return _fadeDominantFromRight(
+            BlocProvider(
+              create: (context) => MapCubit(
+                getMapLocations: GetMapLocationsUseCase(
+                  context.read<LandmarksRepository>(),
+                ),
+                getUserLocation: GetUserLocationUseCase(),
+              ),
+              child: const MapScreen(),
+            ),
+            setting,
+          );
+        
+      
       case Routes.userReviewsScreen:
         final userIdArg = setting.arguments;
         if (userIdArg is! String || userIdArg.isEmpty) {
