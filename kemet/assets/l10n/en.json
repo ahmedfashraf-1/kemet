@@ -214,5 +214,30 @@
   "loading_ellipsis": "Loading...",
   "more_to_explore": "More to explore",
   "description_pending": "Translating description...",
-  "description_unavailable": "Description not available"
-}
+  "description_unavailable": "Description not available",
+  "store": "Store",
+  "cart": "Cart",
+  "add_to_cart": "Add to Cart",
+  "checkout": "Checkout",
+  "your_cart": "Your Cart",
+  "empty_cart": "Your cart is empty",
+  "total": "Total",
+  "subtotal": "Subtotal",
+  "shipping": "Shipping",
+  "tax": "Tax",
+  "quantity": "Quantity",
+  "remove": "Remove",
+  "all_products": "All Products",
+  "categories": "Categories",
+  "view_all": "View All",
+  "no_products_found": "No products found",
+  "something_went_wrong": "Something went wrong",
+  "items": "items",
+  "item": "item",
+  "in_stock": "In Stock",
+  "out_of_stock": "Out of Stock",
+  "free_shipping": "Free Shipping",
+  "secure_checkout": "Secure Checkout",
+  "stock":"Stock"
+
+  }

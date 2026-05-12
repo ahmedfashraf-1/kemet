@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/features/payment/presentation/cubit/payment_cubit.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kemet/features/auth/domain/usecases/check_email_verified_use_case.dart';
 import 'package:kemet/features/auth/domain/usecases/delete_account_use_case.dart';
@@ -52,9 +53,30 @@ import 'package:kemet/features/notifications/presentation/screens/notification_d
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 import 'package:kemet/features/landmarks/domain/usecases/get_all_landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
+import 'package:kemet/features/store/data/repositories/cart_repository_impl.dart';
+import 'package:kemet/features/store/domain/usecases/add_to_cart_usecase.dart';
+import 'package:kemet/features/store/domain/usecases/cart_usecases.dart';
+
+import 'package:kemet/features/store/presentation/screens/store_home_screen.dart';
+import 'package:kemet/features/store/presentation/cubit/products_cubit.dart';
+import 'package:kemet/features/store/presentation/cubit/cart_cubit.dart';
+import 'package:kemet/features/store/data/repositories/store_repository_impl.dart';
+import 'package:kemet/features/store/domain/usecases/get_products_usecase.dart';
+import 'package:kemet/features/store/data/datasources/store_datasource.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kemet/features/favorite/presentation/screens/favorites_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kemet/features/order/presentation/screens/checkout_screen.dart';
+import 'package:kemet/features/order/presentation/screens/order_confirmation_screen.dart';
+import 'package:kemet/features/order/presentation/cubit/checkout_cubit.dart';
+import 'package:kemet/features/payment/domain/usecases/payment_usecases.dart';
+import 'package:kemet/features/payment/presentation/cubit/payment_cubit.dart';
+import 'package:kemet/features/order/domain/entities/order.dart'
+    as order_entity;
+import 'package:kemet/features/store/domain/entities/cart.dart';
+import 'package:get_it/get_it.dart';
+
 final RouteObserver<PageRoute<dynamic>> routeObserver =
     RouteObserver<PageRoute<dynamic>>();
 
@@ -86,7 +108,7 @@ class AppRouter {
                 context.read<LandmarksRepository>(),
               ),
             ),
-            child: const MainShell(child: HomeScreen()),
+            child: const MainShell(child: HomeScreen(), activeIndex: 0),
           ),
           setting,
         );
@@ -135,10 +157,7 @@ class AppRouter {
           setting,
         );
       case Routes.favoritesScreen:
-        return _fadeDominantFromRight(
-          const FavoritesPage(),
-          setting,
-        );
+        return _fadeDominantFromRight(const FavoritesPage(), setting);
 
       case Routes.reviewsScreen:
         final landmarkArg = setting.arguments;
@@ -189,10 +208,7 @@ class AppRouter {
         );
 
         return _fadeDominantFromRight(
-          _ChatbotBootstrap(
-            userId: routeUserId,
-            child: const ChatbotScreen(),
-          ),
+          _ChatbotBootstrap(userId: routeUserId, child: const ChatbotScreen()),
           setting,
         );
 
@@ -273,6 +289,80 @@ class AppRouter {
       case Routes.RegisterView:
         return _fadeDominantFromRight(
           BlocProvider(create: _buildAuthCubit, child: const RegisterView()),
+          setting,
+        );
+      case Routes.storeHome:
+        return _fadeDominantFromRight(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider(
+                create: (context) => ProductsCubit(
+                  GetProductsUseCase(
+                    StoreRepositoryImpl(
+                      StoreDataSourceImpl(FirebaseFirestore.instance),
+                    ),
+                  ),
+                )..getProducts(),
+              ),
+              BlocProvider(
+                create: (_) {
+                  final repo = CartRepositoryImpl();
+                  return CartCubit(
+                    getCart: GetCartUseCase(repo),
+                    addToCart: AddToCartUseCase(repo),
+                    updateQuantity: UpdateQuantityUseCase(repo),
+                    removeFromCart: RemoveFromCartUseCase(repo),
+                    clearCart: ClearCartUseCase(repo),
+                  )..loadCart();
+                },
+              ),
+            ],
+            child: const MainShell(child: StoreHomeScreen(), activeIndex: 2),
+          ),
+          setting,
+        );
+
+      case Routes.checkoutScreen:
+        final cartArg = setting.arguments as Cart?;
+
+        if (cartArg == null) {
+          return MaterialPageRoute(
+            builder: (_) =>
+                const Scaffold(body: Center(child: Text('Invalid cart data'))),
+          );
+        }
+
+        return _fadeDominantFromRight(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider<CheckoutCubit>.value(
+                value: GetIt.instance<CheckoutCubit>(),
+              ),
+              BlocProvider<PaymentCubit>(
+                create: (_) => PaymentCubit(
+                  authenticate: GetIt.instance<AuthenticateUseCase>(),
+                  registerOrder: GetIt.instance<RegisterOrderUseCase>(),
+                  getPaymentKey: GetIt.instance<GetPaymentKeyUseCase>(),
+                  payWithWallet: GetIt.instance<PayWithWalletUseCase>(),
+                  verifyTransaction: GetIt.instance<VerifyTransactionUseCase>(),
+                ),
+              ),
+            ],
+            child: CheckoutScreen(cart: cartArg),
+          ),
+          setting,
+        );
+
+      case Routes.orderConfirmation:
+        final orderArg = setting.arguments as order_entity.Order?;
+        if (orderArg == null) {
+          return MaterialPageRoute(
+            builder: (_) =>
+                const Scaffold(body: Center(child: Text('Invalid order data'))),
+          );
+        }
+        return _fadeDominantFromRight(
+          OrderConfirmationScreen(order: orderArg),
           setting,
         );
 
@@ -407,9 +497,7 @@ class _ChatbotBootstrapState extends State<_ChatbotBootstrap> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
             backgroundColor: Colors.black,
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
         return widget.child;
@@ -417,4 +505,3 @@ class _ChatbotBootstrapState extends State<_ChatbotBootstrap> {
     );
   }
 }
-
