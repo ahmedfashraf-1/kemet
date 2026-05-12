@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_photo.dart';
 import '../cubit/cart_cubit.dart';
@@ -110,9 +111,9 @@ class _ProductDetailViewState extends State<_ProductDetailView> {
               size: 18, color: AppColors.mainGold),
         ),
       ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 16),
+        actions: [
+         Padding(
+           padding: const EdgeInsetsDirectional.only(end: 16),
           child: BlocBuilder<CartCubit, CartState>(
             builder: (context, cartState) {
               final count =
@@ -141,10 +142,10 @@ class _ProductDetailViewState extends State<_ProductDetailView> {
                       child: const Icon(Icons.shopping_bag_outlined,
                           color: AppColors.mainGold, size: 22),
                     ),
-                    if (count > 0)
-                      Positioned(
-                        right: -4,
-                        top: -4,
+                         if (count > 0)
+                                 PositionedDirectional(
+                                   end: -4,
+                                   top: -4,
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: const BoxDecoration(
@@ -185,7 +186,7 @@ class _ProductDetailViewState extends State<_ProductDetailView> {
     Product product,
   ) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+      padding: const EdgeInsetsDirectional.fromSTEB(20, 24, 20, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -195,19 +196,29 @@ class _ProductDetailViewState extends State<_ProductDetailView> {
               current: state.selectedImageIndex,
             ),
           const SizedBox(height: 20),
-          _CategoryChip(product.category.categoryName),
+          Builder(builder: (ctx) {
+            final isAr = Localizations.localeOf(ctx).languageCode == 'ar';
+            final catLabel = product.category.localizedName(isAr ? 'ar' : 'en');
+            return _CategoryChip(catLabel);
+          }),
           const SizedBox(height: 12),
-          Text(
-            product.name,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          Builder(builder: (ctx) {
+            final isAr = Localizations.localeOf(ctx).languageCode == 'ar';
+            final title = product.localizedName(isAr ? 'ar' : 'en');
+            return Text(
+              title,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            );
+          }),
           const SizedBox(height: 16),
           Text(
-            '${product.price.toStringAsFixed(2)} EGP',
+            '${product.price.toStringAsFixed(2)} ${context.tr('currency')}',
             style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w800,
@@ -230,8 +241,8 @@ class _ProductDetailViewState extends State<_ProductDetailView> {
             ),
             child: Text(
               product.stock > 0
-                  ? 'In Stock (${product.stock})'
-                  : 'Out of Stock',
+                  ? '${context.tr('in_stock')} (${product.stock})'
+                  : context.tr('out_of_stock'),
               style: TextStyle(
                 color: product.stock > 0 ? Colors.green : Colors.redAccent,
                 fontWeight: FontWeight.w600,
@@ -242,23 +253,27 @@ class _ProductDetailViewState extends State<_ProductDetailView> {
           const SizedBox(height: 24),
           const Divider(height: 1, color: AppColors.subtleGoldBorder),
           const SizedBox(height: 20),
-          const Text(
-            'Description',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
+           Text(
+             context.tr('description'),
+             style: const TextStyle(
+               fontSize: 18,
+               fontWeight: FontWeight.bold,
+               color: AppColors.textPrimary,
+             ),
+           ),
           const SizedBox(height: 10),
-          Text(
-            product.description,
-            style: const TextStyle(
-              fontSize: 15,
-              height: 1.6,
-              color: AppColors.textSecondary,
-            ),
-          ),
+          Builder(builder: (ctx) {
+            final isAr = Localizations.localeOf(ctx).languageCode == 'ar';
+            final desc = product.localizedDescription(isAr ? 'ar' : 'en');
+            return Text(
+              desc,
+              style: const TextStyle(
+                fontSize: 15,
+                height: 1.6,
+                color: AppColors.textSecondary,
+              ),
+            );
+          }),
           const SizedBox(height: 32),
         ],
       ),
@@ -273,7 +288,7 @@ class _ProductDetailViewState extends State<_ProductDetailView> {
     final isOutOfStock = product.stock <= 0;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 32),
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -335,14 +350,12 @@ class _ProductDetailViewState extends State<_ProductDetailView> {
                 final isLoading = cartState is CartLoading;
 
                 return ElevatedButton(
-                  onPressed: isOutOfStock || isLoading
-                      ? null
-                      : () {
-                          context
-                              .read<CartCubit>()
-                              .add(product, state.quantity);
-                          context.read<ProductDetailCubit>().reset();
-                        },
+                   onPressed: isOutOfStock || isLoading
+                       ? null
+                       : () {
+                           context.read<CartCubit>().add(product, state.quantity);
+                           context.read<ProductDetailCubit>().reset();
+                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         isOutOfStock ? Colors.grey : AppColors.mainGold,
@@ -368,7 +381,7 @@ class _ProductDetailViewState extends State<_ProductDetailView> {
                             const Icon(Icons.shopping_bag_outlined, size: 20),
                             const SizedBox(width: 8),
                             Text(
-                              isOutOfStock ? 'Out of Stock' : 'Add to Cart',
+                               isOutOfStock ? context.tr('out_of_stock') : context.tr('add_to_cart'),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -388,9 +401,9 @@ class _ProductDetailViewState extends State<_ProductDetailView> {
   void _showAddedSnackBar(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          '✓  Added to cart',
-          style: TextStyle(
+        content: Text(
+          context.tr('added_to_cart'),
+          style: const TextStyle(
               fontWeight: FontWeight.w600, color: AppColors.textDarkOnGold),
         ),
         backgroundColor: AppColors.mainGold,
@@ -446,10 +459,10 @@ class _ImageSlider extends StatelessWidget {
             ),
           ),
         ),
-        Positioned(
+        PositionedDirectional(
           bottom: 0,
-          left: 0,
-          right: 0,
+          start: 0,
+          end: 0,
           child: Container(
             height: 100,
             decoration: BoxDecoration(

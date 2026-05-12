@@ -6,7 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kemet/core/utils/extensions.dart';
+import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 import 'package:kemet/features/store/presentation/cubit/cart_cubit.dart';
 import 'package:kemet/features/store/presentation/screens/cart_screen.dart';
 
@@ -37,116 +38,65 @@ class _MainShellState extends State<MainShell> {
   }
 
   Future<void> _onItemTap(int index) async {
-    if (index == _currentIndex) return;
+  if (index == _currentIndex) return;
 
-    switch (index) {
-      case 0:
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          Routes.HomeScreen,
-          (route) => false,
-        );
-        break;
+  switch (index) {
+    case 0:
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        Routes.HomeScreen,
+        (route) => false,
+      );
+      break;
 
-      case 2:
-        Navigator.of(context).pushReplacementNamed(Routes.storeHome);
-        break;
+    case 1:
+      context.pushNamed(Routes.map);
+      break;
 
-      case 3:
-        setState(() => _currentIndex = index);
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => BlocProvider.value(
-              value: context.read<CartCubit>(),
-              child: const CartScreen(),
-            ),
+    case 2:
+      Navigator.of(context).pushReplacementNamed(
+        Routes.storeHome,
+      );
+      break;
+
+    case 3:
+      setState(() => _currentIndex = index);
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => BlocProvider.value(
+            value: context.read<CartCubit>(),
+            child: const CartScreen(),
           ),
-        );
-        if (!mounted) return;
-        setState(() => _currentIndex = widget.activeIndex);
-        break;
+        ),
+      );
 
-      case 4:
-        setState(() => _currentIndex = index);
-        await Navigator.of(context).pushNamed(Routes.settingsScreen);
-        if (!mounted) return;
-        setState(() => _currentIndex = widget.activeIndex);
-        break;
-    }
-  }
-
-  Future<void> _openChatbot() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null || currentUser.isAnonymous) {
       if (!mounted) return;
-      await Navigator.of(context).pushNamed(Routes.LoginView);
-      return;
-    }
 
-    final uid = currentUser.uid;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('current_user_id', uid);
+      setState(() => _currentIndex = widget.activeIndex);
+      break;
 
-    if (!mounted) return;
-    await Navigator.of(context).pushNamed(Routes.chatbotScreen, arguments: uid);
+    case 4:
+      setState(() => _currentIndex = index);
+
+      await Navigator.of(context).pushNamed(
+        Routes.settingsScreen,
+      );
+
+      if (!mounted) return;
+
+      setState(() => _currentIndex = widget.activeIndex);
+      break;
   }
+}
+
+  // Chatbot button removed as per localization/feature decision.
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
       body: widget.child,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: SafeArea(
-        minimum: EdgeInsets.zero,
-        child: Padding(
-          padding: EdgeInsetsDirectional.only(end: 16.w, bottom: 8.h),
-          child: Container(
-            height: 48.h,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(9999),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFDAAB5F), Color(0xFF96703D)],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.mainGold.withOpacity(0.4),
-                  blurRadius: 20,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: MaterialButton(
-              onPressed: _openChatbot,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(9999),
-              ),
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    context.tr('kemet_ai'),
-                    style: GoogleFonts.cinzel(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textDarkOnGold,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  Icon(
-                    Icons.auto_awesome_outlined,
-                    color: AppColors.textDarkOnGold,
-                    size: 18.sp,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+      // Chatbot floating button removed
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.screenBackground.withOpacity(0.92),

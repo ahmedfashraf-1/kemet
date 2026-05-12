@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 
 class StoreHeroSlider extends StatefulWidget {
   const StoreHeroSlider({super.key});
@@ -20,18 +21,18 @@ class _StoreHeroSliderState extends State<StoreHeroSlider>
   final List<Map<String, String>> _slides = [
     {
       'image': 'images/store_hero1.png',
-      'title': 'Timeless Wonders',
-      'subtitle': 'Discover Egypt',
+      'titleKey': 'hero_slide_1_title',
+      'subtitleKey': 'hero_slide_1_subtitle',
     },
     {
       'image': 'images/store_hero2.png',
-      'title': 'Crafted With Heritage',
-      'subtitle': 'Exclusive Collection',
+      'titleKey': 'hero_slide_2_title',
+      'subtitleKey': 'hero_slide_2_subtitle',
     },
     {
       'image': 'images/store_hero3.png',
-      'title': 'Take Egypt Home',
-      'subtitle': 'Unique Souvenirs',
+      'titleKey': 'hero_slide_3_title',
+      'subtitleKey': 'hero_slide_3_subtitle',
     },
   ];
 
@@ -137,18 +138,20 @@ class _StoreHeroSliderState extends State<StoreHeroSlider>
                         ),
                       ),
                       // ── Text ──
-                      Positioned(
-                        bottom: 14.h,
-                        left: 16.w,
-                        right: 16.w,
-                        child: AnimatedOpacity(
+                        PositionedDirectional(
+                          bottom: 14.h,
+                          start: 16.w,
+                          end: 16.w,
+                          child: AnimatedOpacity(
                           duration: const Duration(milliseconds: 800),
                           opacity: index == _currentIndex ? 1.0 : 0.0,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                slide['title']!,
+                                slide['titleKey'] != null
+                                    ? context.tr(slide['titleKey']!)
+                                    : (slide['title'] ?? ''),
                                 style: GoogleFonts.cormorant(
                                   fontSize: 20.sp,
                                   fontWeight: FontWeight.bold,
@@ -166,7 +169,9 @@ class _StoreHeroSliderState extends State<StoreHeroSlider>
                                   ),
                                   SizedBox(width: 3.w),
                                   Text(
-                                    slide['subtitle']!,
+                                    slide['subtitleKey'] != null
+                                        ? context.tr(slide['subtitleKey']!)
+                                        : (slide['subtitle'] ?? ''),
                                     style: GoogleFonts.inter(
                                       fontSize: 11.sp,
                                       color: AppColors.textSecondary,
