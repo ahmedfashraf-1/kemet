@@ -1,19 +1,14 @@
 import 'package:dartz/dartz.dart' as functional;
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
-import '../../../../core/network/network_info.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../datasources/order_remote_datasource.dart';
 
 class OrderRepositoryImpl implements OrderRepository {
   final OrderRemoteDataSource remoteDataSource;
-  final NetworkInfo networkInfo;
 
-  const OrderRepositoryImpl({
-    required this.remoteDataSource,
-    required this.networkInfo,
-  });
+  const OrderRepositoryImpl({required this.remoteDataSource});
 
   @override
   Future<functional.Either<Failure, Order>> createOrder({
@@ -22,11 +17,6 @@ class OrderRepositoryImpl implements OrderRepository {
     required double totalPrice,
     required String billingDataJson,
   }) async {
-    final connected = await networkInfo.isConnected;
-    if (!connected) {
-      return const functional.Left(OfflineFailure());
-    }
-
     try {
       final order = await remoteDataSource.createOrder(
         userId: userId,
@@ -44,11 +34,6 @@ class OrderRepositoryImpl implements OrderRepository {
 
   @override
   Future<functional.Either<Failure, Order>> getOrderById(String orderId) async {
-    final connected = await networkInfo.isConnected;
-    if (!connected) {
-      return const functional.Left(OfflineFailure());
-    }
-
     try {
       final order = await remoteDataSource.getOrderById(orderId);
       return functional.Right(order);
@@ -65,11 +50,6 @@ class OrderRepositoryImpl implements OrderRepository {
     required String paymentStatus,
     required String transactionId,
   }) async {
-    final connected = await networkInfo.isConnected;
-    if (!connected) {
-      return const functional.Left(OfflineFailure());
-    }
-
     try {
       final order = await remoteDataSource.updateOrderPaymentStatus(
         orderId: orderId,
@@ -88,11 +68,6 @@ class OrderRepositoryImpl implements OrderRepository {
   Future<functional.Either<Failure, List<Order>>> getUserOrders(
     String userId,
   ) async {
-    final connected = await networkInfo.isConnected;
-    if (!connected) {
-      return const functional.Left(OfflineFailure());
-    }
-
     try {
       final orders = await remoteDataSource.getUserOrders(userId);
       return functional.Right(orders);

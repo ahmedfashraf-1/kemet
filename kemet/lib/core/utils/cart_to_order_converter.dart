@@ -1,6 +1,6 @@
 import 'package:kemet/features/payment/domain/entities/payment_entities.dart';
 import 'package:kemet/features/store/domain/entities/cart.dart';
-import '../entities/order.dart';
+import '../../features/order/domain/entities/order.dart';
 
 /// Converts Cart items to Order items for checkout
 class CartToOrderConverter {

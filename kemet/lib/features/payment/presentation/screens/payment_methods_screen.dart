@@ -8,7 +8,7 @@ import '../../../../core/strings/failures.dart';
 import '../../domain/entities/payment_entities.dart';
 import '../cubit/payment_cubit.dart';
 import '../cubit/payment_state.dart';
-import '../widgets/payment_widgets.dart';
+import '../../../../core/widgets/payment_widgets.dart';
 import 'webview_screen.dart';
 import 'success_screen.dart';
 import 'failed_screen.dart';

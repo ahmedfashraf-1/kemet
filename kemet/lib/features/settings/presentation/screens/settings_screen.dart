@@ -9,10 +9,7 @@ import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kemet/features/home/presentation/screens/home_screen.dart';
-import 'package:kemet/features/payment/presentation/cubit/payment_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/payment_methods_cubit.dart';
-import 'package:kemet/features/payment/presentation/di/payment_di.dart';
-import 'package:flutter_bloc/src/bloc_provider.dart' as _internal_show;
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/security_cubit.dart';
 import 'package:kemet/features/settings/presentation/screens/about_screen.dart';
@@ -70,10 +67,9 @@ class SettingsScreen extends StatelessWidget {
                           if (userId.isEmpty) {
                             return;
                           }
-                          Navigator.of(context).pushNamed(
-                            Routes.profileScreen,
-                            arguments: userId,
-                          );
+                          Navigator.of(
+                            context,
+                          ).pushNamed(Routes.profileScreen, arguments: userId);
                         },
                       ),
                       _divider(),
@@ -83,18 +79,12 @@ class SettingsScreen extends StatelessWidget {
                         subtitle: context.tr('payment_methods_subtitle'),
                         onTap: () => pushPremiumPage(
                           context,
-                          MultiBlocProvider(
-                            providers: [
-                              BlocProvider(
-                                create: (_) => PaymentMethodsCubit(
-                                  sharedPreferences:
-                                      context.read<SettingsCubit>().sharedPreferences,
-                                ),
-                              ),
-                              BlocProvider(
-                                create: (_) => getIt<PaymentCubit>(),
-                              ),
-                            ],
+                          BlocProvider(
+                            create: (_) => PaymentMethodsCubit(
+                              sharedPreferences: context
+                                  .read<SettingsCubit>()
+                                  .sharedPreferences,
+                            ),
                             child: const PaymentMethodsScreen(),
                           ),
                         ),
@@ -107,7 +97,7 @@ class SettingsScreen extends StatelessWidget {
                         onTap: () => pushPremiumPage(
                           context,
                           BlocProvider(
-                          create: (context) => SecurityCubit(),
+                            create: (context) => SecurityCubit(),
                             child: const SecurityScreen(),
                           ),
                         ),
@@ -127,7 +117,9 @@ class SettingsScreen extends StatelessWidget {
                         subtitle: context.tr('push_notifications_subtitle'),
                         value: settingsState.pushNotificationsEnabled,
                         onChanged: (value) {
-                          context.read<SettingsCubit>().setPushNotifications(value);
+                          context.read<SettingsCubit>().setPushNotifications(
+                            value,
+                          );
                         },
                       ),
                       _divider(),
@@ -186,7 +178,9 @@ class SettingsScreen extends StatelessWidget {
                           if (!granted && context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(context.tr('location_permission_required')),
+                                content: Text(
+                                  context.tr('location_permission_required'),
+                                ),
                               ),
                             );
                           }
@@ -207,7 +201,9 @@ class SettingsScreen extends StatelessWidget {
                         subtitle: context.tr('private_account_subtitle'),
                         value: settingsState.isPrivateAccount,
                         onChanged: (value) {
-                          context.read<SettingsCubit>().setAccountPrivacy(value);
+                          context.read<SettingsCubit>().setAccountPrivacy(
+                            value,
+                          );
                         },
                       ),
                       _divider(),
@@ -229,7 +225,9 @@ class SettingsScreen extends StatelessWidget {
                         onTap: () => pushPremiumPage(
                           context,
                           SettingsDocumentScreen(
-                            title: context.tr('data_personalization').toUpperCase(),
+                            title: context
+                                .tr('data_personalization')
+                                .toUpperCase(),
                             body: context.tr('data_personalization_body'),
                           ),
                         ),
@@ -266,13 +264,15 @@ class SettingsScreen extends StatelessWidget {
                         icon: Icons.star_border_outlined,
                         title: context.tr('rate_us'),
                         subtitle: context.tr('rate_us_subtitle'),
-                        onTap: () => pushPremiumPage(context, const RateUsScreen()),
+                        onTap: () =>
+                            pushPremiumPage(context, const RateUsScreen()),
                       ),
                       _divider(),
                       _navigableRow(
                         icon: Icons.support_agent_outlined,
                         title: context.tr('help_support'),
-                        onTap: () => pushPremiumPage(context, const HelpSupportScreen()),
+                        onTap: () =>
+                            pushPremiumPage(context, const HelpSupportScreen()),
                       ),
                     ],
                   ),
@@ -444,7 +444,11 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded, size: 22.sp, color: Colors.white.withOpacity(0.65)),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 22.sp,
+              color: Colors.white.withOpacity(0.65),
+            ),
           ],
         ),
       ),
@@ -607,7 +611,8 @@ class SettingsScreen extends StatelessWidget {
       onTap: () => pushPremiumPage(context, const AboutScreen()),
     );
   }
-Future<void> _showDeleteAccountDialog(BuildContext context) async {
+
+  Future<void> _showDeleteAccountDialog(BuildContext context) async {
     final shouldDelete = await showPremiumDeleteAccountDialog(context);
 
     if (!shouldDelete || !context.mounted) return;
@@ -633,10 +638,9 @@ Future<void> _showDeleteAccountDialog(BuildContext context) async {
       Navigator.of(context).pop();
 
       //  بنروح لصفحة اللوجين ونمسح كل الـ routes
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        Routes.LoginView,
-        (route) => false,
-      );
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(Routes.LoginView, (route) => false);
     } catch (e) {
       if (!context.mounted) return;
 
@@ -676,7 +680,7 @@ Future<void> _showDeleteAccountDialog(BuildContext context) async {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(context.tr('cancel')),
+              child: Text(context.tr('cancel')),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -702,4 +706,3 @@ Future<void> _showDeleteAccountDialog(BuildContext context) async {
     }
   }
 }
-

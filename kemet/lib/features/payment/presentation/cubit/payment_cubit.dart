@@ -1,8 +1,3 @@
-// features/payment/presentation/cubit/payment_cubit.dart
-//
-// Calls the 5 use cases in sequence and maps Failure → message
-// using YOUR strings/failures.dart constants.
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/core/utils/order_id_generator.dart';
 
@@ -33,9 +28,7 @@ class PaymentCubit extends Cubit<PaymentState> {
         _verifyTransaction = verifyTransaction,
         super(const PaymentInitial());
 
-  // ─────────────────────────────────────────────────────────────────────────
   // Card payment: authenticate → registerOrder → getPaymentKey → CardReady
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> initiateCardPayment({
     required double amount,
@@ -44,7 +37,7 @@ class PaymentCubit extends Cubit<PaymentState> {
     final amountCents      = _toCents(amount);
     final merchantOrderId  = generateMerchantOrderId();
 
-    // Step 1 — Auth
+    //  Auth
     emit(const PaymentAuthenticating());
     final authResult = await _authenticate();
     final authToken = authResult.fold(
@@ -53,7 +46,7 @@ class PaymentCubit extends Cubit<PaymentState> {
     );
     if (authToken == null || isClosed) return;
 
-    // Step 2 — Register order
+    //  Register order
     emit(const PaymentRegisteringOrder());
     final orderResult = await _registerOrder(RegisterOrderParams(
       authToken: authToken,
@@ -67,7 +60,7 @@ class PaymentCubit extends Cubit<PaymentState> {
     );
     if (orderId == null || isClosed) return;
 
-    // Step 3 — Payment key (card integration)
+    //  Payment key (card integration)
     emit(const PaymentGettingKey());
     final keyResult = await _getPaymentKey(GetPaymentKeyParams(
       authToken: authToken,
@@ -86,9 +79,7 @@ class PaymentCubit extends Cubit<PaymentState> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   // Wallet payment: auth → registerOrder → getPaymentKey → payWithWallet → WalletReady
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> initiateWalletPayment({
     required double amount,
@@ -98,7 +89,7 @@ class PaymentCubit extends Cubit<PaymentState> {
     final amountCents     = _toCents(amount);
     final merchantOrderId = generateMerchantOrderId();
 
-    // Step 1 — Auth
+    //  Auth
     emit(const PaymentAuthenticating());
     final authResult = await _authenticate();
     final authToken = authResult.fold(
@@ -107,7 +98,7 @@ class PaymentCubit extends Cubit<PaymentState> {
     );
     if (authToken == null || isClosed) return;
 
-    // Step 2 — Register order
+    //  Register order
     emit(const PaymentRegisteringOrder());
     final orderResult = await _registerOrder(RegisterOrderParams(
       authToken: authToken,
@@ -121,7 +112,7 @@ class PaymentCubit extends Cubit<PaymentState> {
     );
     if (orderId == null || isClosed) return;
 
-    // Step 3 — Payment key (wallet integration id)
+    //  Payment key (wallet integration id)
     emit(const PaymentGettingKey());
     final keyResult = await _getPaymentKey(GetPaymentKeyParams(
       authToken: authToken,
@@ -137,7 +128,7 @@ class PaymentCubit extends Cubit<PaymentState> {
     );
     if (paymentKey == null || isClosed) return;
 
-    // Step 4 — Wallet pay
+    //  Wallet pay
     emit(const PaymentWalletLoading());
     final walletResult = await _payWithWallet(WalletPayParams(
       paymentKey: paymentKey,
@@ -150,9 +141,7 @@ class PaymentCubit extends Cubit<PaymentState> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   // Verify — called by WebView after it intercepts the Paymob callback URL
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> verifyPayment(String transactionId) async {
     emit(const PaymentVerifying());
@@ -175,14 +164,12 @@ class PaymentCubit extends Cubit<PaymentState> {
     );
   }
 
-  // ─── User closed the WebView ──────────────────────────────────────────────
+  //  User closed the WebView 
   void cancelPayment() => emit(const PaymentCancelled());
 
-  /// Reset between payment sessions.
+  // Reset between payment sessions.
   void reset() => emit(const PaymentInitial());
 
-  // ─── Failure → user-readable string ──────────────────────────────────────
-  // Maps YOUR failures to YOUR string constants from strings/failures.dart
 
   String _mapFailure(Failure f) {
     if (f is OfflineFailure)          return offlineFailureMessage;
@@ -195,8 +182,6 @@ class PaymentCubit extends Cubit<PaymentState> {
     return unknownFailureMessage;
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  /// EGP → piasters (Paymob always expects cents/piasters, not decimals)
   int _toCents(double amount) => (amount * 100).round();
 }

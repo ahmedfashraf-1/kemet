@@ -1,24 +1,23 @@
 import 'package:get_it/get_it.dart';
+import 'package:http/http.dart' as http;
 import '../../data/datasources/order_remote_datasource.dart';
 import '../../data/datasources/order_remote_datasource_impl.dart';
 import '../../data/repositories/order_repository_impl.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../../domain/usecases/order_usecases.dart';
-import 'package:kemet/core/network/network_info.dart';
 import '../../presentation/cubit/checkout_cubit.dart';
 
 final getIt = GetIt.instance;
 
 void setupOrderDi() {
-  // Datasources
-  getIt.registerSingleton<OrderRemoteDataSource>(OrderRemoteDataSourceImpl());
+  // Datasources — provide http.Client for OrderRemoteDataSourceImpl
+  getIt.registerSingleton<OrderRemoteDataSource>(
+    OrderRemoteDataSourceImpl(client: http.Client()),
+  );
 
   // Repository
   getIt.registerSingleton<OrderRepository>(
-    OrderRepositoryImpl(
-      remoteDataSource: getIt<OrderRemoteDataSource>(),
-      networkInfo: getIt<NetworkInfo>(),
-    ),
+    OrderRepositoryImpl(remoteDataSource: getIt<OrderRemoteDataSource>()),
   );
 
   // Use Cases

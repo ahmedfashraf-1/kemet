@@ -6,7 +6,7 @@ import '../../../../core/errors/failures.dart';
 import '../entities/payment_entities.dart';
 import '../repositories/payment_repository.dart';
 
-// ─── 1. Authenticate ──────────────────────────────────────────────────────────
+// Authenticate 
 
 class AuthenticateUseCase {
   final PaymentRepository repository;
@@ -16,7 +16,7 @@ class AuthenticateUseCase {
       repository.authenticate();
 }
 
-// ─── 2. Register Order ────────────────────────────────────────────────────────
+// Register Order
 
 class RegisterOrderParams {
   final String authToken;
@@ -45,7 +45,7 @@ class RegisterOrderUseCase {
       );
 }
 
-// ─── 3. Get Payment Key ───────────────────────────────────────────────────────
+// Get Payment Key
 
 class GetPaymentKeyParams {
   final String authToken;
@@ -80,7 +80,7 @@ class GetPaymentKeyUseCase {
       );
 }
 
-// ─── 4. Pay with Wallet ───────────────────────────────────────────────────────
+// Pay with Wallet
 
 class WalletPayParams {
   final String paymentKey;
@@ -99,7 +99,7 @@ class PayWithWalletUseCase {
       );
 }
 
-// ─── 5. Verify Transaction ────────────────────────────────────────────────────
+// Verify Transaction
 
 class VerifyTransactionUseCase {
   final PaymentRepository repository;

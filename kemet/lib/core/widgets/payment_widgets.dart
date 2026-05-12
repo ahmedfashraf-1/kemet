@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 
-// ─── Summary card ─────────────────────────────────────────────────────────────
 
 class PaymentSummaryCard extends StatelessWidget {
   final double amount;
@@ -68,7 +67,6 @@ class PaymentSummaryCard extends StatelessWidget {
   }
 }
 
-// ─── Error banner ─────────────────────────────────────────────────────────────
 
 class PaymentErrorBanner extends StatelessWidget {
   final String message;
@@ -115,7 +113,6 @@ class PaymentErrorBanner extends StatelessWidget {
   }
 }
 
-// ─── Pay Now button ───────────────────────────────────────────────────────────
 
 class PayNowButton extends StatelessWidget {
   final String label;
@@ -165,8 +162,6 @@ class PayNowButton extends StatelessWidget {
     );
   }
 }
-
-// ─── Transaction detail row ───────────────────────────────────────────────────
 
 class TransactionDetailRow extends StatelessWidget {
   final String label;

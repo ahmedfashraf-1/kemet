@@ -3,7 +3,7 @@ import '../../../../core/errors/failures.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/repositories/order_repository.dart';
 
-/// Create an order from checkout
+// Create an order from checkout
 class CreateOrderUseCase {
   final OrderRepository repository;
 
@@ -22,7 +22,7 @@ class CreateOrderUseCase {
   );
 }
 
-/// Retrieve order by ID
+// Retrieve order by ID
 class GetOrderUseCase {
   final OrderRepository repository;
 
@@ -32,7 +32,7 @@ class GetOrderUseCase {
       repository.getOrderById(orderId);
 }
 
-/// Update order payment status after Paymob verification
+// Update order payment status after Paymob verification
 class UpdateOrderPaymentStatusUseCase {
   final OrderRepository repository;
 
@@ -49,7 +49,7 @@ class UpdateOrderPaymentStatusUseCase {
   );
 }
 
-/// Get user's order history
+// Get user's order history
 class GetUserOrdersUseCase {
   final OrderRepository repository;
 

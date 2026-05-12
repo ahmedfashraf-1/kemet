@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/features/payment/presentation/cubit/payment_cubit.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kemet/features/auth/domain/usecases/check_email_verified_use_case.dart';
 import 'package:kemet/features/auth/domain/usecases/delete_account_use_case.dart';
@@ -66,6 +67,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kemet/features/order/presentation/screens/checkout_screen.dart';
 import 'package:kemet/features/order/presentation/screens/order_confirmation_screen.dart';
 import 'package:kemet/features/order/presentation/cubit/checkout_cubit.dart';
+import 'package:kemet/features/payment/domain/usecases/payment_usecases.dart';
+import 'package:kemet/features/payment/presentation/cubit/payment_cubit.dart';
 import 'package:kemet/features/order/domain/entities/order.dart'
     as order_entity;
 import 'package:kemet/features/store/domain/entities/cart.dart';
@@ -303,15 +306,30 @@ class AppRouter {
 
       case Routes.checkoutScreen:
         final cartArg = setting.arguments as Cart?;
+
         if (cartArg == null) {
           return MaterialPageRoute(
             builder: (_) =>
                 const Scaffold(body: Center(child: Text('Invalid cart data'))),
           );
         }
+
         return _fadeDominantFromRight(
-          BlocProvider<CheckoutCubit>.value(
-            value: GetIt.instance<CheckoutCubit>(),
+          MultiBlocProvider(
+            providers: [
+              BlocProvider<CheckoutCubit>.value(
+                value: GetIt.instance<CheckoutCubit>(),
+              ),
+              BlocProvider<PaymentCubit>(
+                create: (_) => PaymentCubit(
+                  authenticate: GetIt.instance<AuthenticateUseCase>(),
+                  registerOrder: GetIt.instance<RegisterOrderUseCase>(),
+                  getPaymentKey: GetIt.instance<GetPaymentKeyUseCase>(),
+                  payWithWallet: GetIt.instance<PayWithWalletUseCase>(),
+                  verifyTransaction: GetIt.instance<VerifyTransactionUseCase>(),
+                ),
+              ),
+            ],
             child: CheckoutScreen(cart: cartArg),
           ),
           setting,

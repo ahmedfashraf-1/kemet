@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/strings/failures.dart';
 import '../../domain/entities/payment_entities.dart';
-import '../widgets/payment_widgets.dart';
+import '../../../../core/widgets/payment_widgets.dart';
 
 class PaymentSuccessScreen extends StatefulWidget {
   final TransactionEntity transaction;

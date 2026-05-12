@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/strings/failures.dart';
-import '../widgets/payment_widgets.dart';
+import '../../../../core/widgets/payment_widgets.dart';
 
 class PaymentFailedScreen extends StatefulWidget {
   final String message;

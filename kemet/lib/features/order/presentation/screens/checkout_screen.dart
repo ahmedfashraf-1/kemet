@@ -3,10 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/core/utils/services/validation_service.dart';
 import 'package:kemet/features/payment/domain/entities/payment_entities.dart';
 import 'package:kemet/features/store/domain/entities/cart.dart';
 import 'package:kemet/features/store/presentation/cubit/cart_cubit.dart';
 import 'package:kemet/features/payment/presentation/screens/payment_methods_screen.dart';
+import 'package:kemet/features/payment/presentation/cubit/payment_cubit.dart';
 import 'package:kemet/features/order/domain/entities/order.dart'
     as order_entity;
 import '../cubit/checkout_cubit.dart';
@@ -115,25 +117,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return BlocListener<CheckoutCubit, CheckoutState>(
       listener: (ctx, state) {
         if (state is OrderCreated) {
-          // Order created, navigate to payment methods
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => PaymentMethodsScreen(
-                amount: state.order.totalPrice,
-                billingData: BillingDataEntity(
-                  firstName: _firstNameCtrl.text.trim(),
-                  lastName: _lastNameCtrl.text.trim(),
-                  email: _emailCtrl.text.trim(),
-                  phone: _phoneCtrl.text.trim(),
-                  street: _streetCtrl.text.trim(),
-                  city: _cityCtrl.text.trim(),
-                  postalCode: _postalCtrl.text.trim(),
+              builder: (_) => BlocProvider.value(
+                value: context.read<PaymentCubit>(),
+                child: PaymentMethodsScreen(
+                  amount: state.order.totalPrice,
+                  billingData: BillingDataEntity(
+                    firstName: _firstNameCtrl.text.trim(),
+                    lastName: _lastNameCtrl.text.trim(),
+                    email: _emailCtrl.text.trim(),
+                    phone: _phoneCtrl.text.trim(),
+                    street: _streetCtrl.text.trim(),
+                    city: _cityCtrl.text.trim(),
+                    postalCode: _postalCtrl.text.trim(),
+                  ),
+                  orderDescription: 'Order #${state.order.orderId}',
+                  onSuccess: (transaction) =>
+                      _handlePaymentSuccess(transaction, state.order),
+                  onFailed: _handlePaymentFailed,
+                  onCancelled: _handlePaymentCancelled,
                 ),
-                orderDescription: 'Order #${state.order.orderId}',
-                onSuccess: (transaction) =>
-                    _handlePaymentSuccess(transaction, state.order),
-                onFailed: _handlePaymentFailed,
-                onCancelled: _handlePaymentCancelled,
               ),
             ),
           );
@@ -189,50 +193,46 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         _buildTextField(
                           controller: _firstNameCtrl,
                           label: 'First Name',
-                          validator: (v) =>
-                              v?.isEmpty ?? true ? 'Required' : null,
+                          validator: ValidationService.validateName,
                         ),
                         const SizedBox(height: 12),
                         _buildTextField(
                           controller: _lastNameCtrl,
                           label: 'Last Name',
-                          validator: (v) =>
-                              v?.isEmpty ?? true ? 'Required' : null,
+                          validator: ValidationService.validateName,
                         ),
                         const SizedBox(height: 12),
                         _buildTextField(
                           controller: _emailCtrl,
                           label: 'Email',
-                          validator: (v) =>
-                              v?.isEmpty ?? true ? 'Required' : null,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: ValidationService.validateEmail,
                         ),
                         const SizedBox(height: 12),
                         _buildTextField(
                           controller: _phoneCtrl,
                           label: 'Phone',
-                          validator: (v) =>
-                              v?.isEmpty ?? true ? 'Required' : null,
+                          keyboardType: TextInputType.phone,
+                          validator: ValidationService.validatePhone,
                         ),
                         const SizedBox(height: 12),
                         _buildTextField(
                           controller: _streetCtrl,
                           label: 'Street Address',
-                          validator: (v) =>
-                              v?.isEmpty ?? true ? 'Required' : null,
+                          validator: ValidationService.validateAddress,
                         ),
                         const SizedBox(height: 12),
                         _buildTextField(
                           controller: _cityCtrl,
                           label: 'City',
-                          validator: (v) =>
-                              v?.isEmpty ?? true ? 'Required' : null,
+                          validator: ValidationService.validateCity,
                         ),
                         const SizedBox(height: 12),
                         _buildTextField(
                           controller: _postalCtrl,
                           label: 'Postal Code',
-                          validator: (v) =>
-                              v?.isEmpty ?? true ? 'Required' : null,
+                          keyboardType: TextInputType.number,
+                          validator: ValidationService.validatePostalCode,
                         ),
                       ],
                     ),
@@ -345,9 +345,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     required TextEditingController controller,
     required String label,
     String? Function(String?)? validator,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return TextFormField(
       controller: controller,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: GoogleFonts.inter(

@@ -16,7 +16,7 @@ class CheckoutLoading extends CheckoutState {
   const CheckoutLoading();
 }
 
-/// Order created successfully, ready for payment
+// Order created successfully, ready for payment
 class OrderCreated extends CheckoutState {
   final Order order;
 
@@ -26,7 +26,7 @@ class OrderCreated extends CheckoutState {
   List<Object?> get props => [order];
 }
 
-/// Payment confirmed and order status updated
+// Payment confirmed and order status updated
 class PaymentConfirmed extends CheckoutState {
   final Order order;
 
@@ -36,6 +36,7 @@ class PaymentConfirmed extends CheckoutState {
   List<Object?> get props => [order];
 }
 
+// Error occurred during checkout
 class CheckoutError extends CheckoutState {
   final String message;
 

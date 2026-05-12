@@ -1,14 +1,8 @@
-// features/payment/data/datasources/payment_remote_datasource.dart
-//
-// Makes the 5 HTTP calls to Paymob.
-// Throws YOUR existing exceptions — the repository maps them to Failures.
-
 import '../../../../core/constants/paymob_constants.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/paymob_dio_client.dart';
 import '../../domain/entities/payment_entities.dart';
 import '../models/payment_models.dart';
-import 'dart:math';
 
 abstract class PaymentRemoteDataSource {
   Future<AuthTokenModel> authenticate();
@@ -44,7 +38,7 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
   final PaymobDioClient client;
   const PaymentRemoteDataSourceImpl({required this.client});
 
-  // ── Step 1 — Authenticate ────────────────────────────────────────────────
+  // Authenticate
 
   @override
   Future<AuthTokenModel> authenticate() async {
@@ -56,7 +50,7 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
     return AuthTokenModel.fromJson(res.data as Map<String, dynamic>);
   }
 
-  // ── Step 2 — Register Order ──────────────────────────────────────────────
+  //  Register Order
 
   @override
   Future<OrderModel> registerOrder({
@@ -80,7 +74,7 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
     return OrderModel.fromJson(res.data as Map<String, dynamic>);
   }
 
-  // ── Step 3 — Get Payment Key ─────────────────────────────────────────────
+  // Get Payment Key 
 
   @override
   Future<PaymentKeyModel> getPaymentKey({
@@ -108,7 +102,7 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
     return PaymentKeyModel.fromJson(res.data as Map<String, dynamic>);
   }
 
-  // ── Step 4b — Wallet Payment ─────────────────────────────────────────────
+  //  Wallet Payment
 
   @override
   Future<WalletPayModel> payWithWallet({
@@ -129,7 +123,7 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
     return WalletPayModel.fromJson(res.data as Map<String, dynamic>);
   }
 
-  // ── Step 5 — Verify Transaction ──────────────────────────────────────────
+  // Verify Transaction
 
   @override
   Future<TransactionModel> verifyTransaction({
@@ -142,7 +136,7 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
     return TransactionModel.fromJson(res.data as Map<String, dynamic>);
   }
 
-  // ─── Guard ────────────────────────────────────────────────────────────────
+  //Guard 
 
   void _assertOk(int? statusCode, dynamic body) {
     if (statusCode == null) {

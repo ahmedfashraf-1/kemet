@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kemet/features/store/domain/entities/cart.dart';
 import 'package:kemet/features/payment/domain/entities/payment_entities.dart';
 import '../../domain/usecases/order_usecases.dart';
-import '../../domain/utilities/cart_to_order_converter.dart';
+import '../../../../core/utils/cart_to_order_converter.dart';
 import 'checkout_state.dart';
 
 class CheckoutCubit extends Cubit<CheckoutState> {
@@ -76,7 +76,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     }
   }
 
-  /// Reset checkout state
+  // Reset checkout state
   void reset() => emit(const CheckoutInitial());
 
  

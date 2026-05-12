@@ -23,27 +23,28 @@ class PaymentRepositoryImpl implements PaymentRepository {
     required this.networkInfo,
   });
 
-  // ── 1. Authenticate ───────────────────────────────────────────────────────
+  // Authenticate
   @override
   Future<Either<Failure, AuthTokenEntity>> authenticate() =>
       _run(() => remoteDataSource.authenticate());
 
-  // ── 2. Register Order ─────────────────────────────────────────────────────
+  // Register Order
   @override
   Future<Either<Failure, OrderEntity>> registerOrder({
     required String authToken,
     required int amountCents,
     required String currency,
     required String merchantOrderId,
-  }) =>
-      _run(() => remoteDataSource.registerOrder(
-            authToken: authToken,
-            amountCents: amountCents,
-            currency: currency,
-            merchantOrderId: merchantOrderId,
-          ));
+  }) => _run(
+    () => remoteDataSource.registerOrder(
+      authToken: authToken,
+      amountCents: amountCents,
+      currency: currency,
+      merchantOrderId: merchantOrderId,
+    ),
+  );
 
-  // ── 3. Get Payment Key ────────────────────────────────────────────────────
+  // Get Payment Key
   @override
   Future<Either<Failure, PaymentKeyEntity>> getPaymentKey({
     required String authToken,
@@ -52,85 +53,74 @@ class PaymentRepositoryImpl implements PaymentRepository {
     required String currency,
     required int integrationId,
     required BillingDataEntity billingData,
-  }) =>
-      _run(() => remoteDataSource.getPaymentKey(
-            authToken: authToken,
-            orderId: orderId,
-            amountCents: amountCents,
-            currency: currency,
-            integrationId: integrationId,
-            billingData: billingData,
-          ));
+  }) => _run(
+    () => remoteDataSource.getPaymentKey(
+      authToken: authToken,
+      orderId: orderId,
+      amountCents: amountCents,
+      currency: currency,
+      integrationId: integrationId,
+      billingData: billingData,
+    ),
+  );
 
-  // ── 4. Wallet Payment ─────────────────────────────────────────────────────
+  //  Wallet Payment 
   @override
   Future<Either<Failure, WalletPayEntity>> payWithWallet({
     required String paymentKey,
     required String walletPhone,
-  }) =>
-      _run(() => remoteDataSource.payWithWallet(
-            paymentKey: paymentKey,
-            walletPhone: walletPhone,
-          ));
+  }) => _run(
+    () => remoteDataSource.payWithWallet(
+      paymentKey: paymentKey,
+      walletPhone: walletPhone,
+    ),
+  );
 
-  // ── 5. Verify Transaction ─────────────────────────────────────────────────
+  //  Verify Transaction 
   @override
   Future<Either<Failure, TransactionEntity>> verifyTransaction({
     required String transactionId,
-  }) =>
-      _run(() => remoteDataSource.verifyTransaction(
-            transactionId: transactionId,
-          ));
+  }) => _run(
+    () => remoteDataSource.verifyTransaction(transactionId: transactionId),
+  );
 
-  // ─── Generic runner ───────────────────────────────────────────────────────
+  //  Generic runner 
   //
   // Pattern:
-  //   1. Check connectivity using YOUR NetworkInfo
-  //   2. Run the datasource call
-  //   3. Catch each exception type → map to the correct Failure
+  //   1. Run the datasource call directly
+  //   2. Catch each exception type → map to the correct Failure
+  //
+  // We intentionally avoid a pre-flight connectivity check here because
+  // InternetConnectionChecker can report false negatives on some devices,
+  // which would incorrectly show the offline banner even when the backend
+  // request would otherwise succeed
 
-  Future<Either<Failure, T>> _run<T>(
-    Future<T> Function() call,
-  ) async {
-    // ① Use YOUR existing NetworkInfo (InternetConnectionChecker)
-    final connected = await networkInfo.isConnected;
-    if (!connected) {
-      return const Left(OfflineFailure()); // YOUR existing OfflineFailure
-    }
-
+  Future<Either<Failure, T>> _run<T>(Future<T> Function() call) async {
     try {
       final result = await call();
       return Right(result);
     }
-
-    // ② Map Paymob-specific exceptions → new Paymob failures
+    //  Map Paymob-specific exceptions → new Paymob failures
     on PaymobAuthException catch (e) {
       return Left(PaymobAuthFailure(e.message));
-    }
-    on PaymobTimeoutException {
+    } on PaymobTimeoutException {
       return const Left(PaymobTimeoutFailure());
-    }
-    on PaymobServerException catch (e) {
+    } on PaymobServerException catch (e) {
       return Left(PaymobServerFailure(e.message));
-    }
-    on PaymobParseException catch (e) {
+    } on PaymobParseException catch (e) {
       return Left(PaymobParseFailure(e.message));
     }
-
-    // ③ Map your existing exceptions → your existing failures
+    //  Map your existing exceptions → your existing failures
     on OfflineException {
       return const Left(OfflineFailure());
-    }
-    on ServerException {
+    } on ServerException {
       return const Left(ServerFailure());
     }
-
-    // ④ JSON parse errors from fromJson()
+    //  JSON parse errors from fromJson()
     on FormatException catch (e) {
       return Left(PaymobParseFailure(e.message));
     }
-
-    // ⑤ Catch-all
+    //  Catch-all
     catch (e) {
       return const Left(ServerFailure());
     }

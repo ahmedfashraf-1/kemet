@@ -32,26 +32,26 @@ Future<void> main() async {
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Register NetworkInfo globally
- final getIt = GetIt.instance;
+  final getIt = GetIt.instance;
 
-getIt.registerSingleton<NetworkInfo>(
-  NetworkInfoImpl(
-    InternetConnectionChecker.instance,
-  ),
-);
+  getIt.registerSingleton<NetworkInfo>(
+    NetworkInfoImpl(InternetConnectionChecker.instance),
+  );
 
   setupProfileDi();
   // Payment DI: register Paymob client, repository, usecases and cubit
   try {
     setupPaymentDi();
-  } catch (_) {
-    // Ignore DI errors at startup — they will be surfaced when opening payment UI
+    debugPrint('✅ Payment DI setup successful');
+  } catch (e) {
+    debugPrint('❌ Payment DI setup failed: $e');
   }
   // Order DI: register order datasource, repository, usecases and cubit
   try {
     setupOrderDi();
-  } catch (_) {
-    // Ignore DI errors at startup — they will be surfaced when opening checkout
+    debugPrint('✅ Order DI setup successful');
+  } catch (e) {
+    debugPrint('❌ Order DI setup failed: $e');
   }
   // initialize  FCM
   await NotificationService.instance.initialize(navigatorKey: navigatorKey);

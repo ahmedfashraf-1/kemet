@@ -11,13 +11,11 @@ abstract class PaymentState extends Equatable {
   List<Object?> get props => [];
 }
 
-// ─── Idle ─────────────────────────────────────────────────────────────────────
 
 class PaymentInitial extends PaymentState {
   const PaymentInitial();
 }
 
-// ─── Loading steps — one per API call so the UI shows the right message ───────
 
 class PaymentAuthenticating extends PaymentState {
   const PaymentAuthenticating();
@@ -39,7 +37,6 @@ class PaymentVerifying extends PaymentState {
   const PaymentVerifying();
 }
 
-// ─── Ready — WebView can launch ───────────────────────────────────────────────
 
 class PaymentCardReady extends PaymentState {
   final String iframeUrl;
@@ -57,7 +54,6 @@ class PaymentWalletReady extends PaymentState {
   List<Object?> get props => [redirectUrl];
 }
 
-// ─── Terminal ─────────────────────────────────────────────────────────────────
 
 class PaymentSuccess extends PaymentState {
   final TransactionEntity transaction;

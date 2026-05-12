@@ -1,10 +1,10 @@
 import 'package:get_it/get_it.dart';
-import 'package:internet_connection_checker/internet_connection_checker.dart';
 
 import '../../../../core/network/paymob_dio_client.dart';
 import '../../../../core/network/network_info.dart';
 import '../../data/datasources/payment_remote_datasource.dart';
 import '../../data/repositories/payment_repository_impl.dart';
+import '../../domain/repositories/payment_repository.dart';
 import '../../domain/usecases/payment_usecases.dart';
 import '../cubit/payment_cubit.dart';
 
@@ -18,18 +18,13 @@ void setupPaymentDi() {
     return client;
   });
 
-  // Network info
-  getIt.registerLazySingleton<NetworkInfo>(
-    () => NetworkInfoImpl(InternetConnectionChecker.instance),
-  );
-
   // Data source
   getIt.registerLazySingleton<PaymentRemoteDataSource>(
     () => PaymentRemoteDataSourceImpl(client: getIt()),
   );
 
-  // Repository
-  getIt.registerLazySingleton(
+  // Repository — NetworkInfo is already registered in main.dart
+  getIt.registerLazySingleton<PaymentRepository>(
     () => PaymentRepositoryImpl(
       remoteDataSource: getIt<PaymentRemoteDataSource>(),
       networkInfo: getIt<NetworkInfo>(),
@@ -37,20 +32,30 @@ void setupPaymentDi() {
   );
 
   // Use cases
-  getIt.registerLazySingleton(() => AuthenticateUseCase(getIt()));
-  getIt.registerLazySingleton(() => RegisterOrderUseCase(getIt()));
-  getIt.registerLazySingleton(() => GetPaymentKeyUseCase(getIt()));
-  getIt.registerLazySingleton(() => PayWithWalletUseCase(getIt()));
-  getIt.registerLazySingleton(() => VerifyTransactionUseCase(getIt()));
+  getIt.registerLazySingleton<AuthenticateUseCase>(
+    () => AuthenticateUseCase(getIt<PaymentRepository>()),
+  );
+  getIt.registerLazySingleton<RegisterOrderUseCase>(
+    () => RegisterOrderUseCase(getIt<PaymentRepository>()),
+  );
+  getIt.registerLazySingleton<GetPaymentKeyUseCase>(
+    () => GetPaymentKeyUseCase(getIt<PaymentRepository>()),
+  );
+  getIt.registerLazySingleton<PayWithWalletUseCase>(
+    () => PayWithWalletUseCase(getIt<PaymentRepository>()),
+  );
+  getIt.registerLazySingleton<VerifyTransactionUseCase>(
+    () => VerifyTransactionUseCase(getIt<PaymentRepository>()),
+  );
 
   // Cubit
-  getIt.registerFactory(
-    () => PaymentCubit(
-      authenticate: getIt(),
-      registerOrder: getIt(),
-      getPaymentKey: getIt(),
-      payWithWallet: getIt(),
-      verifyTransaction: getIt(),
+  getIt.registerSingleton<PaymentCubit>(
+    PaymentCubit(
+      authenticate: getIt<AuthenticateUseCase>(),
+      registerOrder: getIt<RegisterOrderUseCase>(),
+      getPaymentKey: getIt<GetPaymentKeyUseCase>(),
+      payWithWallet: getIt<PayWithWalletUseCase>(),
+      verifyTransaction: getIt<VerifyTransactionUseCase>(),
     ),
   );
 }
