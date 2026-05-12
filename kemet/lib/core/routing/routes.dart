@@ -18,6 +18,7 @@ class Routes {
   static const String notificationsScreen = '/notifications';
   static const String listenDemoScreen = '/listen-demo';
   static const String favoritesScreen = '/favorites';
+  static const String map = '/map';
   static const String storeHome = '/store_home';
   static const String cartScreen = '/cart';
   static const String productDetail = '/product-detail';
