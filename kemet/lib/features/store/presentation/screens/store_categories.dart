@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 
 // ─── Icon mapping لكل category محتملة ───────────────────────────────────────
 IconData _iconForCategory(String category) {
@@ -14,10 +15,14 @@ IconData _iconForCategory(String category) {
       return Icons.diamond_outlined;
     case 'home decor':
     case 'decor':
+    case 'decoration':
       return Icons.home_outlined;
     case 'accessories':
       return Icons.watch_outlined;
     case 'bags':
+    case 'handbag':
+    case 'handbags':
+    case 'purse':
       return Icons.shopping_bag_outlined;
     case 'pottery':
       return Icons.local_florist_outlined;
@@ -51,7 +56,7 @@ class StoreCategoriesBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'CATEGORIES',
+                context.tr('categories'),
                 style: GoogleFonts.cinzel(
                   fontSize: 11.sp,
                   fontWeight: FontWeight.w700,
@@ -62,7 +67,7 @@ class StoreCategoriesBar extends StatelessWidget {
               GestureDetector(
                 onTap: () => onCategorySelected('All'),
                 child: Text(
-                  'View All',
+                  context.tr('view_all'),
                   style: GoogleFonts.inter(
                     fontSize: 11.sp,
                     color: AppColors.mainGold,
@@ -139,7 +144,7 @@ class _CategoryChip extends StatelessWidget {
             ),
             SizedBox(height: 6.h),
             Text(
-              label,
+              _localizedLabel(context, label),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -159,3 +164,38 @@ class _CategoryChip extends StatelessWidget {
     );
   }
 }
+
+String _localizedLabel(BuildContext context, String label) {
+  final code = Localizations.localeOf(context).languageCode;
+  final key = label.trim().toLowerCase();
+
+  // Map some known category names to localization keys
+  switch (key) {
+    case 'all':
+      return context.tr('all');
+    case 'figurines':
+      return code == 'ar' ? 'تماثيل' : 'Figurines';
+    case 'jewelry':
+      return code == 'ar' ? 'مجوهرات' : 'Jewelry';
+    case 'home decor':
+    case 'decor':
+    case 'decoration':
+      return code == 'ar' ? 'ديكورات' : 'Home Decor';
+    case 'accessories':
+      return code == 'ar' ? 'إكسسوارات' : 'Accessories';
+    case 'handbag':
+    case 'handbags':
+    case 'purse':
+      return code == 'ar' ? 'حقائب' : 'Bags';
+    case 'bags':
+      return code == 'ar' ? 'حقائب' : 'Bags';
+    case 'pottery':
+      return code == 'ar' ? 'فخار' : 'Pottery';
+    case 'general':
+      return context.tr('all_products');
+    default:
+      // If the category string contains an Arabic-looking character, prefer it
+      return label;
+  }
+}
+

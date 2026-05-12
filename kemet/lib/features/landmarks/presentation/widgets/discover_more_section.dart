@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/features/landmarks/data/models/landmarks_model.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 
@@ -20,6 +21,7 @@ class DiscoverMoreSection extends StatefulWidget {
 class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
   late Future<List<Landmark>> _suggestionsFuture;
   bool _didLoad = false;
+  final Set<String> _failedSuggestionIds = {};
 
   @override
   void didChangeDependencies() {
@@ -34,56 +36,60 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
   Widget build(BuildContext context) {
     final cityLabel = _resolvedCityLabel(widget.landmark.city);
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section title.
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Text(
-                  cityLabel == null
-                      ? context.tr('discover_more_nearby')
-                      : context.tr(
-                          'discover_more_in',
-                          args: {'city': cityLabel},
-                        ),
-                  style: GoogleFonts.notoSerif(
-                    fontSize: 22,
-                    fontStyle: FontStyle.italic,
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    height: 1,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.mainGold.withOpacity(0.5),
-                          Colors.transparent,
-                        ],
+    return FutureBuilder<List<Landmark>>(
+      future: _suggestionsFuture,
+      builder: (context, snapshot) {
+        final suggestions = snapshot.data ?? <Landmark>[];
+        final displayItems = _buildDisplayItems(suggestions);
+        if (displayItems.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Section title.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Text(
+                      cityLabel == null
+                          ? context.tr('discover_more_nearby')
+                          : context.tr(
+                              'discover_more_in',
+                              args: {'city': cityLabel},
+                            ),
+                      style: GoogleFonts.notoSerif(
+                        fontSize: 22,
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.mainGold.withOpacity(0.5),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 16),
 
-          // Horizontal cards.
-          FutureBuilder<List<Landmark>>(
-            future: _suggestionsFuture,
-            builder: (context, snapshot) {
-              final suggestions = snapshot.data ?? <Landmark>[];
-              final displayItems = _buildDisplayItems(suggestions);
-              return SizedBox(
+              // Horizontal cards.
+              SizedBox(
                 height: 230,
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -103,11 +109,11 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
                     );
                   },
                 ),
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -160,9 +166,15 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
     }).toList();
   }
 
-  List<Landmark?> _buildDisplayItems(List<Landmark> suggestions) {
-    final items = suggestions.take(4).toList();
-    return items;
+  List<Landmark> _buildDisplayItems(List<Landmark> suggestions) {
+    return suggestions
+        .where(
+          (landmark) =>
+              _firstValidPhotoUrl(landmark) != null &&
+              !_failedSuggestionIds.contains(landmark.id),
+        )
+        .take(4)
+        .toList();
   }
 
   String? _resolvedCityLabel(String rawCity) {
@@ -174,11 +186,13 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
   }
 
   Widget _discoverCard(Landmark? suggestion, {required bool isLoading}) {
-    final url = suggestion?.photos.isNotEmpty == true
-        ? suggestion!.photos.first.url
-        : null;
-    final hasValidUrl = url != null && _isValidNetworkUrl(url);
+    final url = suggestion == null ? null : _firstValidPhotoUrl(suggestion);
     final isPlaceholder = suggestion == null;
+
+    if (suggestion != null && url == null) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       width: 200,
       decoration: BoxDecoration(
@@ -193,14 +207,34 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
           SizedBox(
             height: 120,
             width: double.infinity,
-            child: hasValidUrl
-                ? CachedNetworkImage(
-                    imageUrl: url,
+            child: suggestion == null
+                ? const SizedBox.shrink()
+                    : CachedNetworkImage(
+                            imageUrl: url!,
+                                httpHeaders: const {
+                                  'User-Agent': 'KEMET/1.0 (+https://kemet.app)',
+                                  'Referer': 'https://commons.wikimedia.org/',
+                                  'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
+                                },
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => _photoPlaceholder(),
-                    errorWidget: (context, url, error) => _photoPlaceholder(),
-                  )
-                : _photoPlaceholder(),
+                    memCacheWidth: 400,
+                    memCacheHeight: 240,
+                    maxWidthDiskCache: 400,
+                    maxHeightDiskCache: 240,
+                    fadeInDuration: Duration.zero,
+                    fadeOutDuration: Duration.zero,
+                    useOldImageOnUrlChange: false,
+                    errorWidget: (context, url, error) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted && suggestion != null) {
+                          setState(() {
+                            _failedSuggestionIds.add(suggestion.id);
+                          });
+                        }
+                      });
+                      return const SizedBox.shrink();
+                    },
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.all(12),
@@ -261,16 +295,7 @@ class _DiscoverMoreSectionState extends State<DiscoverMoreSection> {
     );
   }
 
-  Widget _photoPlaceholder() {
-    return Container(
-      color: const Color(0xFF1A1A1A),
-      child: Icon(Icons.photo, color: AppColors.mainGold, size: 40),
-    );
-  }
-
-  bool _isValidNetworkUrl(String url) {
-    final parsed = Uri.tryParse(url);
-    return parsed != null &&
-        (parsed.scheme == 'http' || parsed.scheme == 'https');
+  String? _firstValidPhotoUrl(Landmark landmark) {
+    return LandmarkModel.firstValidPhotoUrl(landmark);
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
 import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
+import 'package:kemet/features/landmarks/data/models/landmarks_model.dart';
+import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_card.dart';
 
 
@@ -61,12 +63,20 @@ class FavoritesPage extends StatelessWidget {
             }
 
             if (state is FavoritesLoaded) {
+              final visibleFavorites = state.favorites
+                  .where(_hasValidPhotoUrl)
+                  .toList(growable: false);
+
+              if (visibleFavorites.isEmpty) {
+                return const _EmptyState();
+              }
+
               return ListView.separated(
                 padding: const EdgeInsets.fromLTRB(24, 120, 24, 32),
-                itemCount: state.favorites.length,
+                itemCount: visibleFavorites.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
-                  final landmark = state.favorites[index];
+                  final landmark = visibleFavorites[index];
                   return LandmarkCard(
                     landmark: landmark,
                     onTap: () => Navigator.pushNamed(
@@ -133,6 +143,10 @@ class FavoritesPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  bool _hasValidPhotoUrl(Landmark landmark) {
+    return LandmarkModel.hasValidImageUrl(landmark);
   }
 }
 

@@ -36,6 +36,7 @@ class CartRepositoryImpl implements CartRepository {
     final category = ProductCategory(
       categoryId: catData['category_id'] ?? '',
       categoryName: catData['category_name'] ?? '',
+      categoryNameAr: catData['category_name_ar'] ?? null,
     );
 
     final photosList = data['photos'] as List<dynamic>? ?? [];
@@ -47,7 +48,9 @@ class CartRepositoryImpl implements CartRepository {
     final product = Product(
       productId: doc.id,
       name: data['name'] ?? '',
+      nameAr: data['name_ar'] ?? null,
       description: data['description'] ?? '',
+      descriptionAr: data['description_ar'] ?? null,
       price: (data['price'] ?? 0).toDouble(),
       category: category,
       photos: photos,
@@ -61,13 +64,16 @@ class CartRepositoryImpl implements CartRepository {
   Map<String, dynamic> _cartItemToDoc(Product product, int quantity) {
     return {
       'name': product.name,
+      'name_ar': product.nameAr,
       'description': product.description,
+      'description_ar': product.descriptionAr,
       'price': product.price,
       'is_available': product.isAvailable,
       'stock': product.stock,
       'category': {
         'category_id': product.category.categoryId,
         'category_name': product.category.categoryName,
+        'category_name_ar': product.category.categoryNameAr,
       },
       'photos': product.photos
           .map((p) => {'photo_id': p.photoId, 'photo_url': p.photoUrl})

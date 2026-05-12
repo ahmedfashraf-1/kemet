@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import '../../domain/entities/cart.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
@@ -54,9 +55,9 @@ class CartScreen extends StatelessWidget {
       ),
       title: Column(
         children: [
-          const Text(
-            'My Cart',
-            style: TextStyle(
+          Text(
+            context.tr('my_cart'),
+            style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 18,
               color: AppColors.textPrimary,
@@ -64,7 +65,7 @@ class CartScreen extends StatelessWidget {
           ),
           if (cart.itemCount > 0)
             Text(
-              '${cart.itemCount} Items',
+              '${cart.itemCount} ${cart.itemCount > 1 ? context.tr('items') : context.tr('item')}',
               style: const TextStyle(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -78,9 +79,9 @@ class CartScreen extends StatelessWidget {
         if (cart.items.isNotEmpty)
           TextButton(
             onPressed: () => _confirmClear(context),
-            child: const Text(
-              'Clear',
-              style: TextStyle(
+            child: Text(
+              context.tr('clear_all'),
+              style: const TextStyle(
                 color: Colors.redAccent,
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
@@ -105,11 +106,10 @@ class CartScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Clear Cart',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+              Text(context.tr('clear_cart'),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
               const SizedBox(height: 8),
-              const Text('Are you sure you want to remove all items?',
-                  style: TextStyle(color: AppColors.textSecondary)),
+              Text(context.tr('are_you_sure_remove_all'), style: const TextStyle(color: AppColors.textSecondary)),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -121,7 +121,7 @@ class CartScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('Cancel', style: TextStyle(color: AppColors.textPrimary)),
+                        child: Text(context.tr('cancel'), style: const TextStyle(color: AppColors.textPrimary)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -137,7 +137,7 @@ class CartScreen extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('Clear All', style: TextStyle(color: Colors.white)),
+                            child: Text(context.tr('delete'), style: const TextStyle(color: Colors.white)),
                       );
                     }),
                   ),
@@ -168,21 +168,21 @@ class CartScreen extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _SummaryRow('Subtotal', '${cart.subtotal.toStringAsFixed(2)} EGP'),
+          _SummaryRow(context.tr('subtotal_price'), '${cart.subtotal.toStringAsFixed(2)} ${context.tr('currency')}'),
           const SizedBox(height: 8),
           _SummaryRow(
-            'Shipping',
-            cart.hasFreeShipping ? 'Free 🎉' : '${cart.shippingFee.toStringAsFixed(2)} EGP',
+            context.tr('shipping_cost'),
+            cart.hasFreeShipping ? context.tr('free_shipping') : '${cart.shippingFee.toStringAsFixed(2)} ${context.tr('currency')}',
             valueColor: cart.hasFreeShipping ? Colors.greenAccent : null,
           ),
           const SizedBox(height: 8),
-          _SummaryRow('Tax (14%)', '${cart.tax.toStringAsFixed(2)} EGP'),
+          _SummaryRow(context.tr('tax_amount'), '${cart.tax.toStringAsFixed(2)} ${context.tr('currency')}'),
           const SizedBox(height: 12),
           const Divider(color: AppColors.subtleGoldBorder),
           const SizedBox(height: 12),
           _SummaryRow(
-            'Total',
-            '${cart.total.toStringAsFixed(2)} EGP',
+            context.tr('total_price'),
+            '${cart.total.toStringAsFixed(2)} ${context.tr('currency')}',
             isBold: true,
           ),
           const SizedBox(height: 16),
@@ -201,14 +201,14 @@ class CartScreen extends StatelessWidget {
                 children: [
                   const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.textDarkOnGold),
                   const SizedBox(width: 8),
-                  Text(
-                    'Checkout  •  ${cart.total.toStringAsFixed(2)} EGP',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textDarkOnGold,
-                    ),
-                  ),
+                   Text(
+                     '${context.tr('checkout')}  •  ${cart.total.toStringAsFixed(2)} ${context.tr('currency')}',
+                     style: const TextStyle(
+                       fontSize: 15,
+                       fontWeight: FontWeight.w700,
+                       color: AppColors.textDarkOnGold,
+                     ),
+                   ),
                 ],
               ),
             ),
@@ -246,8 +246,8 @@ class _CartItemCard extends StatelessWidget {
       key: Key(item.product.productId),
       direction: DismissDirection.endToStart,
       background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        alignment: AlignmentDirectional.centerEnd,
+        padding: const EdgeInsetsDirectional.only(end: 20),
         decoration: BoxDecoration(
           color: Colors.redAccent.withOpacity(0.1),
           borderRadius: BorderRadius.circular(16),
@@ -282,26 +282,31 @@ class _CartItemCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.product.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    item.product.category.categoryName,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                  ),
+                  Builder(builder: (ctx) {
+                    final isAr = Localizations.localeOf(ctx).languageCode == 'ar';
+                    final title = item.product.localizedName(isAr ? 'ar' : 'en');
+                    return Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    );
+                  }),
+                    Builder(builder: (ctx) {
+                      final isAr = Localizations.localeOf(ctx).languageCode == 'ar';
+                      final cat = item.product.category.localizedName(isAr ? 'ar' : 'en');
+                      return Text(cat, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary));
+                    }),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '${item.totalPrice.toStringAsFixed(2)} EGP',
+                       Text(
+                         '${item.totalPrice.toStringAsFixed(2)} ${context.tr('currency')}',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -423,9 +428,9 @@ class _EmptyCartView extends StatelessWidget {
         children: [
           const Icon(Icons.shopping_bag_outlined, size: 80, color: AppColors.subtleGoldBorder),
           const SizedBox(height: 24),
-          const Text('Your cart is empty', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          Text(context.tr('empty_cart_message'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
           const SizedBox(height: 8),
-          const Text('Looks like you haven\'t added anything yet.', style: TextStyle(color: AppColors.textSecondary)),
+          Text(context.tr('continue_shopping'), style: const TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 32),
           ElevatedButton(
             onPressed: onShop,
@@ -434,7 +439,7 @@ class _EmptyCartView extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Shop Now', style: TextStyle(color: AppColors.textDarkOnGold, fontWeight: FontWeight.bold)),
+            child: Text(context.tr('continue_shopping'), style: const TextStyle(color: AppColors.textDarkOnGold, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
