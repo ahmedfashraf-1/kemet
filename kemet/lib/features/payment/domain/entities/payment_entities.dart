@@ -1,8 +1,5 @@
-// features/payment/domain/entities/payment_entities.dart
-
 import 'package:equatable/equatable.dart';
 
-// ─── Auth Token ───────────────────────────────────────────────────────────────
 
 class AuthTokenEntity extends Equatable {
   final String token;
@@ -12,7 +9,6 @@ class AuthTokenEntity extends Equatable {
   List<Object?> get props => [token];
 }
 
-// ─── Order ────────────────────────────────────────────────────────────────────
 
 class OrderEntity extends Equatable {
   final int orderId;
@@ -31,7 +27,6 @@ class OrderEntity extends Equatable {
   List<Object?> get props => [orderId, amountCents, currency, merchantOrderId];
 }
 
-// ─── Payment Key ──────────────────────────────────────────────────────────────
 
 class PaymentKeyEntity extends Equatable {
   final String paymentKey;
@@ -41,7 +36,6 @@ class PaymentKeyEntity extends Equatable {
   List<Object?> get props => [paymentKey];
 }
 
-// ─── Wallet Pay Result ────────────────────────────────────────────────────────
 
 class WalletPayEntity extends Equatable {
   final String redirectUrl;
@@ -51,7 +45,6 @@ class WalletPayEntity extends Equatable {
   List<Object?> get props => [redirectUrl];
 }
 
-// ─── Transaction ──────────────────────────────────────────────────────────────
 
 class TransactionEntity extends Equatable {
   final String transactionId;
@@ -79,7 +72,6 @@ class TransactionEntity extends Equatable {
       ];
 }
 
-// ─── Billing Data ─────────────────────────────────────────────────────────────
 
 class BillingDataEntity extends Equatable {
   final String firstName;

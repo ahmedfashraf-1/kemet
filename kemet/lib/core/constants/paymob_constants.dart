@@ -3,9 +3,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class PaymobConstants {
   PaymobConstants._();
 
-  // Loaded from .env via flutter_dotenv — never hardcoded.
+  // Loaded from .env via flutter_dotenv 
 
-  // Credentials (from .env)
   static String get apiKey => (dotenv.env['PAYMOB_API_KEY'] ?? '').trim();
 
   static int get cardIntegrationId =>
@@ -40,7 +39,7 @@ class PaymobConstants {
   static String transactionEndpoint(String id) =>
       '/acceptance/transactions/$id';
 
-  /// The full iFrame URL for card payment — inject the payment_token here.
+  // The full iFrame URL for card payment inject the payment_token here
   static String iframeUrl(String paymentToken) =>
       '$baseUrl/acceptance/iframes/$iframeId?payment_token=$paymentToken';
 

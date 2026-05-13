@@ -1,5 +1,3 @@
-// features/payment/presentation/cubit/payment_state.dart
-
 import 'package:equatable/equatable.dart';
 
 import '../../domain/entities/payment_entities.dart';

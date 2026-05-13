@@ -1,5 +1,3 @@
-// features/payment/domain/usecases/payment_usecases.dart
-
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/errors/failures.dart';
