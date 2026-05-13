@@ -23,7 +23,6 @@ class Routes {
   static const String cartScreen = '/cart';
   static const String productDetail = '/product-detail';
   static const String checkoutScreen = '/checkout';
-  static const String paymentMethods = '/payment-methods';
   static const String orderConfirmation = '/order-confirmation';
 
   static const String verifyEmailOtp = '/verify-email-otp';

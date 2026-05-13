@@ -9,12 +9,10 @@ import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:kemet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kemet/features/home/presentation/screens/home_screen.dart';
-import 'package:kemet/features/settings/presentation/cubit/payment_methods_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:kemet/features/settings/presentation/cubit/security_cubit.dart';
 import 'package:kemet/features/settings/presentation/screens/about_screen.dart';
 import 'package:kemet/features/settings/presentation/screens/help_support_screen.dart';
-import 'package:kemet/features/settings/presentation/screens/payment_methods_screen.dart';
 import 'package:kemet/features/settings/presentation/screens/rate_us_screen.dart';
 import 'package:kemet/features/settings/presentation/screens/security_screen.dart';
 import 'package:kemet/features/settings/presentation/screens/settings_document_screen.dart';
@@ -71,23 +69,6 @@ class SettingsScreen extends StatelessWidget {
                             context,
                           ).pushNamed(Routes.profileScreen, arguments: userId);
                         },
-                      ),
-                      _divider(),
-                      _navigableRow(
-                        icon: Icons.credit_card_outlined,
-                        title: context.tr('payment_methods'),
-                        subtitle: context.tr('payment_methods_subtitle'),
-                        onTap: () => pushPremiumPage(
-                          context,
-                          BlocProvider(
-                            create: (_) => PaymentMethodsCubit(
-                              sharedPreferences: context
-                                  .read<SettingsCubit>()
-                                  .sharedPreferences,
-                            ),
-                            child: const PaymentMethodsScreen(),
-                          ),
-                        ),
                       ),
                       _divider(),
                       _navigableRow(
