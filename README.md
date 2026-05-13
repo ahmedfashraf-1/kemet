@@ -1,7 +1,4 @@
-# Kemet - Production-Grade Egyptian Tourism, Culture & Commerce Platform
-
-Kemet is a portfolio-ready, graduation-level Flutter project built with a production mindset. The platform blends tourism discovery, cultural storytelling, AI assistance, map interaction, and a premium store experience into one cohesive mobile product.
-
+# Kemet 
 ---
 
 ## 1) Project Overview

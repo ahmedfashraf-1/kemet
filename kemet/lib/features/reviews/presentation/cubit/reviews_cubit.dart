@@ -8,6 +8,8 @@ import 'package:kemet/features/reviews/domain/usecases/delete_review.dart';
 import 'package:kemet/features/reviews/domain/usecases/get_reviews_for_landmark.dart';
 import 'package:kemet/features/reviews/domain/usecases/watch_reviews_for_landmark.dart';
 
+import '../../../notifications/data/datasources/Local_notification.dart';
+
 part 'reviews_state.dart';
 
 class ReviewsCubit extends Cubit<ReviewsState> {
@@ -53,11 +55,14 @@ class ReviewsCubit extends Cubit<ReviewsState> {
       final failureOrReview = await addReviewUseCase(review);
       failureOrReview.fold(
         (failure) => emit(ReviewsError(message: _mapFailureToMessage(failure))),
-        (savedReview) => emit(
+        (savedReview) {
+        emit(
           ReviewsLoaded(
             reviews: _replaceUserReview(currentReviews, savedReview),
           ),
-        ),
+        );
+        LocalNotificationService.instance.showReviewNotification(added: true);
+      },
       );
     } catch (_) {
       emit(ReviewsError(message: unknownFailureMessage));
@@ -78,11 +83,15 @@ class ReviewsCubit extends Cubit<ReviewsState> {
         userId: userId,
       );
       failureOrDelete.fold(
-        (failure) => emit(ReviewsError(message: _mapFailureToMessage(failure))),
-        (_) => emit(
-          ReviewsLoaded(reviews: _removeReview(currentReviews, reviewId)),
-        ),
-      );
+  (failure) => emit(ReviewsError(message: _mapFailureToMessage(failure))),
+  (_) {
+    emit(
+      ReviewsLoaded(reviews: _removeReview(currentReviews, reviewId)),
+    );
+  
+    LocalNotificationService.instance.showReviewNotification(added: false);
+  },
+);
     } catch (_) {
       emit(ReviewsError(message: unknownFailureMessage));
     }
