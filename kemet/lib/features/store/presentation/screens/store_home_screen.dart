@@ -17,6 +17,7 @@ import 'package:kemet/features/store/presentation/screens/product_detail_screen.
 import 'package:kemet/features/store/presentation/screens/store_hero_slider.dart';
 import 'package:kemet/features/store/presentation/screens/store_categories.dart';
 import 'package:kemet/features/notifications/presentation/widgets/notification_bell_button.dart';
+import 'package:kemet/features/notifications/data/datasources/Local_notification.dart';
 import 'package:kemet/features/profile/presentation/widgets/profile_avatar_button.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 
@@ -36,6 +37,7 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
   void initState() {
     super.initState();
     context.read<ProductsCubit>().getProducts();
+    LocalNotificationService.instance.showStoreEntryNotification();
   }
 
   String? _readPhotoUrl(Map<String, dynamic>? data) {

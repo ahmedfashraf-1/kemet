@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kemet/features/notifications/data/datasources/Local_notification.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/usecases/add_to_cart_usecase.dart';
 import '../../domain/usecases/cart_usecases.dart';
@@ -33,6 +34,7 @@ class CartCubit extends Cubit<CartState> {
     try {
       final cart = await addToCart(product, quantity);
       emit(CartLoaded(cart));
+      await LocalNotificationService.instance.showAddToCartNotification(product.name);
     } catch (e) {
       emit(CartError(e.toString()));
     }
