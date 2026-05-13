@@ -10,11 +10,7 @@ class LandmarkCard extends StatefulWidget {
   final Landmark landmark;
   final VoidCallback onTap;
 
-  const LandmarkCard({
-    super.key,
-    required this.landmark,
-    required this.onTap,
-  });
+  const LandmarkCard({super.key, required this.landmark, required this.onTap});
 
   @override
   State<LandmarkCard> createState() => _LandmarkCardState();
@@ -32,17 +28,27 @@ class _LandmarkCardState extends State<LandmarkCard> {
           'LandmarkCard raw photo[0]: ${widget.landmark.photos.first.url} for id=${widget.landmark.id}',
         );
       }
-      debugPrint('LandmarkCard resolved imageUrl: $imageUrl for id=${widget.landmark.id}');
+      debugPrint(
+        'LandmarkCard resolved imageUrl: $imageUrl for id=${widget.landmark.id}',
+      );
       return true;
     }());
-    if (imageUrl == null) {
-      return const SizedBox.shrink();
-    }
-
     if (_imageFailed) {
-      return const SizedBox.shrink();
+      return _buildCard(context, showPlaceholder: true);
     }
 
+    if (imageUrl == null) {
+      return _buildCard(context, showPlaceholder: true);
+    }
+
+    return _buildCard(context, imageUrl: imageUrl);
+  }
+
+  Widget _buildCard(
+    BuildContext context, {
+    String? imageUrl,
+    bool showPlaceholder = false,
+  }) {
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
@@ -62,38 +68,57 @@ class _LandmarkCardState extends State<LandmarkCard> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // ── Thumbnail ─────────────────────────────────────────────
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: SizedBox(
                   width: 112,
                   height: 112,
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    httpHeaders: const {
-                      'User-Agent': 'KEMET/1.0 (+https://kemet.app)',
-                      'Referer': 'https://commons.wikimedia.org/',
-                      'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
-                    },
-                    fit: BoxFit.cover,
-                    memCacheWidth: 224,
-                    memCacheHeight: 224,
-                    maxWidthDiskCache: 224,
-                    maxHeightDiskCache: 224,
-                    fadeInDuration: Duration.zero,
-                    fadeOutDuration: Duration.zero,
-                    useOldImageOnUrlChange: false,
-                    errorWidget: (_, __, ___) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          setState(() {
-                            _imageFailed = true;
-                          });
-                        }
-                      });
-                      return const SizedBox.shrink();
-                    },
-                  ),
+                  child: showPlaceholder
+                      ? Container(
+                          color: const Color(0xFF24201A),
+                          child: const Center(
+                            child: Icon(
+                              Icons.image_not_supported_outlined,
+                              color: Color(0xFFD4AF37),
+                              size: 28,
+                            ),
+                          ),
+                        )
+                      : CachedNetworkImage(
+                          imageUrl: imageUrl!,
+                          httpHeaders: const {
+                            'User-Agent': 'KEMET/1.0 (+https://kemet.app)',
+                            'Referer': 'https://commons.wikimedia.org/',
+                            'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
+                          },
+                          fit: BoxFit.cover,
+                          memCacheWidth: 224,
+                          memCacheHeight: 224,
+                          maxWidthDiskCache: 224,
+                          maxHeightDiskCache: 224,
+                          fadeInDuration: Duration.zero,
+                          fadeOutDuration: Duration.zero,
+                          useOldImageOnUrlChange: false,
+                          errorWidget: (_, __, ___) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                setState(() {
+                                  _imageFailed = true;
+                                });
+                              }
+                            });
+                            return Container(
+                              color: const Color(0xFF24201A),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.image_not_supported_outlined,
+                                  color: Color(0xFFD4AF37),
+                                  size: 28,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                 ),
               ),
 
@@ -101,8 +126,8 @@ class _LandmarkCardState extends State<LandmarkCard> {
 
               // ── Content ───────────────────────────────────────────────
               Expanded(
-                child: ConstrainedBox (
-                constraints: const BoxConstraints(minHeight: 112),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 112),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -134,11 +159,12 @@ class _LandmarkCardState extends State<LandmarkCard> {
                                     .read<FavoritesCubit>()
                                     .toggle(widget.landmark.id),
                                 child: AnimatedSwitcher(
-                                  duration:
-                                      const Duration(milliseconds: 250),
+                                  duration: const Duration(milliseconds: 250),
                                   transitionBuilder: (child, anim) =>
                                       ScaleTransition(
-                                          scale: anim, child: child),
+                                        scale: anim,
+                                        child: child,
+                                      ),
                                   child: Icon(
                                     isFav
                                         ? Icons.favorite
@@ -168,8 +194,11 @@ class _LandmarkCardState extends State<LandmarkCard> {
 
                       Row(
                         children: [
-                          const Icon(Icons.location_on,
-                              size: 12, color: Color(0xFFF2CA50)),
+                          const Icon(
+                            Icons.location_on,
+                            size: 12,
+                            color: Color(0xFFF2CA50),
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             '${widget.landmark.city}, Egypt',
