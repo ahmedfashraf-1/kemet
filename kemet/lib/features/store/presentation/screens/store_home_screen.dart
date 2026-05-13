@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/features/store/domain/entities/product.dart';
 import 'package:kemet/features/store/presentation/cubit/products_cubit.dart';
 import 'package:kemet/features/store/presentation/cubit/products_state.dart';
@@ -88,6 +89,19 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
                 state is ProductsSuccess ? state.products : <Product>[];
             final filtered = _filterProducts(products);
             final categories = _getCategories(products);
+            final isAr = Localizations.localeOf(context).languageCode == 'ar';
+            String displayedSelectedCategory;
+            if (_selectedCategory == 'All') {
+              displayedSelectedCategory = context.tr('all_products_title');
+            } else {
+              final matches = products.where((p) => p.category.categoryName == _selectedCategory).toList();
+              if (matches.isNotEmpty) {
+                displayedSelectedCategory = matches.first.category.localizedName(isAr ? 'ar' : 'en');
+              } else {
+                // fallback to the raw selected value
+                displayedSelectedCategory = _selectedCategory;
+              }
+            }
 
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
@@ -112,15 +126,13 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
                   ),
                 ),
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(24.w, 16.h, 24.w, 12.h),
+                    child: Padding(
+                        padding: EdgeInsetsDirectional.fromSTEB(24.w, 16.h, 24.w, 12.h),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _selectedCategory == 'All'
-                              ? 'All Products'
-                              : _selectedCategory,
+                         Text(
+                           displayedSelectedCategory,
                           style: GoogleFonts.cinzel(
                             fontSize: 16.sp,
                             fontWeight: FontWeight.w700,
@@ -128,8 +140,8 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
                             letterSpacing: 1,
                           ),
                         ),
-                        Text(
-                          '${filtered.length} item${filtered.length != 1 ? 's' : ''}',
+                         Text(
+                           '${filtered.length} ${filtered.length != 1 ? context.tr('items') : context.tr('item')}',
                           style: GoogleFonts.inter(
                             fontSize: 12.sp,
                             color: AppColors.textSecondary,
@@ -182,10 +194,10 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
   Widget _buildHeader() {
     return Container(
       color: _bgColor,
-      padding: EdgeInsets.only(
+      padding: EdgeInsetsDirectional.only(
         top: 8.h,
-        left: 24.w,
-        right: 24.w,
+        start: 24.w,
+        end: 24.w,
         bottom: 12.h,
       ),
       child: Row(
@@ -196,9 +208,9 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
             builder: (context, snapshot) {
               final user = snapshot.data ?? FirebaseAuth.instance.currentUser;
               final isGuest = user == null || user.isAnonymous;
-              if (isGuest) {
+                if (isGuest) {
                 return ProfileAvatarButton(
-                  name: 'Guest',
+                  name: context.tr('guest'),
                   email: '',
                   isGuest: true,
                   onViewProfile: _openProfile,
@@ -216,7 +228,7 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
                   return ProfileAvatarButton(
                     name: user.displayName?.trim().isNotEmpty == true
                         ? user.displayName!.trim()
-                        : 'User',
+                        : context.tr('user'),
                     email: user.email ?? '',
                     photoUrl: photoUrl,
                     isGuest: false,
@@ -228,7 +240,7 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
             },
           ),
           Text(
-            'KEMET',
+            context.tr('kemet_title'),
             style: GoogleFonts.cinzel(
               fontWeight: FontWeight.w700,
               fontSize: 22.sp,
@@ -250,7 +262,7 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
           Icon(Icons.search_off_rounded,
               size: 56.sp, color: AppColors.subtleGoldBorder),
           SizedBox(height: 16.h),
-          Text('No products found',
+          Text(context.tr('no_products_found'),
               style: GoogleFonts.cinzel(
                   fontSize: 16.sp, color: AppColors.textSecondary)),
         ],
@@ -266,7 +278,7 @@ class _StoreHomeScreenState extends State<StoreHomeScreen> {
           Icon(Icons.error_outline_rounded,
               size: 56.sp, color: AppColors.subtleGoldBorder),
           SizedBox(height: 16.h),
-          Text('Something went wrong',
+          Text(context.tr('something_went_wrong'),
               style: GoogleFonts.cinzel(
                   fontSize: 16.sp, color: AppColors.textSecondary)),
         ],
@@ -376,56 +388,60 @@ class _ProductCardState extends State<_ProductCard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                flex: 5,
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(16.r)),
-                      child: photoUrl != null && photoUrl.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: photoUrl,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => Container(
-                                color: AppColors.inputBackground,
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.mainGold.withOpacity(0.5),
-                                  ),
-                                ),
-                              ),
-                              errorWidget: (_, __, ___) => _buildPlaceholder(),
-                            )
-                          : _buildPlaceholder(),
-                    ),
-                    Positioned(
-                      top: 10.h,
-                      left: 10.w,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 8.w, vertical: 3.h),
-                        decoration: BoxDecoration(
-                          color: AppColors.screenBackground.withOpacity(0.85),
-                          borderRadius: BorderRadius.circular(6.r),
-                          border: Border.all(color: AppColors.subtleGoldBorder),
-                        ),
-                        child: Text(
-                          product.category.categoryName.toUpperCase(),
-                          style: GoogleFonts.cinzel(
-                            fontSize: 7.sp,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.mainGold,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+               Expanded(
+                 flex: 5,
+                 child: Stack(
+                   clipBehavior: Clip.none,
+                   children: [
+                     ClipRRect(
+                       borderRadius:
+                           BorderRadius.vertical(top: Radius.circular(16.r)),
+                       child: photoUrl != null && photoUrl.isNotEmpty
+                           ? CachedNetworkImage(
+                               imageUrl: photoUrl,
+                               width: double.infinity,
+                               fit: BoxFit.cover,
+                               placeholder: (_, __) => Container(
+                                 color: AppColors.inputBackground,
+                                 child: Center(
+                                   child: CircularProgressIndicator(
+                                     strokeWidth: 2,
+                                     color: AppColors.mainGold.withOpacity(0.5),
+                                   ),
+                                 ),
+                               ),
+                               errorWidget: (_, __, ___) => _buildPlaceholder(),
+                             )
+                           : _buildPlaceholder(),
+                     ),
+                     PositionedDirectional(
+                       top: 10.h,
+                       start: 10.w,
+                       child: Container(
+                         padding: EdgeInsets.symmetric(
+                             horizontal: 8.w, vertical: 3.h),
+                         decoration: BoxDecoration(
+                           color: AppColors.screenBackground.withOpacity(0.85),
+                           borderRadius: BorderRadius.circular(6.r),
+                           border: Border.all(color: AppColors.subtleGoldBorder),
+                         ),
+                         child: Builder(builder: (ctx) {
+                           final isArChip = Localizations.localeOf(ctx).languageCode == 'ar';
+                           final catLabel = product.category.localizedName(isArChip ? 'ar' : 'en');
+                           return Text(catLabel.toUpperCase(),
+                             style: GoogleFonts.cinzel(
+                               fontSize: 7.sp,
+                               fontWeight: FontWeight.w600,
+                               color: AppColors.mainGold,
+                               letterSpacing: 1,
+                             ),
+                           );
+                         }),
+                       ),
+                     ),
+                   ],
+                 ),
+               ),
               Expanded(
                 flex: 3,
                 child: Padding(
@@ -435,19 +451,23 @@ class _ProductCardState extends State<_ProductCard>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      Builder(builder: (ctx) {
+                        final isArName = Localizations.localeOf(ctx).languageCode == 'ar';
+                        final prodTitle = product.localizedName(isArName ? 'ar' : 'en');
+                        return Text(
+                          prodTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.cinzel(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                            height: 1.3,
+                          ),
+                        );
+                      }),
                       Text(
-                        product.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.cinzel(
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                          height: 1.3,
-                        ),
-                      ),
-                      Text(
-                        '${product.price.toStringAsFixed(2)} EGP',
+                        '${product.price.toStringAsFixed(2)} ${context.tr('currency')}',
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
                           fontSize: 12.sp,

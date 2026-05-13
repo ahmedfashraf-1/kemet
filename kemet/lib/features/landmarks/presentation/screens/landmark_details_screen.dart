@@ -218,7 +218,7 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
       }, SetOptions(merge: true));
       LocalNotificationService.instance.showLandmarkViewedNotification(
         landmarkName: widget.landmark.name,
-        city: widget.landmark.city,
+        city: widget.landmark.city
       );
     } catch (e) {
       debugPrint("Error: $e");
@@ -381,10 +381,9 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
                 right: 0,
                 bottom: 0,
                 child: LandmarkBottomNavBar(
-                  activeIndex: 1,
+                  activeIndex: 0,
                   bottomInset: bottomInset,
                   showReviews: true,
-                  onForumTap: openReviews,
                   onMapTap: openMap,
                   onAudioTap: () {
                     // The audio action is wired here so the bottom navigation icon can

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/core/localization/app_localizations.dart';
 
 import '../../domain/entities/cart.dart';
 import '../cubit/cart_cubit.dart';
@@ -60,10 +61,10 @@ class CartScreen extends StatelessWidget {
           ),
         ),
       ),
-      title: Column(
+       title: Column(
         children: [
           Text(
-            'My Cart',
+            context.tr('my_cart'),
             style: GoogleFonts.cinzel(
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -73,7 +74,7 @@ class CartScreen extends StatelessWidget {
           ),
           if (cart.itemCount > 0)
             Text(
-              '${cart.itemCount} Items',
+              '${cart.itemCount} ${context.tr(cart.itemCount > 1 ? 'items' : 'item')}',
               style: GoogleFonts.inter(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -88,7 +89,7 @@ class CartScreen extends StatelessWidget {
           TextButton(
             onPressed: () => _confirmClear(context),
             child: Text(
-              'Clear All',
+              context.tr('clear_all'),
               style: GoogleFonts.inter(
                 color: Colors.redAccent,
                 fontWeight: FontWeight.w600,
@@ -115,7 +116,7 @@ class CartScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Clear Cart',
+                context.tr('clear_cart'),
                 style: GoogleFonts.cinzel(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -124,7 +125,7 @@ class CartScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Are you sure you want to remove all items?',
+                context.tr('are_you_sure_remove_all'),
                 style: GoogleFonts.inter(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 24),
@@ -143,7 +144,7 @@ class CartScreen extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        'Cancel',
+                        context.tr('cancel'),
                         style: GoogleFonts.inter(color: AppColors.textPrimary),
                       ),
                     ),
@@ -165,7 +166,7 @@ class CartScreen extends StatelessWidget {
                             ),
                           ),
                           child: Text(
-                            'Clear',
+                            context.tr('delete'),
                             style: GoogleFonts.inter(color: Colors.white),
                           ),
                         );
@@ -202,17 +203,17 @@ class CartScreen extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _SummaryRow('Subtotal', '${cart.subtotal.toStringAsFixed(2)} EGP'),
+          _SummaryRow(context.tr('subtotal_price'), '${cart.subtotal.toStringAsFixed(2)} ${context.tr('currency')}'),
           const SizedBox(height: 8),
-          _SummaryRow('Shipping', '${cart.shippingFee.toStringAsFixed(2)} EGP'),
+          _SummaryRow(context.tr('shipping_cost'), '${cart.shippingFee.toStringAsFixed(2)} ${context.tr('currency')}'),
           const SizedBox(height: 8),
-          _SummaryRow('Tax (14%)', '${cart.tax.toStringAsFixed(2)} EGP'),
+          _SummaryRow(context.tr('tax_amount'), '${cart.tax.toStringAsFixed(2)} ${context.tr('currency')}'),
           const SizedBox(height: 12),
           const Divider(color: AppColors.subtleGoldBorder),
           const SizedBox(height: 12),
-          _SummaryRow(
-            'Total',
-            '${cart.total.toStringAsFixed(2)} EGP',
+            _SummaryRow(
+            context.tr('total_price'),
+            '${cart.total.toStringAsFixed(2)} ${context.tr('currency')}',
             isBold: true,
           ),
           const SizedBox(height: 16),
@@ -243,8 +244,8 @@ class CartScreen extends StatelessWidget {
                     color: AppColors.textDarkOnGold,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Checkout  •  ${cart.total.toStringAsFixed(2)} EGP',
+                    Text(
+                     '${context.tr('checkout')}  •  ${cart.total.toStringAsFixed(2)} ${context.tr('currency')}',
                     style: GoogleFonts.cinzel(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -294,8 +295,8 @@ class _CartItemCard extends StatelessWidget {
       key: Key(item.product.productId),
       direction: DismissDirection.endToStart,
       background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        alignment: AlignmentDirectional.centerEnd,
+        padding: const EdgeInsetsDirectional.only(end: 20),
         decoration: BoxDecoration(
           color: Colors.redAccent.withOpacity(0.15),
           borderRadius: BorderRadius.circular(16),
@@ -335,27 +336,35 @@ class _CartItemCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.cinzel(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                      height: 1.4,
-                    ),
-                  ),
+                  Builder(builder: (ctx) {
+                    final isAr = Localizations.localeOf(ctx).languageCode == 'ar';
+                    final title = item.product.localizedName(isAr ? 'ar' : 'en');
+                    return Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.cinzel(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                        height: 1.4,
+                      ),
+                    );
+                  }),
 
                   const SizedBox(height: 4),
 
-                  Text(
-                    item.product.category.categoryName,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                    Builder(builder: (ctx) {
+                      final isAr = Localizations.localeOf(ctx).languageCode == 'ar';
+                      final cat = item.product.category.localizedName(isAr ? 'ar' : 'en');
+                      return Text(
+                        cat,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      );
+                    }),
 
                   const SizedBox(height: 12),
 
@@ -593,7 +602,7 @@ class _EmptyCartView extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Text(
-            'Your cart is empty!',
+            context.tr('empty_cart_message'),
             style: GoogleFonts.cinzel(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -603,7 +612,7 @@ class _EmptyCartView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Start shopping and add some items.',
+            context.tr('continue_shopping'),
             style: GoogleFonts.inter(
               fontSize: 14,
               color: AppColors.textSecondary,
@@ -620,7 +629,7 @@ class _EmptyCartView extends StatelessWidget {
               ),
             ),
             child: Text(
-              'Shop Now',
+              context.tr('checkout'),
               style: GoogleFonts.cinzel(
                 color: AppColors.textDarkOnGold,
                 fontWeight: FontWeight.bold,

@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:kemet/core/routing/app_router.dart';
+import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/utils/services/alarm_callback.dart';
 import 'package:kemet/core/utils/services/notification_service.dart';
 import 'package:kemet/features/notifications/data/datasources/Local_notification.dart';
@@ -16,28 +17,30 @@ import 'package:kemet/core/network/network_info.dart';
 import 'package:kemet/kemet_app.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  print(' Handling a background message: ${message.messageId}');
-}
-
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  debugPrint('Background message: ${message.messageId}');
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+
+  await Firebase.initializeApp();
+  await dotenv.load(fileName: '.env');
   await AndroidAlarmManager.initialize();
 
-  await dotenv.load(fileName: '.env');
-  await Firebase.initializeApp();
+  // fcm
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  // Register NetworkInfo globally
-  final getIt = GetIt.instance;
 
+  // DI setup
+  final getIt = GetIt.instance;
   getIt.registerSingleton<NetworkInfo>(
     NetworkInfoImpl(InternetConnectionChecker.instance),
   );
-
   setupProfileDi();
 
   // Payment DI: register Paymob client, repository, usecases and cubit
@@ -54,19 +57,31 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('Order DI setup failed: $e');
   }
+
+
+  // Local notifications
+  await LocalNotificationService.instance.initialize(
+    onTap: (title, body) {
+      debugPrint('🔔 PUSHING ROUTE: ${Routes.notificationDetails}');
+      navigatorKey.currentState?.pushNamed(
+        Routes.notificationDetails,
+        arguments: {'title': title, 'body': body},
+      );
+    },
+  );
+
   // initialize  FCM
   await NotificationService.instance.initialize(navigatorKey: navigatorKey);
-  // Local notifications
-  await LocalNotificationService.instance.initialize(key: navigatorKey);
 
-  // Schedule re-engagement alarm every 1 minute for test validation.
+
+  
   await AndroidAlarmManager.cancel(0);
   final isAlarmScheduled = await AndroidAlarmManager.periodic(
-    const Duration(minutes: 1),
+    const Duration(hours: 24),
     0,
     fireReEngagementNotification,
-    wakeup: true,
-    exact: true,
+    wakeup: false,  
+    exact: false,    
     rescheduleOnReboot: true,
   );
   debugPrint('Re-engagement periodic alarm scheduled: $isAlarmScheduled');
@@ -77,7 +92,7 @@ Future<void> main() async {
     KemetApp(
       appRouter: AppRouter(),
       sharedPreferences: sharedPrefs,
-      navigatorKey: navigatorKey,
+      navigatorKey: navigatorKey, 
     ),
   );
 }

@@ -2,9 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
+import 'package:kemet/features/landmarks/data/models/landmarks_model.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 
-class LandmarkHeroSection extends StatelessWidget {
+class LandmarkHeroSection extends StatefulWidget {
   const LandmarkHeroSection({
     super.key,
     required this.landmark,
@@ -20,13 +21,30 @@ class LandmarkHeroSection extends StatelessWidget {
   final VoidCallback? onFavorite;  final Future<void> Function(BuildContext context)? onShare;
 
   @override
+  State<LandmarkHeroSection> createState() => _LandmarkHeroSectionState();
+}
+
+class _LandmarkHeroSectionState extends State<LandmarkHeroSection> {
+  bool _imageFailed = false;
+
+  @override
   Widget build(BuildContext context) {
     final heroHeight = MediaQuery.of(context).size.height * 0.68;
-    final imageUrl = landmark.photos.isNotEmpty
-        ? landmark.photos.first.url
-        : '';
-    final isAsset = _isAssetPath(imageUrl);
-    final isAppUrl = _isAppStorageUrl(imageUrl);
+    final imageUrl = _firstValidPhotoUrl(widget.landmark);
+
+    assert(() {
+      if (widget.landmark.photos.isNotEmpty) {
+        debugPrint(
+          'LandmarkHero raw photo[0]: ${widget.landmark.photos.first.url} for id=${widget.landmark.id}',
+        );
+      }
+      debugPrint('LandmarkHero resolved imageUrl: $imageUrl for id=${widget.landmark.id}');
+      return true;
+    }());
+
+    if (imageUrl == null || _imageFailed) {
+      return const SizedBox.shrink();
+    }
 
     return SizedBox(
       height: heroHeight,
@@ -35,22 +53,33 @@ class LandmarkHeroSection extends StatelessWidget {
           // Hero image with gradient overlay.
           Positioned.fill(
             child: Hero(
-              tag: _heroTag(landmark.id),
-              child: isAsset
-                  ? Image.asset(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, url, error) => _buildPlaceholder(),
-                    )
-                  : isAppUrl
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => _buildPlaceholder(),
-                          errorWidget: (context, url, error) =>
-                              _buildPlaceholder(),
-                        )
-                      : _buildPlaceholder(),
+              tag: _heroTag(widget.landmark.id),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                httpHeaders: const {
+                  'User-Agent': 'KEMET/1.0 (+https://kemet.app)',
+                  'Referer': 'https://commons.wikimedia.org/',
+                  'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
+                },
+                fit: BoxFit.cover,
+                memCacheWidth: _cacheWidth(context),
+                memCacheHeight: _cacheHeight(context),
+                maxWidthDiskCache: _cacheWidth(context),
+                maxHeightDiskCache: _cacheHeight(context),
+                fadeInDuration: Duration.zero,
+                fadeOutDuration: Duration.zero,
+                useOldImageOnUrlChange: false,
+                errorWidget: (context, url, error) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      setState(() {
+                        _imageFailed = true;
+                      });
+                    }
+                  });
+                  return const SizedBox.shrink();
+                },
+              ),
             ),
           ),
           Positioned.fill(
@@ -77,7 +106,7 @@ class LandmarkHeroSection extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _circleIcon(icon: Icons.arrow_back, onTap: onBack),
+                   _circleIcon(icon: Icons.arrow_back, onTap: widget.onBack),
                   Text(
                     'THE CURATOR',
                     style: GoogleFonts.notoSerif(
@@ -90,12 +119,12 @@ class LandmarkHeroSection extends StatelessWidget {
                   Row(
                     children: [
                       _circleIcon(
-                        icon: isFavorite ? Icons.favorite : Icons.favorite_border, 
-                        onTap: onFavorite,
-                        filled: isFavorite, 
+                        icon: widget.isFavorite ? Icons.favorite : Icons.favorite_border, 
+                        onTap: widget.onFavorite,
+                        filled: widget.isFavorite, 
                       ),
                       const SizedBox(width: 6),
-                      _circleIcon(icon: Icons.share, onTapWithContext: onShare),
+                      _circleIcon(icon: Icons.share, onTapWithContext: widget.onShare),
                     ],
                   ),
                 ],
@@ -124,7 +153,7 @@ class LandmarkHeroSection extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    landmark.category.name.toUpperCase(),
+                    widget.landmark.category.name.toUpperCase(),
                     style: GoogleFonts.notoSerif(
                       fontSize: 10,
                       letterSpacing: 2,
@@ -135,7 +164,7 @@ class LandmarkHeroSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  landmark.name,
+                  widget.landmark.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.notoSerif(
@@ -162,7 +191,7 @@ class LandmarkHeroSection extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      landmark.city.toUpperCase(),
+                      widget.landmark.city.toUpperCase(),
                       style: GoogleFonts.notoSerif(
                         fontSize: 12,
                         letterSpacing: 2,
@@ -206,32 +235,19 @@ class LandmarkHeroSection extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholder() {
-    return Image.asset(
-      'images/heroScreen.png',
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(
-        color: const Color(0xFF161616),
-        child: Icon(Icons.landscape, color: AppColors.mainGold, size: 64),
-      ),
-    );
+  int _cacheWidth(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    return (size.width * MediaQuery.of(context).devicePixelRatio).round();
   }
 
-  bool _isAssetPath(String url) {
-    return url.startsWith('images/') || url.startsWith('assets/');
+  int _cacheHeight(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final heroHeight = size.height * 0.68;
+    return (heroHeight * MediaQuery.of(context).devicePixelRatio).round();
   }
 
-  bool _isAppStorageUrl(String url) {
-    final parsed = Uri.tryParse(url);
-    if (parsed == null) {
-      return false;
-    }
-    if (parsed.scheme == 'gs') {
-      return true;
-    }
-    final host = parsed.host.toLowerCase();
-    return host.contains('firebasestorage.googleapis.com') ||
-        host.contains('storage.googleapis.com');
+  String? _firstValidPhotoUrl(Landmark landmark) {
+    return LandmarkModel.firstValidPhotoUrl(landmark);
   }
 
   String _heroTag(String id) => 'landmark-hero-$id';

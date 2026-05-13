@@ -3,15 +3,48 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kemet/core/constants/colors.dart';
 import 'package:kemet/core/localization/app_localizations.dart';
+import 'package:kemet/features/landmarks/data/models/landmarks_model.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarkphotos.dart';
 
-class LandmarkGallery extends StatelessWidget {
+class LandmarkGallery extends StatefulWidget {
   const LandmarkGallery({super.key, required this.photos});
 
   final List<LandmarkPhoto> photos;
 
   @override
+  State<LandmarkGallery> createState() => _LandmarkGalleryState();
+}
+
+class _LandmarkGalleryState extends State<LandmarkGallery> {
+  late final List<String> _validPhotos;
+  final Set<String> _failedPhotos = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _validPhotos = widget.photos
+        .map((photo) => LandmarkModel.normalizePhotoUrl(photo.url))
+        .whereType<String>()
+        .toList(growable: true);
+    assert(() {
+      if (widget.photos.isNotEmpty) {
+        debugPrint('LandmarkGallery raw photo[0]: ${widget.photos.first.url}');
+      }
+      debugPrint('LandmarkGallery normalized photos: $_validPhotos');
+      return true;
+    }());
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final displayPhotos = _validPhotos
+        .where((url) => !_failedPhotos.contains(url))
+        .toList(growable: false);
+
+    if (displayPhotos.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Padding(
       padding: const EdgeInsets.only(top: 28),
       child: Column(
@@ -55,13 +88,10 @@ class LandmarkGallery extends StatelessWidget {
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               scrollDirection: Axis.horizontal,
-              itemCount: photos.isEmpty ? 1 : photos.length,
+              itemCount: displayPhotos.length,
               separatorBuilder: (_, __) => const SizedBox(width: 16),
               itemBuilder: (context, index) {
-                if (photos.isEmpty) {
-                  return _placeholderCard();
-                }
-                return _galleryCard(photos[index].url);
+                return _galleryCard(context, displayPhotos[index]);
               },
             ),
           ),
@@ -70,60 +100,46 @@ class LandmarkGallery extends StatelessWidget {
     );
   }
 
-  Widget _galleryCard(String url) {
-    final isAsset = _isAssetPath(url);
-    final isAppUrl = _isAppStorageUrl(url);
+  Widget _galleryCard(BuildContext context, String url) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
       child: SizedBox(
         width: 220,
-        child: isAsset
-            ? Image.asset(
-                url,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _placeholderCard(),
-              )
-            : isAppUrl
-            ? CachedNetworkImage(
-                imageUrl: url,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => _placeholderCard(),
-                errorWidget: (context, url, error) => _placeholderCard(),
-              )
-            : _placeholderCard(),
-      ),
-    );
-  }
-
-  Widget _placeholderCard() {
-    return Image.asset(
-      'images/heroScreen.png',
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(
-        width: 220,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(18),
+        child: CachedNetworkImage(
+          imageUrl: url,
+          httpHeaders: const {
+            'User-Agent': 'KEMET/1.0 (+https://kemet.app)',
+            'Referer': 'https://commons.wikimedia.org/',
+            'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
+          },
+          fit: BoxFit.cover,
+          memCacheWidth: _cacheWidth(context),
+          memCacheHeight: _cacheHeight(context),
+          maxWidthDiskCache: _cacheWidth(context),
+          maxHeightDiskCache: _cacheHeight(context),
+          fadeInDuration: Duration.zero,
+          fadeOutDuration: Duration.zero,
+          useOldImageOnUrlChange: false,
+          errorWidget: (context, url, error) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  _failedPhotos.add(url);
+                });
+              }
+            });
+            return const SizedBox.shrink();
+          },
         ),
-        child: Icon(Icons.landscape, color: AppColors.mainGold, size: 48),
       ),
     );
   }
 
-  bool _isAssetPath(String url) {
-    return url.startsWith('images/') || url.startsWith('assets/');
+  int _cacheWidth(BuildContext context) {
+    return (220 * MediaQuery.of(context).devicePixelRatio).round();
   }
 
-  bool _isAppStorageUrl(String url) {
-    final parsed = Uri.tryParse(url);
-    if (parsed == null) {
-      return false;
-    }
-    if (parsed.scheme == 'gs') {
-      return true;
-    }
-    final host = parsed.host.toLowerCase();
-    return host.contains('firebasestorage.googleapis.com') ||
-        host.contains('storage.googleapis.com');
+  int _cacheHeight(BuildContext context) {
+    return (260 * MediaQuery.of(context).devicePixelRatio).round();
   }
 }

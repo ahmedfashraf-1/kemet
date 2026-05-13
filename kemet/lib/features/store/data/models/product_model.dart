@@ -7,7 +7,9 @@ class ProductModel extends Product {
   ProductModel({
     required super.productId,
     required super.name,
+    super.nameAr,
     required super.description,
+    super.descriptionAr,
     required super.price,
     required super.category,
     required super.photos,
@@ -20,6 +22,7 @@ class ProductModel extends Product {
     final category = ProductCategory(
       categoryId: (categoryData is Map) ? (categoryData['category_id'] ?? '') : '',
       categoryName: (categoryData is Map) ? (categoryData['category_name'] ?? 'General') : 'General',
+      categoryNameAr: (categoryData is Map) ? categoryData['category_name_ar']?.toString() : null,
     );
     final photosList = json['photos'] as List? ?? [];
     final photos = photosList.map((e) {
@@ -35,8 +38,10 @@ class ProductModel extends Product {
     return ProductModel(
       productId: id,
       name: json['name']?.toString() ?? 'No Name',
+      nameAr: json['name_ar']?.toString(),
       description: json['description']?.toString() ?? '',
- 
+      descriptionAr: json['description_ar']?.toString(),
+
       price: json['price'] is String 
     ? double.parse(json['price']) 
     : (json['price'] ?? 0).toDouble(),
@@ -52,13 +57,16 @@ class ProductModel extends Product {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
+      'name_ar': nameAr,
       'description': description,
+      'description_ar': descriptionAr,
       'price': price,
       'is_available': isAvailable,
       'stock': stock,
       'category': {
         'category_id': category.categoryId,
         'category_name': category.categoryName,
+        'category_name_ar': category.categoryNameAr,
       },
       'photos': photos
           .map((e) => {'photo_id': e.photoId, 'photo_url': e.photoUrl})

@@ -1,6 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kemet/core/routing/routes.dart';
+import 'package:kemet/features/notifications/presentation/cubit/notification_cubit.dart';
+import 'package:kemet/features/notifications/presentation/cubit/notification_state.dart';
 import 'package:kemet/features/notifications/presentation/screens/notifications_screen.dart';
 
 class NotificationBellButton extends StatelessWidget {
@@ -10,42 +12,25 @@ class NotificationBellButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-
-    
-    if (userId == null) {
-      return const Icon(Icons.notifications_outlined,
-          color: _goldColor, size: 24);
-    }
-
     return GestureDetector(
       onTap: () {
-        _markAllAsRead(userId);
+        context.read<NotificationCubit>().markAllAsRead();
+          Navigator.of(context).pushNamed(Routes.notificationsScreen);
 
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const NotificationsScreen(),
-          ),
-        );
       },
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          const Icon(Icons.notifications_outlined,
-              color: _goldColor, size: 24),
-
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('notifications')
-                .where('userId', isEqualTo: userId)
-                .where('isRead', isEqualTo: false)
-                .snapshots(),
-            builder: (context, snapshot) {
-              final count = snapshot.data?.docs.length ?? 0;
-
+          const Icon(Icons.notifications_outlined, color: _goldColor, size: 24),
+          BlocBuilder<NotificationCubit, NotificationState>(
+            buildWhen: (prev, curr) {
+              final p = prev is NotificationLoaded ? prev.unreadCount : 0;
+              final c = curr is NotificationLoaded ? curr.unreadCount : 0;
+              return p != c;
+            },
+            builder: (context, state) {
+              final count = state is NotificationLoaded ? state.unreadCount : 0;
               if (count == 0) return const SizedBox.shrink();
-
               return Positioned(
                 top: -4,
                 right: -4,
@@ -73,22 +58,5 @@ class NotificationBellButton extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  
-  Future<void> _markAllAsRead(String userId) async {
-    try {
-      final unread = await FirebaseFirestore.instance
-          .collection('notifications')
-          .where('userId', isEqualTo: userId)
-          .where('isRead', isEqualTo: false)
-          .get();
-
-      final batch = FirebaseFirestore.instance.batch();
-      for (final doc in unread.docs) {
-        batch.update(doc.reference, {'isRead': true});
-      }
-      await batch.commit();
-    } catch (_) {}
   }
 }

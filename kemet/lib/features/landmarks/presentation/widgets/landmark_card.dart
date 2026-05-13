@@ -1,10 +1,12 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/features/favorite/presentation/cubit/favorites_cubit.dart';
 import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
+import 'package:kemet/features/landmarks/data/models/landmarks_model.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 
-class LandmarkCard extends StatelessWidget {
+class LandmarkCard extends StatefulWidget {
   final Landmark landmark;
   final VoidCallback onTap;
 
@@ -15,9 +17,34 @@ class LandmarkCard extends StatelessWidget {
   });
 
   @override
+  State<LandmarkCard> createState() => _LandmarkCardState();
+}
+
+class _LandmarkCardState extends State<LandmarkCard> {
+  bool _imageFailed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final imageUrl = _firstValidPhotoUrl(widget.landmark);
+    assert(() {
+      if (widget.landmark.photos.isNotEmpty) {
+        debugPrint(
+          'LandmarkCard raw photo[0]: ${widget.landmark.photos.first.url} for id=${widget.landmark.id}',
+        );
+      }
+      debugPrint('LandmarkCard resolved imageUrl: $imageUrl for id=${widget.landmark.id}');
+      return true;
+    }());
+    if (imageUrl == null) {
+      return const SizedBox.shrink();
+    }
+
+    if (_imageFailed) {
+      return const SizedBox.shrink();
+    }
+
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0x66353535),
@@ -41,17 +68,32 @@ class LandmarkCard extends StatelessWidget {
                 child: SizedBox(
                   width: 112,
                   height: 112,
-                  child: landmark.photos.isNotEmpty
-                      ? Image.network(
-                          landmark.photos.first.url,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const ColoredBox(
-                            color: Color(0xFF20201F),
-                            child: Icon(Icons.image_not_supported,
-                                color: Colors.grey),
-                          ),
-                        )
-                      : const ColoredBox(color: Color(0xFF20201F)),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    httpHeaders: const {
+                      'User-Agent': 'KEMET/1.0 (+https://kemet.app)',
+                      'Referer': 'https://commons.wikimedia.org/',
+                      'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
+                    },
+                    fit: BoxFit.cover,
+                    memCacheWidth: 224,
+                    memCacheHeight: 224,
+                    maxWidthDiskCache: 224,
+                    maxHeightDiskCache: 224,
+                    fadeInDuration: Duration.zero,
+                    fadeOutDuration: Duration.zero,
+                    useOldImageOnUrlChange: false,
+                    errorWidget: (_, __, ___) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          setState(() {
+                            _imageFailed = true;
+                          });
+                        }
+                      });
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ),
               ),
 
@@ -70,7 +112,7 @@ class LandmarkCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              landmark.name,
+                              widget.landmark.name,
                               style: const TextStyle(
                                 fontFamily: 'Manrope',
                                 fontWeight: FontWeight.w800,
@@ -84,13 +126,13 @@ class LandmarkCard extends StatelessWidget {
                           BlocBuilder<FavoritesCubit, FavoritesState>(
                             builder: (context, state) {
                               final isFav = state is FavoritesLoaded
-                                  ? state.isFavorite(landmark.id)
+                                  ? state.isFavorite(widget.landmark.id)
                                   : false;
 
                               return GestureDetector(
                                 onTap: () => context
                                     .read<FavoritesCubit>()
-                                    .toggle(landmark.id),
+                                    .toggle(widget.landmark.id),
                                 child: AnimatedSwitcher(
                                   duration:
                                       const Duration(milliseconds: 250),
@@ -113,7 +155,7 @@ class LandmarkCard extends StatelessWidget {
                       ),
 
                       Text(
-                        landmark.description,
+                        widget.landmark.description,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -130,7 +172,7 @@ class LandmarkCard extends StatelessWidget {
                               size: 12, color: Color(0xFFF2CA50)),
                           const SizedBox(width: 4),
                           Text(
-                            '${landmark.city}, Egypt',
+                            '${widget.landmark.city}, Egypt',
                             style: const TextStyle(
                               fontFamily: 'Manrope',
                               fontSize: 10,
@@ -149,5 +191,9 @@ class LandmarkCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String? _firstValidPhotoUrl(Landmark landmark) {
+    return LandmarkModel.firstValidPhotoUrl(landmark);
   }
 }
