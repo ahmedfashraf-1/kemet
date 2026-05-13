@@ -71,7 +71,6 @@ import 'package:kemet/features/order/presentation/screens/checkout_screen.dart';
 import 'package:kemet/features/order/presentation/screens/order_confirmation_screen.dart';
 import 'package:kemet/features/order/presentation/cubit/checkout_cubit.dart';
 import 'package:kemet/features/payment/domain/usecases/payment_usecases.dart';
-import 'package:kemet/features/payment/presentation/cubit/payment_cubit.dart';
 import 'package:kemet/features/order/domain/entities/order.dart'
     as order_entity;
 import 'package:kemet/features/store/domain/entities/cart.dart';
