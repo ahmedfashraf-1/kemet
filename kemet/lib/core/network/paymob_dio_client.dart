@@ -13,7 +13,7 @@ class PaymobDioClient {
   late final Dio _dio;
   bool _initialised = false;
 
-  /// Call once inside your DI init() before any payment request.
+  // Call once inside your DI init() before any payment request
   void init() {
     if (_initialised) return;
 
@@ -27,12 +27,12 @@ class PaymobDioClient {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        // Don't throw on 4xx — we parse Paymob's error body ourselves
+        // Don't throw on 4xx we parse Paymob's error body ourselves
         validateStatus: (status) => status != null && status < 500,
       ),
     );
 
-    // Debug logging — only in debug builds
+    // Debug logging only in debug builds
     if (kDebugMode) {
       _dio.interceptors.add(
         PrettyDioLogger(
@@ -43,11 +43,10 @@ class PaymobDioClient {
         ),
       );
     }
-
     _initialised = true;
   }
 
-  // ─── POST ────────────────────────────────────────────────────────────────
+  // POST 
 
   Future<Response> post(
     String path, {
@@ -60,7 +59,7 @@ class PaymobDioClient {
     }
   }
 
-  // ─── GET ─────────────────────────────────────────────────────────────────
+  // GET 
 
   Future<Response> get(String path) async {
     try {
@@ -70,7 +69,7 @@ class PaymobDioClient {
     }
   }
 
-  // ─── Error mapping → YOUR existing exceptions ────────────────────────────
+  //  Error mapping ->  existing exceptions 
 
   Exception _mapError(DioException e) {
     switch (e.type) {
@@ -80,7 +79,6 @@ class PaymobDioClient {
         return const PaymobTimeoutException();
 
       case DioExceptionType.connectionError:
-        // Re-use your existing OfflineException for connectivity errors
         return OfflineException();
 
       case DioExceptionType.badResponse:

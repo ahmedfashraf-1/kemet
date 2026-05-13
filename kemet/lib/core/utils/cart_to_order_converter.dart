@@ -2,9 +2,9 @@ import 'package:kemet/features/payment/domain/entities/payment_entities.dart';
 import 'package:kemet/features/store/domain/entities/cart.dart';
 import '../../features/order/domain/entities/order.dart';
 
-/// Converts Cart items to Order items for checkout
+// Converts Cart items to Order items for checkout
 class CartToOrderConverter {
-  /// Convert CartItem list to OrderItem list
+  // Convert CartItem list to OrderItem list
   static List<OrderItem> convertItems(List<CartItem> cartItems) {
     return cartItems.map((item) {
       return OrderItem(
@@ -15,7 +15,7 @@ class CartToOrderConverter {
     }).toList();
   }
 
-  /// Convert billing data entity to JSON string
+  // Convert billing data entity to JSON string
   static String billingDataToJson(BillingDataEntity billingData) {
     return '''{
       "firstName": "${billingData.firstName}",

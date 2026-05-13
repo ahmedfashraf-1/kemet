@@ -1,5 +1,3 @@
-// features/payment/presentation/screens/failed_screen.dart
-
 import 'package:flutter/material.dart';
 
 import '../../../../core/strings/failures.dart';

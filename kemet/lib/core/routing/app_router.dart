@@ -100,35 +100,35 @@ class AppRouter {
         return _fadeDominantFromRight(const OnboardingScreen4(), setting);
 
       case Routes.HomeScreen:
-  return _fadeDominantFromRight(
-  MultiBlocProvider(
-    providers: [
-      BlocProvider(
-        create: (context) => LandmarksCubit(
-          getAllLandmarksUsecase: GetAllLandmarksUsecase(
-            context.read<LandmarksRepository>(),
+        return _fadeDominantFromRight(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider(
+                create: (context) => LandmarksCubit(
+                  getAllLandmarksUsecase: GetAllLandmarksUsecase(
+                    context.read<LandmarksRepository>(),
+                  ),
+                ),
+              ),
+              BlocProvider(
+                create: (_) => NotificationCubit(NotificationRepositoryImpl()),
+              ),
+            ],
+            child: const MainShell(child: HomeScreen()),
           ),
-        ),
-      ),
-      BlocProvider(
-        create: (_) => NotificationCubit(NotificationRepositoryImpl()),
-      ),
-    ],
-    child: const MainShell(child: HomeScreen()),
-  ),
-  setting,
-);
+          setting,
+        );
 
       case Routes.notificationsScreen:
-  return _fadeDominantFromRight(
-    BlocProvider(
-      create: (_) => NotificationCubit(NotificationRepositoryImpl())
-        ..startListening(),
-      child: const NotificationsScreen(),
-    ),
-    setting,
-  );
-       
+        return _fadeDominantFromRight(
+          BlocProvider(
+            create: (_) =>
+                NotificationCubit(NotificationRepositoryImpl())
+                  ..startListening(),
+            child: const NotificationsScreen(),
+          ),
+          setting,
+        );
 
       // case Routes.notificationDetails:
       //   //  return _fadeDominantFromRight(const NotificationsScreen(), setting);
@@ -143,24 +143,23 @@ class AppRouter {
       //     ),
       //     setting,
       //   );
-       
 
-       case Routes.notificationDetails:
-  final args = setting.arguments is Map<String, dynamic>
-      ? setting.arguments as Map<String, dynamic>
-      : const <String, dynamic>{};
-  return _fadeDominantFromRight(
-    BlocProvider(
-      create: (_) => NotificationCubit(NotificationRepositoryImpl())
-        ..startListening(), 
-      child: NotificationDetailsScreen(
-        title: args['title'] as String?,
-        body:  args['body']  as String?,
-      ),
-    ),
-    setting,
-  );
-
+      case Routes.notificationDetails:
+        final args = setting.arguments is Map<String, dynamic>
+            ? setting.arguments as Map<String, dynamic>
+            : const <String, dynamic>{};
+        return _fadeDominantFromRight(
+          BlocProvider(
+            create: (_) =>
+                NotificationCubit(NotificationRepositoryImpl())
+                  ..startListening(),
+            child: NotificationDetailsScreen(
+              title: args['title'] as String?,
+              body: args['body'] as String?,
+            ),
+          ),
+          setting,
+        );
 
       case Routes.mainShell:
         return _fadeDominantFromRight(
@@ -259,20 +258,19 @@ class AppRouter {
         );
 
       case Routes.map:
-          return _fadeDominantFromRight(
-            BlocProvider(
-              create: (context) => MapCubit(
-                getMapLocations: GetMapLocationsUseCase(
-                  context.read<LandmarksRepository>(),
-                ),
-                getUserLocation: GetUserLocationUseCase(),
+        return _fadeDominantFromRight(
+          BlocProvider(
+            create: (context) => MapCubit(
+              getMapLocations: GetMapLocationsUseCase(
+                context.read<LandmarksRepository>(),
               ),
-              child: const MapScreen(),
+              getUserLocation: GetUserLocationUseCase(),
             ),
-            setting,
-          );
-        
-      
+            child: const MapScreen(),
+          ),
+          setting,
+        );
+
       case Routes.userReviewsScreen:
         final userIdArg = setting.arguments;
         if (userIdArg is! String || userIdArg.isEmpty) {
@@ -333,6 +331,11 @@ class AppRouter {
                     ),
                   ),
                 )..getProducts(),
+              ),
+              BlocProvider(
+                create: (_) =>
+                    NotificationCubit(NotificationRepositoryImpl())
+                      ..startListening(),
               ),
               BlocProvider(
                 create: (_) {
