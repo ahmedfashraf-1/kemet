@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:kemet/core/routing/routes.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -23,6 +24,12 @@ class NotificationService {
   static const String _channelName = 'High Importance Notifications';
   static const String _channelDescription =
       'Used for important push notifications while app is in foreground.';
+      static const String _pushKey = 'settings_push_notifications';
+
+Future<bool> _isPushEnabled() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool(_pushKey) ?? true;
+}
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
@@ -35,7 +42,6 @@ class NotificationService {
     if (_isInitialized) return;
     _navigatorKey = navigatorKey;
 
-    await _initializeLocalNotifications();
     await _requestPermissions();
     await _configureForegroundPresentation();
     await _logAndSubscribe();
@@ -77,11 +83,6 @@ class NotificationService {
 
     await _localNotifications.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: (response) {
-        _handleNotificationPayload(response.payload);
-      },
-      onDidReceiveBackgroundNotificationResponse:
-          _onDidReceiveBackgroundNotificationResponse,
     );
 
     const channel = AndroidNotificationChannel(
@@ -113,8 +114,14 @@ class NotificationService {
       debugPrint('FCM token refreshed: $newToken');
     });
 
+    final pushEnabled = await _isPushEnabled();
+  if (pushEnabled) {
     await _messaging.subscribeToTopic(_topicName);
     debugPrint('Subscribed to topic: $_topicName');
+  } else {
+    await _messaging.unsubscribeFromTopic(_topicName);
+    debugPrint('Unsubscribed from topic: $_topicName');
+  }
   }
 
   void _wireMessageListeners() {
@@ -132,6 +139,7 @@ class NotificationService {
   }
 
   Future<void> _showForegroundLocalNotification(RemoteMessage message) async {
+    if (!await _isPushEnabled()) return;
     final notification = message.notification;
     if (notification == null) return;
 

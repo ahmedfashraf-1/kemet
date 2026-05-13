@@ -218,7 +218,7 @@ class _LandmarkDetailsScreenState extends State<LandmarkDetailsScreen>
       }, SetOptions(merge: true));
       LocalNotificationService.instance.showLandmarkViewedNotification(
         landmarkName: widget.landmark.name,
-        city: widget.landmark.city,
+        city: widget.landmark.city
       );
     } catch (e) {
       debugPrint("Error: $e");

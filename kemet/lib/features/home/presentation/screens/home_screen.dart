@@ -20,6 +20,7 @@ import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart'
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
 import 'package:kemet/features/landmarks/presentation/cubit/landmarks_cubit.dart';
+import 'package:kemet/features/notifications/presentation/cubit/notification_cubit.dart';
 import 'package:kemet/features/notifications/presentation/widgets/notification_bell_button.dart';
 import 'package:kemet/features/profile/presentation/widgets/profile_avatar_button.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
@@ -74,6 +75,8 @@ class _HomeScreenState extends State<HomeScreen> {
         page: 1,
         languageCode: languageCode,
       );
+
+      context.read<NotificationCubit>().startListening();
     });
   }
 

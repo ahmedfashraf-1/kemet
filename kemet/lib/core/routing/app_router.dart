@@ -19,6 +19,8 @@ import 'package:kemet/features/home/presentation/screens/home_screen.dart';
 import 'package:kemet/features/maps/domain/usecases/map_usecases.dart';
 import 'package:kemet/features/maps/presentation/cubit/map_cubit.dart';
 import 'package:kemet/features/maps/presentation/screens/map_screen.dart';
+import 'package:kemet/features/notifications/data/repositories/notification_repository_impl.dart';
+import 'package:kemet/features/notifications/presentation/cubit/notification_cubit.dart';
 import 'package:kemet/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen1_view.dart';
 import 'package:kemet/features/onboarding/presentation/screens/onboarding_screen2_view.dart';
@@ -28,7 +30,6 @@ import 'package:kemet/features/splash/presentation/screens/splash_view.dart';
 import 'package:kemet/features/auth/presentation/screens/login_view.dart';
 import 'package:kemet/features/auth/presentation/screens/register_view.dart';
 import 'package:kemet/features/main/presentation/screens/main_shell.dart';
-//import 'package:kemet/features/landmarks/presentation/screens/home_screen.dart';
 import 'package:kemet/features/landmarks/presentation/screens/landmark_details_screen.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/reviews/domain/repositories/reviews_repository.dart';
@@ -44,7 +45,6 @@ import 'package:kemet/features/chatbot/presentation/screens/chatbot_screen.dart'
 import 'package:kemet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:kemet/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:kemet/features/profile/presentation/di/profile_di.dart';
-// import 'package:kemet/features/home/presentation/screens/home_screen.dart';
 import 'package:kemet/features/settings/presentation/screens/settings_screen.dart';
 import 'package:kemet/features/notifications/presentation/screens/notification_details_screen.dart';
 
@@ -79,36 +79,67 @@ class AppRouter {
         return _fadeDominantFromRight(const OnboardingScreen4(), setting);
 
       case Routes.HomeScreen:
-        return _fadeDominantFromRight(
-          BlocProvider(
-            create: (context) => LandmarksCubit(
-              getAllLandmarksUsecase: GetAllLandmarksUsecase(
-                context.read<LandmarksRepository>(),
-              ),
+  return _fadeDominantFromRight(
+    MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => LandmarksCubit(
+            getAllLandmarksUsecase: GetAllLandmarksUsecase(
+              context.read<LandmarksRepository>(),
             ),
-            child: const MainShell(child: HomeScreen()),
           ),
-          setting,
-        );
+        ),
+        BlocProvider(
+          create: (_) => NotificationCubit(NotificationRepositoryImpl()),
+        ),
+      ],
+      child: const MainShell(child: HomeScreen()),
+    ),
+    setting,
+  );
 
-      // msh mst5dmenha pas ll zaman
-      case Routes.notificationDetails:
-        //  return _fadeDominantFromRight(const NotificationsScreen(), setting);
-        final args = setting.arguments is Map<String, dynamic>
-            ? setting.arguments as Map<String, dynamic>
-            : const <String, dynamic>{};
-        return _fadeDominantFromRight(
-          NotificationDetailsScreen(
-            title: args['title'] as String?,
-            body: args['body'] as String?,
-          ),
-          setting,
-        );
-
-      // const mtgesh m3 statefulwidget
       case Routes.notificationsScreen:
-        return _fadeDominantFromRight(NotificationsScreen(), setting);
-      // return _fadeDominantFromRight(const NotificationsScreen(), setting);
+  return _fadeDominantFromRight(
+    BlocProvider(
+      create: (_) => NotificationCubit(NotificationRepositoryImpl())
+        ..startListening(),
+      child: const NotificationsScreen(),
+    ),
+    setting,
+  );
+       
+
+      // case Routes.notificationDetails:
+      //   //  return _fadeDominantFromRight(const NotificationsScreen(), setting);
+      //   final args = setting.arguments is Map<String, dynamic>
+      //       ? setting.arguments as Map<String, dynamic>
+      //       : const <String, dynamic>{};
+      //   return _fadeDominantFromRight(
+      //     NotificationDetailsScreen(
+      //       docId: args['docId'] as String?,
+      //       title: args['title'] as String?,
+      //       body: args['body'] as String?,
+      //     ),
+      //     setting,
+      //   );
+       
+
+       case Routes.notificationDetails:
+  final args = setting.arguments is Map<String, dynamic>
+      ? setting.arguments as Map<String, dynamic>
+      : const <String, dynamic>{};
+  return _fadeDominantFromRight(
+    BlocProvider(
+      create: (_) => NotificationCubit(NotificationRepositoryImpl())
+        ..startListening(), 
+      child: NotificationDetailsScreen(
+        title: args['title'] as String?,
+        body:  args['body']  as String?,
+      ),
+    ),
+    setting,
+  );
+
 
       case Routes.mainShell:
         return _fadeDominantFromRight(

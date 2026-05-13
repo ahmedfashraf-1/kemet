@@ -11,41 +11,65 @@ import 'package:kemet/features/profile/presentation/di/profile_di.dart';
 import 'package:kemet/kemet_app.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:kemet/core/routing/routes.dart';
 
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  print(' Handling a background message: ${message.messageId}');
-}
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  debugPrint('Background message: ${message.messageId}');
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+
+  await Firebase.initializeApp();
+  await dotenv.load(fileName: '.env');
   await AndroidAlarmManager.initialize();
 
-  await dotenv.load(fileName: '.env');
-  await Firebase.initializeApp();
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-
   setupProfileDi();
-  final navigatorKey = GlobalKey<NavigatorState>();
-  // initialize  FCM
-  await NotificationService.instance.initialize(navigatorKey: navigatorKey);
-   // Local notifications
-  await LocalNotificationService.instance.initialize(key: navigatorKey); 
 
-  // Schedule re-engagement alarm every 1 minute for test validation.
+
+// await LocalNotificationService.instance.initialize(
+//   onTap: (title, body) {
+//     debugPrint('🔔 navigatorKey state: ${navigatorKey.currentState}');
+//     navigatorKey.currentState?.pushNamed(
+//       Routes.notificationDetails,
+//       arguments: {'title': title, 'body': body ,  'docId': null,},
+//     );
+//   },
+// );
+
+
+  // Local notifications
+await LocalNotificationService.instance.initialize(
+  onTap: (title, body) {
+    debugPrint('🔔 PUSHING ROUTE: ${Routes.notificationDetails}');
+    debugPrint('🔔 title: $title, body: $body');
+    final result = navigatorKey.currentState?.pushNamed(
+      Routes.notificationDetails,
+      arguments: {'title': title, 'body': body},
+    );
+    debugPrint('🔔 push result: $result');
+  },
+);
+
+
+  // FCM
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  await NotificationService.instance.initialize(navigatorKey: navigatorKey);
+  
   await AndroidAlarmManager.cancel(0);
   final isAlarmScheduled = await AndroidAlarmManager.periodic(
-    const Duration(minutes: 1),
+    const Duration(hours: 24), 
     0,
     fireReEngagementNotification,
-    wakeup: true,
-    exact: true,
+    wakeup: false,  
+    exact: false,    
     rescheduleOnReboot: true,
   );
-  debugPrint('Re-engagement periodic alarm scheduled: $isAlarmScheduled');
-  
+  debugPrint('Re-engagement alarm scheduled: $isAlarmScheduled');
 
   final sharedPrefs = await SharedPreferences.getInstance();
 
@@ -53,7 +77,7 @@ Future<void> main() async {
     KemetApp(
       appRouter: AppRouter(),
       sharedPreferences: sharedPrefs,
-      navigatorKey: navigatorKey,
+      navigatorKey: navigatorKey, 
     ),
   );
 }
