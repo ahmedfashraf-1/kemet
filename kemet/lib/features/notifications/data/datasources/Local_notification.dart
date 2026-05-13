@@ -27,7 +27,9 @@ class LocalNotificationService {
   static const int _welcomeId = 1;
   static const int _landmarkId = 2;
   static const int _favoriteId = 3;
-  static const int _reviewId = 4; 
+  static const int _reviewId = 4;
+  static const int _storeId = 5;
+  static const int _cartId = 6; 
 
 
   // for check permission with shared preference
@@ -210,5 +212,55 @@ Future<void> showReviewNotification({required bool added}) async {
   );
 
 }
+
+  // Store Entry Notification
+  Future<void> showStoreEntryNotification() async {
+    if (!await _isPushEnabled()) return;
+
+    const title = 'Ya salam 😍';
+    const body = 'Shopping mode: ON 😎🔥';
+
+    final details = ReviewNotificationUI.build();
+    await _plugin.show(
+      _storeId,
+      title,
+      body,
+      details,
+      payload: '$title||$body',
+    );
+
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+    await RemoteNotificationDatasource.instance.saveLocalNotificationToFirestore(
+      userId: userId,
+      title: title,
+      body: body,
+    );
+  }
+
+  // Add to Cart Notification
+  Future<void> showAddToCartNotification(String productName) async {
+    if (!await _isPushEnabled()) return;
+
+    final title = 'Added successfully 🔥';
+    const body = 'ap2a t3ala kul yoom 😉';
+
+    final details = ReviewNotificationUI.build();
+    await _plugin.show(
+      _cartId,
+      title,
+      body,
+      details,
+      payload: '$title||$body',
+    );
+
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+    await RemoteNotificationDatasource.instance.saveLocalNotificationToFirestore(
+      userId: userId,
+      title: title,
+      body: body,
+    );
+  }
 
 }
