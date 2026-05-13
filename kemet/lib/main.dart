@@ -77,7 +77,7 @@ Future<void> main() async {
   
   await AndroidAlarmManager.cancel(0);
   final isAlarmScheduled = await AndroidAlarmManager.periodic(
-    const Duration(hours: 24),
+    const Duration(minutes: 1),
     0,
     fireReEngagementNotification,
     wakeup: false,  

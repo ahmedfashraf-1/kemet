@@ -30,8 +30,8 @@ class _LandmarkHeroSectionState extends State<LandmarkHeroSection> {
   @override
   Widget build(BuildContext context) {
     final heroHeight = MediaQuery.of(context).size.height * 0.68;
-    final imageUrl = _firstValidPhotoUrl(widget.landmark);
-
+    final imageUrl =
+        _firstValidPhotoUrl(widget.landmark) ?? '';
     assert(() {
       if (widget.landmark.photos.isNotEmpty) {
         debugPrint(
@@ -42,10 +42,6 @@ class _LandmarkHeroSectionState extends State<LandmarkHeroSection> {
       return true;
     }());
 
-    if (imageUrl == null || _imageFailed) {
-      return const SizedBox.shrink();
-    }
-
     return SizedBox(
       height: heroHeight,
       child: Stack(
@@ -54,7 +50,12 @@ class _LandmarkHeroSectionState extends State<LandmarkHeroSection> {
           Positioned.fill(
             child: Hero(
               tag: _heroTag(widget.landmark.id),
-              child: CachedNetworkImage(
+              child: imageUrl.trim().isEmpty
+                  ? Image.asset(
+                'images/heroScreen.png',
+                fit: BoxFit.cover,
+              )
+                  : CachedNetworkImage(
                 imageUrl: imageUrl,
                 httpHeaders: const {
                   'User-Agent': 'KEMET/1.0 (+https://kemet.app)',
@@ -69,15 +70,19 @@ class _LandmarkHeroSectionState extends State<LandmarkHeroSection> {
                 fadeInDuration: Duration.zero,
                 fadeOutDuration: Duration.zero,
                 useOldImageOnUrlChange: false,
+
+                placeholder: (context, url) {
+                  return Image.asset(
+                    'images/heroScreen.png',
+                    fit: BoxFit.cover,
+                  );
+                },
+
                 errorWidget: (context, url, error) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) {
-                      setState(() {
-                        _imageFailed = true;
-                      });
-                    }
-                  });
-                  return const SizedBox.shrink();
+                  return Image.asset(
+                    'images/heroScreen.png',
+                    fit: BoxFit.cover,
+                  );
                 },
               ),
             ),

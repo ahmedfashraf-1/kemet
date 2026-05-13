@@ -425,9 +425,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 .read<SettingsCubit>()
                                 .state
                                 .localeCode;
-                            final visibleLandmarks = state.landmarks
-                                .where(_hasValidLandmarkImage)
-                                .toList(growable: false);
+                            final visibleLandmarks = state.landmarks;
                             if (visibleLandmarks.isEmpty) {
                               return const SliverFillRemaining(
                                 child: Center(
@@ -465,12 +463,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   }
 
                                   final landmark = visibleLandmarks[index];
-                                  final imageUrl = _firstValidLandmarkImageUrl(
-                                    landmark,
-                                  );
-                                  if (imageUrl == null) {
-                                    return const SizedBox.shrink();
-                                  }
+                                  final imageUrl =
+                                      _firstValidLandmarkImageUrl(landmark) ?? '';
                                   final description = _resolvedDescription(
                                     landmark,
                                     localeCode,
@@ -794,14 +788,8 @@ class _HomeScreenState extends State<HomeScreen> {
     required String imageUrl,
     required String description,
   }) {
-    bool imageFailed = false;
-
     return StatefulBuilder(
       builder: (context, setState) {
-        if (imageFailed) {
-          return const SizedBox.shrink();
-        }
-
         return Padding(
           padding: EdgeInsets.only(
             left: 24.w,
@@ -841,13 +829,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         aspectRatio: 16 / 10,
                         child: Hero(
                           tag: _heroTag(landmark.id),
-                          child: CachedNetworkImage(
+                          child: imageUrl.trim().isEmpty
+                              ? Image.asset(
+                            'images/heroScreen.png',
+                            fit: BoxFit.cover,
+                          )
+                              : CachedNetworkImage(
                             imageUrl: imageUrl,
-                              httpHeaders: const {
-                                'User-Agent': 'KEMET/1.0 (+https://kemet.app)',
-                                'Referer': 'https://commons.wikimedia.org/',
-                                'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
-                              },
+                            httpHeaders: const {
+                              'User-Agent': 'KEMET/1.0 (+https://kemet.app)',
+                              'Referer': 'https://commons.wikimedia.org/',
+                              'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
+                            },
                             fit: BoxFit.cover,
                             memCacheWidth: _landmarkCacheWidth(context),
                             memCacheHeight: _landmarkCacheHeight(context),
@@ -856,15 +849,17 @@ class _HomeScreenState extends State<HomeScreen> {
                             fadeInDuration: Duration.zero,
                             fadeOutDuration: Duration.zero,
                             useOldImageOnUrlChange: false,
+                            placeholder: (context, url) {
+                              return Image.asset(
+                                'images/heroScreen.png',
+                                fit: BoxFit.cover,
+                              );
+                            },
                             errorWidget: (context, url, error) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (mounted) {
-                                  setState(() {
-                                    imageFailed = true;
-                                  });
-                                }
-                              });
-                              return const SizedBox.shrink();
+                              return Image.asset(
+                                'images/heroScreen.png',
+                                fit: BoxFit.cover,
+                              );
                             },
                           ),
                         ),
