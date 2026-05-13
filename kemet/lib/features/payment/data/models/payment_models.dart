@@ -1,11 +1,4 @@
-// features/payment/data/models/payment_models.dart
-//
-// Each model extends its domain entity and adds fromJson.
-// Only the data layer touches these — domain uses the entity directly.
-
 import '../../domain/entities/payment_entities.dart';
-
-// ─── Auth ─────────────────────────────────────────────────────────────────────
 
 class AuthTokenModel extends AuthTokenEntity {
   const AuthTokenModel({required super.token});
@@ -19,7 +12,6 @@ class AuthTokenModel extends AuthTokenEntity {
   }
 }
 
-// ─── Order ────────────────────────────────────────────────────────────────────
 
 class OrderModel extends OrderEntity {
   const OrderModel({
@@ -41,7 +33,6 @@ class OrderModel extends OrderEntity {
   }
 }
 
-// ─── Payment Key ──────────────────────────────────────────────────────────────
 
 class PaymentKeyModel extends PaymentKeyEntity {
   const PaymentKeyModel({required super.paymentKey});
@@ -55,7 +46,6 @@ class PaymentKeyModel extends PaymentKeyEntity {
   }
 }
 
-// ─── Wallet Pay ───────────────────────────────────────────────────────────────
 
 class WalletPayModel extends WalletPayEntity {
   const WalletPayModel({required super.redirectUrl});
@@ -71,7 +61,6 @@ class WalletPayModel extends WalletPayEntity {
   }
 }
 
-// ─── Transaction ──────────────────────────────────────────────────────────────
 
 class TransactionModel extends TransactionEntity {
   const TransactionModel({
@@ -100,10 +89,8 @@ class TransactionModel extends TransactionEntity {
   }
 }
 
-// ─── Billing Data serialiser ──────────────────────────────────────────────────
 
 class BillingDataModel {
-  /// Converts a [BillingDataEntity] into the JSON map Paymob expects.
   static Map<String, dynamic> toJson(BillingDataEntity e) => {
         'apartment':       e.apartment,
         'email':           e.email,
@@ -121,7 +108,6 @@ class BillingDataModel {
       };
 }
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
 
 int _asInt(dynamic v) {
   if (v == null) return 0;

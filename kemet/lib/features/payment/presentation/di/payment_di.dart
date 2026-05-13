@@ -11,7 +11,8 @@ import '../cubit/payment_cubit.dart';
 final getIt = GetIt.instance;
 
 void setupPaymentDi() {
-  // Ensure Paymob client is available and initialised.
+
+  // Ensure Paymob client is available and initialised
   getIt.registerLazySingleton<PaymobDioClient>(() {
     final client = PaymobDioClient();
     client.init();
@@ -23,7 +24,7 @@ void setupPaymentDi() {
     () => PaymentRemoteDataSourceImpl(client: getIt()),
   );
 
-  // Repository — NetworkInfo is already registered in main.dart
+  // Repository , NetworkInfo is already registered in main
   getIt.registerLazySingleton<PaymentRepository>(
     () => PaymentRepositoryImpl(
       remoteDataSource: getIt<PaymentRemoteDataSource>(),

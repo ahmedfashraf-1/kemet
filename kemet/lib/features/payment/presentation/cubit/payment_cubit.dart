@@ -3,7 +3,7 @@ import 'package:kemet/core/utils/order_id_generator.dart';
 
 import '../../../../core/constants/paymob_constants.dart';
 import '../../../../core/errors/failures.dart';
-import '../../../../core/strings/failures.dart'; // YOUR string constants
+import '../../../../core/strings/failures.dart';
 import '../../domain/entities/payment_entities.dart';
 import '../../domain/usecases/payment_usecases.dart';
 import 'payment_state.dart';
@@ -119,7 +119,7 @@ class PaymentCubit extends Cubit<PaymentState> {
       orderId: orderId,
       amountCents: amountCents,
       currency: PaymobConstants.currency,
-      integrationId: PaymobConstants.walletIntegrationId, // ← wallet id
+      integrationId: PaymobConstants.walletIntegrationId,
       billingData: billingData,
     ));
     final paymentKey = keyResult.fold(
@@ -141,7 +141,7 @@ class PaymentCubit extends Cubit<PaymentState> {
     );
   }
 
-  // Verify — called by WebView after it intercepts the Paymob callback URL
+  // Verify  called by WebView after it intercepts the Paymob callback URL
 
   Future<void> verifyPayment(String transactionId) async {
     emit(const PaymentVerifying());
@@ -167,7 +167,7 @@ class PaymentCubit extends Cubit<PaymentState> {
   //  User closed the WebView 
   void cancelPayment() => emit(const PaymentCancelled());
 
-  // Reset between payment sessions.
+  // Reset between payment sessions
   void reset() => emit(const PaymentInitial());
 
 

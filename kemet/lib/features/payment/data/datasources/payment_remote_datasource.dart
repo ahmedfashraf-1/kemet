@@ -136,7 +136,6 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
     return TransactionModel.fromJson(res.data as Map<String, dynamic>);
   }
 
-  //Guard 
 
   void _assertOk(int? statusCode, dynamic body) {
     if (statusCode == null) {

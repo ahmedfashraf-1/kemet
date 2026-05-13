@@ -39,19 +39,20 @@ Future<void> main() async {
   );
 
   setupProfileDi();
+
   // Payment DI: register Paymob client, repository, usecases and cubit
   try {
     setupPaymentDi();
-    debugPrint('✅ Payment DI setup successful');
+    debugPrint('Payment DI setup successful');
   } catch (e) {
-    debugPrint('❌ Payment DI setup failed: $e');
+    debugPrint('Payment DI setup failed: $e');
   }
   // Order DI: register order datasource, repository, usecases and cubit
   try {
     setupOrderDi();
-    debugPrint('✅ Order DI setup successful');
+    debugPrint('Order DI setup successful');
   } catch (e) {
-    debugPrint('❌ Order DI setup failed: $e');
+    debugPrint('Order DI setup failed: $e');
   }
   // initialize  FCM
   await NotificationService.instance.initialize(navigatorKey: navigatorKey);
