@@ -7,7 +7,6 @@ import 'package:kemet/features/landmarks/data/models/landmarks_model.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
 import 'package:kemet/features/landmarks/presentation/widgets/landmark_card.dart';
 
-
 class FavoritesPage extends StatelessWidget {
   const FavoritesPage({super.key});
 
@@ -39,8 +38,11 @@ class FavoritesPage extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.wifi_off,
-                        color: Color(0xFFD0C5AF), size: 48),
+                    const Icon(
+                      Icons.wifi_off,
+                      color: Color(0xFFD0C5AF),
+                      size: 48,
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       state.message,
@@ -50,8 +52,10 @@ class FavoritesPage extends StatelessWidget {
                     TextButton(
                       onPressed: () =>
                           context.read<FavoritesCubit>().loadFavorites(),
-                      child: const Text('Retry',
-                          style: TextStyle(color: Color(0xFFD4AF37))),
+                      child: const Text(
+                        'Retry',
+                        style: TextStyle(color: Color(0xFFD4AF37)),
+                      ),
                     ),
                   ],
                 ),
@@ -63,21 +67,18 @@ class FavoritesPage extends StatelessWidget {
             }
 
             if (state is FavoritesLoaded) {
-              final visibleFavorites = state.favorites
-                  .where(_hasValidPhotoUrl)
-                  .toList(growable: false);
-
-              if (visibleFavorites.isEmpty) {
+              if (state.favorites.isEmpty) {
                 return const _EmptyState();
               }
 
               return ListView.separated(
                 padding: const EdgeInsets.fromLTRB(24, 120, 24, 32),
-                itemCount: visibleFavorites.length,
+                itemCount: state.favorites.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
-                  final landmark = visibleFavorites[index];
+                  final landmark = state.favorites[index];
                   return LandmarkCard(
+                    key: ValueKey(landmark.id),
                     landmark: landmark,
                     onTap: () => Navigator.pushNamed(
                       context,
@@ -112,8 +113,7 @@ class FavoritesPage extends StatelessWidget {
         ),
         child: SafeArea(
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -122,7 +122,10 @@ class FavoritesPage extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Color(0xFFD4AF37)),
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        color: Color(0xFFD4AF37),
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const Text(
@@ -144,10 +147,6 @@ class FavoritesPage extends StatelessWidget {
       ),
     );
   }
-
-  bool _hasValidPhotoUrl(Landmark landmark) {
-    return LandmarkModel.hasValidImageUrl(landmark);
-  }
 }
 
 class _EmptyState extends StatelessWidget {
@@ -159,8 +158,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.favorite_border,
-              size: 64, color: Color(0xFFD4AF37)),
+          const Icon(Icons.favorite_border, size: 64, color: Color(0xFFD4AF37)),
           const SizedBox(height: 16),
           const Text(
             'No saved places yet',

@@ -63,26 +63,25 @@ class FavoritesRepositoryImpl implements FavoritesRepository {
       try {
         ids = localDataSource.getCachedFavoriteIds();
       } on EmptyCacheException {
-        return const Right([]);          // no favorites saved → empty list
+        return const Right([]); // no favorites saved → empty list
       }
 
       if (ids.isEmpty) return const Right([]);
 
-      // Fetch all landmarks from the existing LandmarksRepository
-      // (which handles its own remote/cache/network logic).
-      final result = await landmarksRepository.getAllLandmarks(
-        page: 1,
-        limit: 1000,   // large enough to cover the full catalog
-      );
+      final favorites = <Landmark>[];
+      for (final id in ids) {
+        final result = await landmarksRepository.getLandmarkById(id);
+        final mapped = result.fold<Landmark?>(
+          (_) => null,
+          (landmark) => landmark,
+        );
 
-      return result.fold(
-        Left.new,
-        (allLandmarks) {
-          final favorites =
-              allLandmarks.where((l) => ids.contains(l.id)).toList();
-          return Right(favorites);
-        },
-      );
+        if (mapped != null) {
+          favorites.add(mapped);
+        }
+      }
+
+      return Right(favorites);
     } catch (_) {
       return Left(EmptyCacheFailure());
     }
