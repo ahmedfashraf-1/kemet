@@ -66,6 +66,7 @@ import 'package:kemet/features/store/data/datasources/store_datasource.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kemet/features/favorite/presentation/screens/favorites_page.dart';
+import 'package:kemet/features/explored/presentation/screens/explored_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kemet/features/order/presentation/screens/checkout_screen.dart';
 import 'package:kemet/features/order/presentation/screens/order_confirmation_screen.dart';
@@ -187,6 +188,9 @@ class AppRouter {
         );
       case Routes.favoritesScreen:
         return _fadeDominantFromRight(const FavoritesPage(), setting);
+
+      case Routes.exploredScreen:
+        return _fadeDominantFromRight(const ExploredPage(), setting);
 
       case Routes.reviewsScreen:
         final landmarkArg = setting.arguments;

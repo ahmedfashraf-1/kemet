@@ -20,7 +20,7 @@ import 'package:kemet/features/reviews/domain/entities/review.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-
+import 'package:kemet/features/explored/presentation/screens/explored_page.dart';
 import '../cubit/profile_cubit.dart';
 import '../widgets/profile_cover_widget.dart';
 import '../widgets/profile_stats_widget.dart';
@@ -536,12 +536,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                   reviews: profile.reviewsCount,
                   onExploredTap: canViewPrivateData
                       ? () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Explored list coming soon.'),
-                            ),
-                          );
-                        }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BlocProvider.value(
+                          value: context.read<ProfileCubit>(),
+                          child:  ExploredPage(),
+                        ),
+                      ),
+                    );
+                  }
                       : null,
                   onFavoriteTap: isOwnProfile
                       ? () =>
