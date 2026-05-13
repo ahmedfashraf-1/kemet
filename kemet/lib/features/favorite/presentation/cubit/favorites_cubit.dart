@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kemet/core/errors/failures.dart';
 import 'package:kemet/core/strings/failures.dart';
@@ -5,6 +6,7 @@ import 'package:kemet/features/favorite/domain/usecases/get_favorites_usecase.da
 import 'package:kemet/features/favorite/domain/usecases/toggle_favorite_usecase.dart';
 import 'package:kemet/features/favorite/presentation/cubit/favorites_state.dart';
 import 'package:kemet/features/landmarks/domain/entities/landmarks.dart';
+import 'package:kemet/features/notifications/data/datasources/Local_notification.dart';
 
 
 class FavoritesCubit extends Cubit<FavoritesState> {
@@ -56,19 +58,40 @@ class FavoritesCubit extends Cubit<FavoritesState> {
 
     final toggleResult = await _toggleFavorite(id);
 
-    toggleResult.fold(
-      (failure) => loadFavorites(),
-      (_) async {
-        final result = await _getFavorites();
-        result.fold(
-          (failure) => emit(FavoritesError(_mapFailureToMessage(failure))),
-          (favorites) => emit(FavoritesLoaded(
-            favorites: favorites,
-            favoriteIds: favorites.map((l) => l.id).toSet(),
-          )),
-        );
+  toggleResult.fold(
+  (failure) => loadFavorites(),
+  (_) async {
+    final result = await _getFavorites();
+    result.fold(
+      (failure) => emit(FavoritesError(_mapFailureToMessage(failure))),
+      (favorites) async {
+        emit(FavoritesLoaded(
+          favorites: favorites,
+          favoriteIds: favorites.map((l) => l.id).toSet(),
+        ));
+
+        final userId = FirebaseAuth.instance.currentUser?.uid;
+        final isNowFav = favorites.any((l) => l.id == id);
+
+        if (userId != null) {
+          if (isNowFav) {
+            await LocalNotificationService.instance
+                .showFavoriteNotification(
+              added: true,
+              userId: userId,
+            );
+          } else {
+            await LocalNotificationService.instance
+                .showFavoriteNotification(
+              added: false,
+              userId: userId,
+            );
+          }
+        }
       },
     );
+  },
+);
   }
 
   String _mapFailureToMessage(Failure failure) {
