@@ -19,6 +19,10 @@ import 'package:kemet/features/reviews/data/repositories/reviews_repository_impl
 import 'package:kemet/features/reviews/domain/repositories/reviews_repository.dart';
 import 'package:kemet/features/splash/presentation/screens/splash_view.dart';
 import 'package:kemet/features/settings/presentation/cubit/settings_cubit.dart';
+import 'package:kemet/features/store/data/repositories/cart_repository_impl.dart';
+import 'package:kemet/features/store/domain/usecases/add_to_cart_usecase.dart';
+import 'package:kemet/features/store/domain/usecases/cart_usecases.dart';
+import 'package:kemet/features/store/presentation/cubit/cart_cubit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kemet/features/favorite/data/datasources/favorites_local_data_source.dart';
 import 'package:kemet/features/favorite/data/repositories/favorites_repository_impl.dart';
@@ -108,6 +112,18 @@ class KemetApp extends StatelessWidget {
             toggleFavorite: ToggleFavoriteUsecase(context.read<FavoritesRepository>()),
           )..loadFavorites(),
         ),
+        BlocProvider<CartCubit>(
+      create: (context) {
+        final repo = CartRepositoryImpl(); 
+        return CartCubit(
+          getCart: GetCartUseCase(repo),
+          addToCart: AddToCartUseCase(repo),
+          updateQuantity: UpdateQuantityUseCase(repo),
+          removeFromCart: RemoveFromCartUseCase(repo),
+          clearCart: ClearCartUseCase(repo),
+        )..loadCart();
+      },
+    ),
       ],
         child: ScreenUtilInit(
           designSize: const Size(375, 812),

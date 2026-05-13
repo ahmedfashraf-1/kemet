@@ -7,10 +7,9 @@ import 'package:kemet/core/services/text_to_speech_service.dart';
 class LandmarkBottomNavBar extends StatelessWidget {
   const LandmarkBottomNavBar({
     super.key,
-    this.activeIndex = 1,
+    this.activeIndex = 0,
     this.bottomInset = 0,
     this.onReviews,
-    this.onForumTap,
     this.onMapTap,
     this.onAudioTap,
     this.showReviews = true,
@@ -19,7 +18,6 @@ class LandmarkBottomNavBar extends StatelessWidget {
   final int activeIndex;
   final double bottomInset;
   final VoidCallback? onReviews;
-  final VoidCallback? onForumTap;
   final VoidCallback? onMapTap;
 
   final VoidCallback? onAudioTap;
@@ -55,25 +53,20 @@ class LandmarkBottomNavBar extends StatelessWidget {
                 mainAxisSize: MainAxisSize.max,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _navIcon(
-                    icon: Icons.forum_outlined,
-                    isActive: activeIndex == 0,
-                    onTap: onForumTap,
-                  ),
                   _primaryNavIcon(
                     icon: Icons.map,
-                    isActive: activeIndex == 1,
+                    isActive: activeIndex == 0,
                     onTap: onMapTap,
                   ),
                   _navIcon(
                     icon: Icons.headphones,
-                    isActive: activeIndex == 2,
+                    isActive: activeIndex == 1,
                     onTap: onAudioTap,
                   ),
                   if (showReviews)
                     _navIcon(
                       icon: Icons.rate_review_outlined,
-                      isActive: activeIndex == 3,
+                      isActive: activeIndex == 2,
                       onTap: onReviews,
                     ),
                 ],

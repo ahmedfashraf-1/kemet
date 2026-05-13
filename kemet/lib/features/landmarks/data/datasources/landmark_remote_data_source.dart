@@ -258,19 +258,59 @@ class LandmarkRemoteDataSourceImpl implements LandmarkRemoteDataSource {
   }
 
   List<LandmarkPhoto> _extractPhotos(Map<String, dynamic> json) {
-    final photos = <LandmarkPhoto>[];
+    final normalizedUrls = <String>{};
 
-    final previewUrl = json['preview']?['source']?.toString();
-    final imageUrl = json['image']?.toString();
-    final candidates = <String?>[previewUrl, imageUrl];
+    void collect(dynamic value) {
+      if (value == null) {
+        return;
+      }
 
-    for (final candidate in candidates) {
-      final normalized = LandmarkModel.normalizePhotoUrl(candidate);
-      if (normalized != null) {
-        photos.add(LandmarkPhoto(url: normalized));
+      if (value is String) {
+        final normalized = LandmarkModel.normalizePhotoUrl(value);
+        if (normalized != null) {
+          normalizedUrls.add(normalized);
+        }
+        return;
+      }
+
+      if (value is List) {
+        for (final item in value) {
+          collect(item);
+        }
+        return;
+      }
+
+      if (value is Map<String, dynamic>) {
+        for (final key in const [
+          'source',
+          'url',
+          'image',
+          'photo',
+          'preview',
+          'thumbnail',
+        ]) {
+          collect(value[key]);
+        }
+
+        for (final nestedValue in value.values) {
+          if (nestedValue is String ||
+              nestedValue is Map<String, dynamic> ||
+              nestedValue is List) {
+            collect(nestedValue);
+          }
+        }
       }
     }
 
-    return photos;
+    collect(json['preview']);
+    collect(json['image']);
+    collect(json['photo']);
+    collect(json['photos']);
+    collect(json['imageUrl']);
+    collect(json['photoUrl']);
+    collect(json['coverImage']);
+    collect(json['thumbnail']);
+
+    return normalizedUrls.map((url) => LandmarkPhoto(url: url)).toList();
   }
 }

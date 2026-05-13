@@ -8,115 +8,95 @@ import 'package:kemet/core/localization/app_localizations.dart';
 import 'package:kemet/core/routing/routes.dart';
 import 'package:kemet/core/utils/extensions.dart';
 import 'package:kemet/features/landmarks/domain/repositories/landmarks_repository.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kemet/features/store/presentation/cubit/cart_cubit.dart';
+import 'package:kemet/features/store/presentation/screens/cart_screen.dart';
 
 class MainShell extends StatefulWidget {
   final Widget child;
-  const MainShell({super.key, required this.child});
+  final int activeIndex;
+  const MainShell({super.key, required this.child, this.activeIndex = 0});
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  int _currentIndex = 0;
+  late int _currentIndex;
 
   final List<Map<String, dynamic>> _items = const [
     {'icon': Icons.home_rounded, 'label': 'home'},
     {'icon': Icons.explore_outlined, 'label': 'maps'},
-    {'icon': Icons.settings_outlined, 'label': 'settings'},
+    {'icon': Icons.local_mall_outlined, 'label': 'store'},
+    {'icon': Icons.shopping_cart_outlined, 'label': 'cart'},
+    {'icon': Icons.miscellaneous_services_outlined, 'label': 'settings'},
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.activeIndex;
+  }
+
   Future<void> _onItemTap(int index) async {
-    setState(() => _currentIndex = index);
+  if (index == _currentIndex) return;
 
+  switch (index) {
+    case 0:
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        Routes.HomeScreen,
+        (route) => false,
+      );
+      break;
 
-    if (index == 1) 
-          context.pushNamed(Routes.map);
+    case 1:
+      context.pushNamed(Routes.map);
+      break;
 
-    if (index == 2) {
-      await Navigator.of(context).pushNamed(Routes.settingsScreen);
+    case 2:
+      Navigator.of(context).pushReplacementNamed(
+        Routes.storeHome,
+      );
+      break;
+
+    case 3:
+      setState(() => _currentIndex = index);
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => BlocProvider.value(
+            value: context.read<CartCubit>(),
+            child: const CartScreen(),
+          ),
+        ),
+      );
+
       if (!mounted) return;
-      setState(() => _currentIndex = 0);
-    }
-  }
 
-  Future<void> _openChatbot() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null || currentUser.isAnonymous) {
-      debugPrint('[CHATBOT] blocked open: unauthenticated user');
+      setState(() => _currentIndex = widget.activeIndex);
+      break;
+
+    case 4:
+      setState(() => _currentIndex = index);
+
+      await Navigator.of(context).pushNamed(
+        Routes.settingsScreen,
+      );
+
       if (!mounted) return;
-      await Navigator.of(context).pushNamed(Routes.LoginView);
-      return;
-    }
 
-    final uid = currentUser.uid;
-    debugPrint('[CHATBOT] opening chatbot with user_id=$uid');
+      setState(() => _currentIndex = widget.activeIndex);
+      break;
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('current_user_id', uid);
-
-    if (!mounted) return;
-    await Navigator.of(context).pushNamed(Routes.chatbotScreen, arguments: uid);
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
       body: widget.child,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: SafeArea(
-        minimum: EdgeInsets.zero,
-        child: Padding(
-          padding: EdgeInsetsDirectional.only(end: 16.w, bottom: 8.h),
-          child: Container(
-            height: 48.h,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(9999),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFDAAB5F), Color(0xFF96703D)],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.mainGold.withOpacity(0.4),
-                  blurRadius: 20,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: MaterialButton(
-              onPressed: _openChatbot,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(9999),
-              ),
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    context.tr('kemet_ai'),
-                    style: GoogleFonts.cinzel(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textDarkOnGold,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  Icon(
-                    Icons.auto_awesome_outlined,
-                    color: AppColors.textDarkOnGold,
-                    size: 18.sp,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+      // Kemet AI is now available from the bottom navigation
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.screenBackground.withOpacity(0.92),
@@ -136,31 +116,36 @@ class _MainShellState extends State<MainShell> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(_items.length, (index) {
             final isActive = _currentIndex == index;
-            return GestureDetector(
-              onTap: () => _onItemTap(index),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _items[index]['icon'] as IconData,
-                    color: isActive
-                        ? AppColors.mainGold
-                        : AppColors.textSecondary,
-                    size: 24.sp,
-                  ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    context.tr(_items[index]['label'] as String),
-                    style: GoogleFonts.cinzel(
-                      fontSize: 9.sp,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => _onItemTap(index),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _items[index]['icon'] as IconData,
                       color: isActive
                           ? AppColors.mainGold
                           : AppColors.textSecondary,
+                      size: 24.sp,
                     ),
-                  ),
-                ],
+                    SizedBox(height: 4.h),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        context.tr(_items[index]['label'] as String),
+                        style: GoogleFonts.cinzel(
+                          fontSize: 9.sp,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                          color: isActive
+                              ? AppColors.mainGold
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           }),
