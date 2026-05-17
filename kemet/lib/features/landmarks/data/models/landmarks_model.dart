@@ -289,11 +289,29 @@ class LandmarkModel extends Landmark {
 
   static String? firstValidPhotoUrl(Landmark landmark) {
     for (final photo in landmark.photos) {
-      final normalized = normalizePhotoUrl(photo.url);
-      if (normalized != null) {
-        return normalized;
-      }
+      final raw = photo.url.trim();
+      if (raw.isEmpty) continue;
+
+      // حوّل thumbnail URLs لـ original
+      final deThumbed = _removeWikimediaThumb(raw);
+      final normalized = normalizePhotoUrl(deThumbed);
+      if (normalized != null) return normalized;
+
+      // جرب الـ raw مباشرة لو التحويل فشل
+      final fallback = normalizePhotoUrl(raw);
+      if (fallback != null) return fallback;
     }
     return null;
+  }
+
+  static String _removeWikimediaThumb(String url) {
+    if (!url.contains('/thumb/')) return url;
+    final parts = url.split('/thumb/');
+    if (parts.length != 2) return url;
+    final rest = parts[1].split('/');
+    if (rest.length < 3) return url;
+    // thumb format: .../thumb/a/b/file.jpg/400px-file.jpg
+    // original:     .../a/b/file.jpg
+    return '${parts[0]}/${rest[0]}/${rest[1]}/${rest[2]}';
   }
 }

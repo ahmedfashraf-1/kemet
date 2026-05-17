@@ -99,11 +99,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _onSearchChanged(String value) {
-    _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 350), _applyFilters);
-  }
+  String _searchText = '';
 
+  void _onSearchChanged(String value) {
+    setState(() {
+      _searchText = value.trim();
+    });
+  }
 
   void _openLandmarkDetails(Landmark landmark) {
     Navigator.push(
@@ -425,7 +427,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                 .read<SettingsCubit>()
                                 .state
                                 .localeCode;
-                            final visibleLandmarks = state.landmarks;
+                            final query = _searchText.toLowerCase().trim();
+
+                            final visibleLandmarks = state.landmarks.where((landmark) {
+                              if (query.isEmpty) return true;
+
+                              if (query.contains(' ')) return false;
+
+                              return landmark.name.toLowerCase().contains(query);
+                            }).toList();
                             if (visibleLandmarks.isEmpty) {
                               return const SliverFillRemaining(
                                 child: Center(
@@ -463,8 +473,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   }
 
                                   final landmark = visibleLandmarks[index];
-                                  final imageUrl =
-                                      _firstValidLandmarkImageUrl(landmark) ?? '';
+                                  final imageUrl = LandmarkModel.firstValidPhotoUrl(landmark) ?? '';
                                   final description = _resolvedDescription(
                                     landmark,
                                     localeCode,
@@ -850,9 +859,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             fadeOutDuration: Duration.zero,
                             useOldImageOnUrlChange: false,
                             placeholder: (context, url) {
-                              return Image.asset(
-                                'images/heroScreen.png',
-                                fit: BoxFit.cover,
+                              return const Center(
+                                child: CircularProgressIndicator(),
                               );
                             },
                             errorWidget: (context, url, error) {
@@ -1073,9 +1081,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return (height * MediaQuery.of(context).devicePixelRatio).round();
   }
 
-  String? _firstValidLandmarkImageUrl(Landmark landmark) {
-    return LandmarkModel.firstValidPhotoUrl(landmark);
-  }
 
   bool _hasValidLandmarkImage(Landmark landmark) {
     return LandmarkModel.hasValidImageUrl(landmark);

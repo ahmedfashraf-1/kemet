@@ -72,9 +72,8 @@ class _LandmarkHeroSectionState extends State<LandmarkHeroSection> {
                 useOldImageOnUrlChange: false,
 
                 placeholder: (context, url) {
-                  return Image.asset(
-                    'images/heroScreen.png',
-                    fit: BoxFit.cover,
+                  return const Center(
+                    child: CircularProgressIndicator(),
                   );
                 },
 
